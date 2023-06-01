@@ -18,6 +18,8 @@ func ValidateMetricURL(next http.Handler) http.Handler {
 		fmt.Printf("ValidateMetricURL: vars=%v len=%d\n", vars, len(vars))
 		// wrong type
 		if len(vars) > 2 && vars[2] != models.Gauge && vars[2] != models.Counter {
+			fmt.Println(vars[2] != models.Gauge)
+			fmt.Println(vars[2] != models.Counter)
 			fmt.Printf("ValidateMetricURL: invalid metric type %s\n", vars[2])
 			w.WriteHeader(http.StatusBadRequest)
 			return
