@@ -19,6 +19,6 @@ func main() {
 		panic(err)
 	}
 
-	// FIXME this is never reachable until process control implementation
+	// FIXME: this is never reachable until process control implementation
 	fmt.Println("Stopping server...")
 }

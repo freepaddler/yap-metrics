@@ -2,12 +2,10 @@ package store
 
 import "fmt"
 
-// Methods for Gauge metrics
 type Gauge interface {
 	GaugeUpdate(name string, value float64)
 }
 
-// Methods for Counter metrics
 type Counter interface {
 	CounterUpdate(name string, value int64)
 }
@@ -17,7 +15,7 @@ type Storage interface {
 	Counter
 }
 
-// MemStorage stores metrics in memory store
+// MemStorage is in-memory store
 type MemStorage struct {
 	counters map[string]int64
 	gauges   map[string]float64
@@ -25,10 +23,10 @@ type MemStorage struct {
 
 // NewMemStorage is a constructor for MemStorage
 func NewMemStorage() *MemStorage {
-	ms := MemStorage{}
+	ms := &MemStorage{}
 	ms.counters = make(map[string]int64)
 	ms.gauges = make(map[string]float64)
-	return &ms
+	return ms
 }
 
 func (ms *MemStorage) GaugeUpdate(name string, value float64) {

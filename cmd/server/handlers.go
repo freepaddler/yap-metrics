@@ -12,20 +12,20 @@ import (
 // UpdateHandler validates update request and writes metrics to storage
 func (srv *MetricsServer) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("UpdateHandler: Request received  URL=%v\n", r.URL)
-	// TODO should be checked in third-party router
+	// TODO: should be checked in third-party router
 	if r.Method != http.MethodPost {
 		// curl -i http://localhost:8080/update/bla...
 		fmt.Printf("UpdateHandler: wrong method %s\n", r.Method)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	// TODO change to third-party router to simplify validation
+	// TODO: change to third-party router to simplify validation
 	//remove request prefix
 	path, _ := strings.CutPrefix(r.URL.Path, "/update/")
 	// split url string to parts
 	// 0 = type, 1 = name, 2 = value
 	vars := strings.Split(path, "/")
-	// TODO simple way is to create structure and use json.Unmarshal for validation or use map
+	// TODO: simple way is to create structure and use json.Unmarshal for validation or use map
 	switch {
 
 	// check metric type
