@@ -1,5 +1,7 @@
 package store
 
+import "fmt"
+
 // Methods for Gauge metrics
 type Gauge interface {
 	GaugeUpdate(name string, value float64)
@@ -31,8 +33,10 @@ func NewMemStorage() *MemStorage {
 
 func (ms *MemStorage) GaugeUpdate(name string, value float64) {
 	ms.gauges[name] = value
+	fmt.Printf("GaugeUpdate: store value %f for gauge %s\n", value, name)
 }
 
 func (ms *MemStorage) CounterUpdate(name string, value int64) {
 	ms.counters[name] += value
+	fmt.Printf("CounterUpdate: add increment %d for counter %s\n", value, name)
 }
