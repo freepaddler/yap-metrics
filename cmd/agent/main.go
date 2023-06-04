@@ -30,7 +30,7 @@ func main() {
 	sc := agent.NewStatsCollector()
 	//var reporter agent.Reporter
 	//printReporter := agent.NewPrintReporter()
-	httpReporter := agent.NewHttpReporter(address)
+	httpReporter := agent.NewHTTPReporter(address)
 
 	fmt.Println("Starting loop")
 	ticker := 0

@@ -182,7 +182,7 @@ func Test_gauge_get(t *testing.T) {
 			wantOk: false,
 		},
 		{
-			// metric that was not updated updateTs < ReportTs should not be returned
+			// metric that was not updated updateTS < ReportTS should not be returned
 			name: "get NOT updated metric",
 			fields: fields{
 				gauge:    1.001,
@@ -255,7 +255,7 @@ func Test_counter_reported(t *testing.T) {
 	}
 }
 
-// check reportTs updates after reporting
+// check reportTS updates after reporting
 func Test_gauge_reported(t *testing.T) {
 	type fields struct {
 		value    float64
@@ -290,7 +290,7 @@ func Test_gauge_reported(t *testing.T) {
 		},
 		{
 			// reporting request lasted too long and the next reporting
-			// cycle was already successful. (gouge.reportTs < currentReportTs)
+			// cycle was already successful. (gouge.reportTS < currentReportTS)
 			name: "delay reported gauge",
 			fields: fields{
 				value:    1.11111,
@@ -363,15 +363,15 @@ func Test_counter_Report(t *testing.T) {
 	}
 }
 
-// check update of reportTs in case of success or failed report
+// check update of reportTS in case of success or failed report
 func Test_gauge_Report(t *testing.T) {
 	type fields struct {
 		value    float64
-		updateTs time.Time
-		reportTs time.Time
+		updateTS time.Time
+		reportTS time.Time
 	}
-	updateTs := time.Now().Add(-2 * time.Minute)
-	oldReportTs := time.Now().Add(-3 * time.Minute)
+	updateTS := time.Now().Add(-2 * time.Minute)
+	oldReportTS := time.Now().Add(-3 * time.Minute)
 	tests := []struct {
 		name     string
 		fields   fields
@@ -382,29 +382,29 @@ func Test_gauge_Report(t *testing.T) {
 			name: "failed reporting",
 			fields: fields{
 				value:    0.01,
-				updateTs: updateTs,
-				reportTs: oldReportTs,
+				updateTS: updateTS,
+				reportTS: oldReportTS,
 			},
 			reporter: failedReporter{},
-			want:     oldReportTs,
+			want:     oldReportTS,
 		},
 		{
 			name: "success reporting",
 			fields: fields{
 				value:    0.01,
-				updateTs: updateTs,
-				reportTs: oldReportTs,
+				updateTS: updateTS,
+				reportTS: oldReportTS,
 			},
 			reporter: successReporter{},
-			want:     updateTs,
+			want:     updateTS,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &gauge{
 				gauge:    tt.fields.value,
-				updateTS: tt.fields.updateTs,
-				reportTS: tt.fields.reportTs,
+				updateTS: tt.fields.updateTS,
+				reportTS: tt.fields.reportTS,
 			}
 			g.Report("", tt.reporter)
 			assert.Equal(t, tt.want, g.reportTS)

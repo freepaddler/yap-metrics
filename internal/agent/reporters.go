@@ -15,7 +15,7 @@ type HTTPReporter struct {
 	Reporter
 }
 
-func NewHttpReporter(address string) *HTTPReporter {
+func NewHTTPReporter(address string) *HTTPReporter {
 	return &HTTPReporter{
 		address: address,
 	}
