@@ -38,7 +38,6 @@ func (c *counter) Report(n string, r Reporter) {
 	if r.Report(m) {
 		c.reported(m.Value)
 	}
-	return
 }
 
 // reported updates prev with value after successful update
@@ -51,8 +50,8 @@ func (c *counter) reported(v int64) {
 // Gauge metric type
 type gauge struct {
 	gauge    float64
-	updateTs time.Time
-	reportTs time.Time
+	updateTS time.Time
+	reportTS time.Time
 }
 
 func newGauge() *gauge {
@@ -62,15 +61,15 @@ func newGauge() *gauge {
 // Update update gauge metric
 func (g *gauge) Update(v float64) {
 	g.gauge = v
-	g.updateTs = time.Now()
+	g.updateTS = time.Now()
 }
 
 // get returns Metrics to report
 func (g *gauge) get() (m models.Metrics, ok bool) {
-	if g.updateTs.After(g.reportTs) {
+	if g.updateTS.After(g.reportTS) {
 		m.Gauge = g.gauge
 		m.Type = models.Gauge
-		m.TimeStamp = g.updateTs
+		m.TimeStamp = g.updateTS
 		ok = true
 	}
 	return
@@ -86,12 +85,11 @@ func (g *gauge) Report(n string, r Reporter) {
 	if r.Report(m) {
 		g.reported(m.TimeStamp)
 	}
-	return
 }
 
 // reported updates reportedTs with updatedTs after successful report
 func (g *gauge) reported(t time.Time) {
-	if t.After(g.reportTs) {
-		g.reportTs = t
+	if t.After(g.reportTS) {
+		g.reportTS = t
 	}
 }

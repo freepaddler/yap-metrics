@@ -10,18 +10,18 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
-type HttpReporter struct {
+type HTTPReporter struct {
 	address string
 	Reporter
 }
 
-func NewHttpReporter(address string) *HttpReporter {
-	return &HttpReporter{
+func NewHttpReporter(address string) *HTTPReporter {
+	return &HTTPReporter{
 		address: address,
 	}
 }
 
-func (r *HttpReporter) Report(m models.Metrics) bool {
+func (r *HTTPReporter) Report(m models.Metrics) bool {
 	var val string
 	switch m.Type {
 	case models.Gauge:

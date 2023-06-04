@@ -52,8 +52,8 @@ func Test_counter_Inc(t *testing.T) {
 func Test_gauge_Update(t *testing.T) {
 	type fields struct {
 		gauge    float64
-		updateTs time.Time
-		reportTs time.Time
+		updateTS time.Time
+		reportTS time.Time
 	}
 	tests := []struct {
 		name   string
@@ -75,7 +75,7 @@ func Test_gauge_Update(t *testing.T) {
 			name: "update existing gauge",
 			fields: fields{
 				gauge:    12.169,
-				updateTs: time.Now().Add(-10 * time.Minute),
+				updateTS: time.Now().Add(-10 * time.Minute),
 			},
 			gauge: -0.175,
 			want: &gauge{
@@ -87,12 +87,12 @@ func Test_gauge_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &gauge{
 				gauge:    tt.fields.gauge,
-				updateTs: tt.fields.updateTs,
-				reportTs: tt.fields.reportTs,
+				updateTS: tt.fields.updateTS,
+				reportTS: tt.fields.reportTS,
 			}
 			g.Update(tt.gauge)
 			assert.Equal(t, tt.want.gauge, g.gauge)
-			assert.Greater(t, g.updateTs, tt.fields.updateTs)
+			assert.Greater(t, g.updateTS, tt.fields.updateTS)
 		})
 	}
 }
@@ -149,11 +149,11 @@ func Test_counter_get(t *testing.T) {
 func Test_gauge_get(t *testing.T) {
 	type fields struct {
 		gauge    float64
-		updateTs time.Time
-		reportTs time.Time
+		updateTS time.Time
+		reportTS time.Time
 	}
-	laterTs := time.Now().Add(-2 * time.Minute)
-	earlyTs := time.Now().Add(-3 * time.Minute)
+	laterTS := time.Now().Add(-2 * time.Minute)
+	earlyTS := time.Now().Add(-3 * time.Minute)
 	tests := []struct {
 		name   string
 		fields fields
@@ -165,13 +165,13 @@ func Test_gauge_get(t *testing.T) {
 			name: "get updated metric",
 			fields: fields{
 				gauge:    1.001,
-				updateTs: laterTs,
-				reportTs: earlyTs,
+				updateTS: laterTS,
+				reportTS: earlyTS,
 			},
 			wantM: models.Metrics{
 				Type:      models.Gauge,
 				Gauge:     1.001,
-				TimeStamp: laterTs,
+				TimeStamp: laterTS,
 			},
 			wantOk: true,
 		},
@@ -186,8 +186,8 @@ func Test_gauge_get(t *testing.T) {
 			name: "get NOT updated metric",
 			fields: fields{
 				gauge:    1.001,
-				updateTs: earlyTs,
-				reportTs: laterTs,
+				updateTS: earlyTS,
+				reportTS: laterTS,
 			},
 			wantOk: false,
 		},
@@ -196,8 +196,8 @@ func Test_gauge_get(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &gauge{
 				gauge:    tt.fields.gauge,
-				updateTs: tt.fields.updateTs,
-				reportTs: tt.fields.reportTs,
+				updateTS: tt.fields.updateTS,
+				reportTS: tt.fields.reportTS,
 			}
 			gotM, gotOk := g.get()
 			require.Equal(t, tt.wantOk, gotOk)
@@ -259,13 +259,13 @@ func Test_counter_reported(t *testing.T) {
 func Test_gauge_reported(t *testing.T) {
 	type fields struct {
 		value    float64
-		updateTs time.Time
-		reportTs time.Time
+		updateTS time.Time
+		reportTS time.Time
 	}
-	prevReportTs := time.Now().Add(-6 * time.Minute)
-	currentReportTs := time.Now().Add(-5 * time.Minute)
-	nextReportTs := time.Now().Add(-4 * time.Minute)
-	updateTs := time.Now().Add(-2 * time.Minute)
+	prevReportTS := time.Now().Add(-6 * time.Minute)
+	currentReportTS := time.Now().Add(-5 * time.Minute)
+	nextReportTS := time.Now().Add(-4 * time.Minute)
+	updateTS := time.Now().Add(-2 * time.Minute)
 	tests := []struct {
 		name   string
 		fields fields
@@ -275,18 +275,18 @@ func Test_gauge_reported(t *testing.T) {
 			name: "gauge was never reported",
 			fields: fields{
 				value:    10.0,
-				updateTs: updateTs,
+				updateTS: updateTS,
 			},
-			want: currentReportTs,
+			want: currentReportTS,
 		},
 		{
 			name: "gauge was already reported",
 			fields: fields{
 				value:    -0.001,
-				updateTs: updateTs,
-				reportTs: prevReportTs,
+				updateTS: updateTS,
+				reportTS: prevReportTS,
 			},
-			want: currentReportTs,
+			want: currentReportTS,
 		},
 		{
 			// reporting request lasted too long and the next reporting
@@ -294,21 +294,21 @@ func Test_gauge_reported(t *testing.T) {
 			name: "delay reported gauge",
 			fields: fields{
 				value:    1.11111,
-				updateTs: updateTs,
-				reportTs: nextReportTs,
+				updateTS: updateTS,
+				reportTS: nextReportTS,
 			},
-			want: nextReportTs,
+			want: nextReportTS,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &gauge{
 				gauge:    tt.fields.value,
-				updateTs: tt.fields.updateTs,
-				reportTs: tt.fields.reportTs,
+				updateTS: tt.fields.updateTS,
+				reportTS: tt.fields.reportTS,
 			}
-			g.reported(currentReportTs)
-			assert.Equal(t, tt.want, g.reportTs)
+			g.reported(currentReportTS)
+			assert.Equal(t, tt.want, g.reportTS)
 		})
 	}
 }
@@ -403,11 +403,11 @@ func Test_gauge_Report(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &gauge{
 				gauge:    tt.fields.value,
-				updateTs: tt.fields.updateTs,
-				reportTs: tt.fields.reportTs,
+				updateTS: tt.fields.updateTs,
+				reportTS: tt.fields.reportTs,
 			}
 			g.Report("", tt.reporter)
-			assert.Equal(t, tt.want, g.reportTs)
+			assert.Equal(t, tt.want, g.reportTS)
 		})
 	}
 }
