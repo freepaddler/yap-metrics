@@ -2,26 +2,53 @@ package agent
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
-//type HttpReporter struct {
-//	host string
-//	port string
-//	Reporter
-//}
-//
-//func NewHttpReporter(host, port string) *HttpReporter {
-//	return &HttpReporter{
-//		host: host,
-//		port: port,
-//	}
-//}
-//
-//func (r HttpReporter) Report(m models.Metrics) bool {
-//	return true
-//}
+type HttpReporter struct {
+	address string
+	Reporter
+}
+
+func NewHttpReporter(address string) *HttpReporter {
+	return &HttpReporter{
+		address: address,
+	}
+}
+
+func (r *HttpReporter) Report(m models.Metrics) bool {
+	var val string
+	switch m.Type {
+	case models.Gauge:
+		val = strconv.FormatFloat(m.Gauge, 'f', -1, 64)
+	case models.Counter:
+		val = strconv.FormatInt(m.Increment, 10)
+	}
+	url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, m.Type, m.Name, val)
+	c := http.Client{Timeout: time.Duration(1) * time.Second}
+	fmt.Printf("Sending metric %s\n", url)
+	resp, err := c.Post(url, "text/plain", nil)
+	if err != nil {
+		fmt.Printf("Failed to send metric with error: %s\n", err)
+		return false
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Got http status: %s\n", resp.Status)
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Printf("Unable to parse response body with error: %s\n", err)
+		}
+		fmt.Printf("Response body: %s\n", body)
+		return false
+	}
+	return true
+}
 
 // PrintReporter is a test reporter to stdout
 type PrintReporter struct {

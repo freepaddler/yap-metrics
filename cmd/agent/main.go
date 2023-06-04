@@ -11,6 +11,7 @@ import (
 const (
 	pollInterval   = 2
 	reportInterval = 10
+	address        = "127.0.0.1:8080"
 )
 
 var (
@@ -27,7 +28,9 @@ func main() {
 	fmt.Println("Starting agent...")
 
 	sc := agent.NewStatsCollector()
-	reporter := agent.NewPrintReporter()
+	//var reporter agent.Reporter
+	//printReporter := agent.NewPrintReporter()
+	httpReporter := agent.NewHttpReporter(address)
 
 	fmt.Println("Starting loop")
 	ticker := 0
@@ -37,8 +40,10 @@ func main() {
 			collectMetrics(sc)
 		}
 		if ticker%reportInterval == 0 {
-			fmt.Println("\n\n======\nNew Report\n")
-			reportMetrics(sc, reporter)
+			fmt.Printf("\n\n======\nNew Report\n\n")
+			//sc.Report(printReporter)
+			sc.Report(httpReporter)
+			//reportMetrics(sc, &reporter)
 		}
 		time.Sleep(1 * time.Second)
 		ticker++
