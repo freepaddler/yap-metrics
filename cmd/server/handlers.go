@@ -46,7 +46,7 @@ func (srv *MetricsServer) UpdateHandler(w http.ResponseWriter, r *http.Request) 
 
 	// curl -X POST -i http://localhost:8080/update/counter/c1
 	case len(vars) < 3:
-		fmt.Printf("UpdateHandler: missing metric value '%s'\n", vars[2])
+		fmt.Printf("UpdateHandler: missing metric value\n")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 
