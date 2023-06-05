@@ -40,9 +40,9 @@ func main() {
 			collectMetrics(sc)
 		}
 		if ticker%reportInterval == 0 {
-			fmt.Printf("\n\n======\nNew Report\n\n")
-			//sc.Report(printReporter)
-			sc.Report(httpReporter)
+			fmt.Printf("\n\n======\nNew ReportAll\n\n")
+			//sc.ReportAll(printReporter)
+			sc.ReportAll(httpReporter)
 			//reportMetrics(sc, &reporter)
 		}
 		time.Sleep(1 * time.Second)

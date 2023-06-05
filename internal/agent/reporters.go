@@ -12,8 +12,9 @@ import (
 
 type HTTPReporter struct {
 	address string
-	Reporter
 }
+
+var _ Reporter = (*HTTPReporter)(nil)
 
 func NewHTTPReporter(address string) *HTTPReporter {
 	return &HTTPReporter{
@@ -52,14 +53,14 @@ func (r *HTTPReporter) Report(m models.Metrics) bool {
 
 // PrintReporter is a test reporter to stdout
 //type PrintReporter struct {
-//	Reporter
 //}
+//var _ Reporter = (*PrintReporter)(nil)
 //
 //func NewPrintReporter() *PrintReporter {
 //	return &PrintReporter{}
 //}
 //
-//func (r PrintReporter) Report(m models.Metrics) bool {
+//func (r PrintReporter) ReportAll(m models.Metrics) bool {
 //	switch m.Type {
 //	case models.Counter:
 //		fmt.Printf("Metric: %s, type: %s, value: %d\n", m.Name, m.Type, m.Increment)

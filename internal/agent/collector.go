@@ -31,7 +31,7 @@ func (sc *StatsCollector) Gauge(name string) Gauge {
 	return g
 }
 
-func (sc *StatsCollector) Report(r Reporter) {
+func (sc *StatsCollector) ReportAll(r Reporter) {
 	for k := range sc.counters {
 		sc.counters[k].Report(k, r)
 	}
