@@ -1,0 +1,78 @@
+# POST /update
+
+## FAILED
+
+### GET /update wrong method
+GET http://localhost:8080/update/bla
+
+> assert_405_MethodNotAllowed.js
+
+### POST /update missing metric type
+POST http://localhost:8080/update/
+
+> assert_400_BadRequest.js
+
+### POST /update invalid metric type
+POST http://localhost:8080/update/something
+
+> assert_400_BadRequest.js
+
+### POST /update missing metric name 1
+POST http://localhost:8080/update/counter
+
+> assert_404_NotFound.js
+
+### POST /update missing metric name 2
+POST http://localhost:8080/update/gauge/
+
+> assert_404_NotFound.js
+
+### POST /update missing metric value
+POST http://localhost:8080/update/counter/c1
+
+> assert_400_BadRequest.js
+
+### POST /update counter float
+POST  http://localhost:8080/update/counter/c1/10.002
+
+> assert_400_BadRequest.js
+
+### POST /update gauge string
+POST http://localhost:8080/update/gauge/g1/none
+
+> assert_400_BadRequest.js
+
+### POST /update gauge no value
+POST http://localhost:8080/update/gauge/g1/
+
+> assert_400_BadRequest.js
+
+### POST /update too many params
+POST http://localhost:8080/update/counter/c1/10/20/30/40
+
+> assert_400_BadRequest.js
+
+### POST /update new gauge
+POST http://localhost:8080/update/gauge/g1/-1.75
+
+> assert_200_OK.js
+
+### POST /update same gauge
+POST http://localhost:8080/update/gauge/g1/1.0
+
+> assert_200_OK.js
+
+### POST /update new counter
+POST http://localhost:8080/update/counter/c1/10
+
+> assert_200_OK.js
+
+### POST /update same counter
+POST http://localhost:8080/update/counter/c1/20
+
+> assert_200_OK.js
+
+
+
+
+
