@@ -14,6 +14,8 @@ type counter struct {
 	value int64
 }
 
+var _ Counter = (*counter)(nil)
+
 func newCounter() *counter {
 	return &counter{}
 }
@@ -53,6 +55,8 @@ type gauge struct {
 	updateTS time.Time
 	reportTS time.Time
 }
+
+var _ Gauge = (*gauge)(nil)
 
 func newGauge() *gauge {
 	return &gauge{}
