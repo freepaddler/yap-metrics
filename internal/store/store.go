@@ -6,6 +6,30 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
+// TODO: question
+// возможно, имело смысл сделать так
+//type metric interface {
+//	Set()
+//	Get()
+//}
+//
+//type Gauge interface {
+//	metric
+//}
+//
+//type Counter interface {
+//	metric
+//}
+//type Storage interface {
+//	Counter
+//	Gauge
+//}
+//// и тогда использовать именованные обращения с одинаковыми методами
+//type MemStorage struct {
+//	counter Counter
+//	gauge Gauge
+//}
+
 type Gauge interface {
 	GaugeSet(name string, value float64)
 	GaugeGet(name string) (float64, bool)
@@ -28,6 +52,8 @@ type MemStorage struct {
 	gauges   map[string]float64
 }
 
+var _ Storage = (*MemStorage)(nil)
+
 func (ms *MemStorage) GetMetrics() []models.Metrics {
 	set := make([]models.Metrics, 0)
 	for name, value := range ms.counters {
@@ -38,8 +64,6 @@ func (ms *MemStorage) GetMetrics() []models.Metrics {
 	}
 	return set
 }
-
-var _ Storage = (*MemStorage)(nil)
 
 // NewMemStorage is a constructor for MemStorage
 func NewMemStorage() *MemStorage {
