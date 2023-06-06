@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/caarlos0/env/v8"
 	"github.com/go-chi/chi/v5"
 	flag "github.com/spf13/pflag"
 
@@ -14,16 +15,25 @@ const (
 	defaultAddress = "127.0.0.1:8080"
 )
 
+// global configuration
 type config struct {
-	address string
+	Address string `env:"ADDRESS"`
 }
 
 func main() {
-	conf := config{}
-	flag.StringVarP(&conf.address, "address", "a", defaultAddress, "server listening address HOST:PORT")
+	// global config
+	var conf config
+
+	// cmd params
+	flag.StringVarP(&conf.Address, "address", "a", defaultAddress, "server listening address HOST:PORT")
 	flag.Parse()
 
-	fmt.Printf("Starting server at %s...\n", conf.address)
+	// env vars
+	if err := env.Parse(&conf); err != nil {
+		fmt.Println("Error while parsing ENV", err)
+	}
+
+	fmt.Printf("Starting server at %s...\n", conf.Address)
 
 	// create new server instance with storage engine
 	srv := &MetricsServer{storage: store.NewMemStorage()}
@@ -35,7 +45,7 @@ func main() {
 
 	//mux := http.NewServeMux()
 	//mux.HandleFunc("/update/", srv.UpdateHandler)
-	if err := http.ListenAndServe(conf.address, r); err != nil {
+	if err := http.ListenAndServe(conf.Address, r); err != nil {
 		panic(err)
 	}
 
