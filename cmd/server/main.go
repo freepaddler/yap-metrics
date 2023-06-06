@@ -5,12 +5,25 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	flag "github.com/spf13/pflag"
 
 	"github.com/freepaddler/yap-metrics/internal/store"
 )
 
+const (
+	defaultAddress = "127.0.0.1:8080"
+)
+
+type config struct {
+	address string
+}
+
 func main() {
-	fmt.Println("Starting server...")
+	conf := config{}
+	flag.StringVarP(&conf.address, "address", "a", defaultAddress, "server listening address HOST:PORT")
+	flag.Parse()
+
+	fmt.Printf("Starting server at %s...\n", conf.address)
 
 	// create new server instance with storage engine
 	srv := &MetricsServer{storage: store.NewMemStorage()}
@@ -22,7 +35,7 @@ func main() {
 
 	//mux := http.NewServeMux()
 	//mux.HandleFunc("/update/", srv.UpdateHandler)
-	if err := http.ListenAndServe("localhost:8080", r); err != nil {
+	if err := http.ListenAndServe(conf.address, r); err != nil {
 		panic(err)
 	}
 
