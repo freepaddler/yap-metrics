@@ -136,7 +136,7 @@ GET http://localhost:8080/value/gauge/g1
         client.assert(response.status === 200, "Invalid response. Expected 200 OK")
     })
     client.test("Check body", function () {
-        client.assert(response.body.toString() == "1.000000")
+        client.assert(response.body.toString() == "1")
     } )
 %}
 
