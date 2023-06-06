@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
 
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
@@ -12,78 +14,82 @@ import (
 // UpdateHandler validates update request and writes metrics to storage
 func (srv *MetricsServer) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("UpdateHandler: Request received  URL=%v\n", r.URL)
-	// TODO: should be checked in third-party router
-	if r.Method != http.MethodPost {
-		// curl -i http://localhost:8080/update/bla...
-		fmt.Printf("UpdateHandler: wrong method %s\n", r.Method)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	// TODO: change to third-party router to simplify validation
-	//remove request prefix
-	path, _ := strings.CutPrefix(r.URL.Path, "/update/")
-	// split url string to parts
-	// 0 = type, 1 = name, 2 = value
-	vars := strings.Split(path, "/")
-	// TODO: simple way is to create structure and use json.Unmarshal for validation or use map
-	switch {
-
-	// check metric type
-	// curl -X POST -i http://localhost:8080/update/something
-	// curl -X POST -i http://localhost:8080/update/
-	case vars[0] != models.Gauge && vars[0] != models.Counter:
-		fmt.Printf("UpdateHandler: wrong metric type '%s'\n", vars[0])
-		w.WriteHeader(http.StatusBadRequest)
-		return
-
-	// check metric name
-	// curl -X POST -i http://localhost:8080/update/counter
-	// curl -X POST -i http://localhost:8080/update/gauge/
-	case len(vars) < 2 || len(vars[1]) == 0:
-		fmt.Printf("UpdateHandler: missing metric name \n")
-		w.WriteHeader(http.StatusNotFound)
-		return
-
-	// curl -X POST -i http://localhost:8080/update/counter/c1
-	case len(vars) < 3:
-		fmt.Printf("UpdateHandler: missing metric value\n")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-
-	// validate values
-	// curl -X POST -i http://localhost:8080/update/counter/c1/10.002
-	// curl -X POST -i http://localhost:8080/update/gauge/g1/none
-	// curl -X POST -i http://localhost:8080/update/gauge/g1/
-	// curl -X POST -i http://localhost:8080/update/gauge/g1/-1.75
-	// curl -X POST -i http://localhost:8080/update/gauge/g1/1.0
-	// curl -X POST -i http://localhost:8080/update/counter/c1/10
-	// curl -X POST -i http://localhost:8080/update/counter/c1/20
-	case len(vars) == 3:
-		switch vars[0] {
-		case models.Counter:
-			if v, err := strconv.ParseInt(vars[2], 10, 64); err != nil {
-				fmt.Printf("UpdateHandler: wrong counter increment '%s'\n", vars[2])
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			} else {
-				srv.storage.CounterUpdate(vars[1], v)
-			}
-		case models.Gauge:
-			if v, err := strconv.ParseFloat(vars[2], 64); err != nil {
-				fmt.Printf("UpdateHandler: wrong gauge value '%s'\n", vars[2])
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			} else {
-				srv.storage.GaugeUpdate(vars[1], v)
-			}
+	switch chi.URLParam(r, "type") {
+	case models.Counter:
+		v, err := strconv.ParseInt(chi.URLParam(r, "value"), 10, 64)
+		if err != nil {
+			fmt.Printf("UpdateHandler: wrong counter increment '%s'\n", chi.URLParam(r, "value"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-
-	// too long path
-	// curl -X POST -i http://localhost:8080/update/counter/c1/10/20/30/40
+		srv.storage.CounterSet(chi.URLParam(r, "name"), v)
+	case models.Gauge:
+		v, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
+		if err != nil {
+			fmt.Printf("UpdateHandler: wrong gauge value '%s'\n", chi.URLParam(r, "value"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		srv.storage.GaugeSet(chi.URLParam(r, "name"), v)
 	default:
-		fmt.Printf("UpdateHandler: invalid request \n")
+		fmt.Printf("UpdateHandler: wrong metric type '%s'\n", chi.URLParam(r, "type"))
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	return
+}
+
+// ValueHandler returns stored metrics
+func (srv *MetricsServer) ValueHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("ValueHandler: Request received  URL=%v\n", r.URL)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	switch t := chi.URLParam(r, "type"); t {
+	case models.Counter:
+		if v, ok := srv.storage.CounterGet(chi.URLParam(r, "name")); ok {
+			w.Write([]byte(fmt.Sprintf("%d", v)))
+			return
+		}
+	case models.Gauge:
+		if v, ok := srv.storage.GaugeGet(chi.URLParam(r, "name")); ok {
+			w.Write([]byte(fmt.Sprintf("%f", v)))
+			return
+		}
+	default:
+		fmt.Printf("ValueHandler: bad metric type %s\n", chi.URLParam(r, "type"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	fmt.Printf("ValueHandler: requested metric %s does not exist\n", chi.URLParam(r, "name"))
+	w.WriteHeader(http.StatusNotFound)
+}
+
+// IndexHandler returns page with all metrics
+func (srv *MetricsServer) IndexHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	header := `
+	<html><head><title>Metrics Index</title></head>
+	<body>
+		<h2>Metrics Index</h2>
+		<table border=1>
+		<tr><th>Name</th><th>Type</th><th>Value</th></tr>
+	`
+	w.Write([]byte(header))
+	for _, m := range srv.storage.GetMetrics() {
+		var val string
+		switch m.Type {
+		case models.Counter:
+			val = fmt.Sprintf("%d", m.Value)
+		case models.Gauge:
+			val = fmt.Sprintf("%f", m.Gauge)
+		default:
+			continue
+		}
+		w.Write([]byte(fmt.Sprintf("<tr><td>%s</td><td>%s</td><td>%s</td></tr>", m.Name, m.Type, val)))
+	}
+	footer := fmt.Sprintf(`
+		</table>
+		<p><i>Updated: %s</i></p>
+	</body>
+	</html>
+	`, time.Now().Format(time.UnixDate))
+	w.Write([]byte(footer))
 }
