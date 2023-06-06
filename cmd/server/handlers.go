@@ -49,7 +49,7 @@ func (srv *MetricsServer) ValueHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	case models.Gauge:
 		if v, ok := srv.storage.GaugeGet(chi.URLParam(r, "name")); ok {
-			w.Write([]byte(fmt.Sprintf("%f", v)))
+			w.Write([]byte(fmt.Sprintf("%.3f", v)))
 			return
 		}
 	default:
@@ -78,7 +78,7 @@ func (srv *MetricsServer) IndexHandler(w http.ResponseWriter, r *http.Request) {
 		case models.Counter:
 			val = fmt.Sprintf("%d", m.Value)
 		case models.Gauge:
-			val = fmt.Sprintf("%f", m.Gauge)
+			val = fmt.Sprintf("%.3f", m.Gauge)
 		default:
 			continue
 		}
