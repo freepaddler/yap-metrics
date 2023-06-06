@@ -24,6 +24,7 @@ func TestMetricsServer_IndexHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.IndexHandler(w, req)
 	res := w.Result()
+	defer res.Body.Close()
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, "text/html; charset=utf-8", res.Header.Get("Content-Type"))
@@ -108,6 +109,7 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			srv.UpdateHandler(w, req)
 			res := w.Result()
+			defer res.Body.Close()
 
 			assert.Equal(t, tt.code, res.StatusCode)
 		})
