@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -122,7 +122,7 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 	}
 	var cValue int64 = 10
 	var cName = "c1"
-	var gValue float64 = -0.117
+	var gValue float64 = -0.110
 	var gName = "g1"
 	srv.storage.CounterSet(cName, cValue)
 	srv.storage.GaugeSet(gName, gValue)
@@ -138,14 +138,16 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 			code:  http.StatusOK,
 			mType: models.Counter,
 			mName: cName,
-			want:  fmt.Sprintf("%d", cValue),
+			//want:  fmt.Sprintf("%d", cValue),
+			want: strconv.FormatInt(cValue, 10),
 		},
 		{
 			name:  "success gauge",
 			code:  http.StatusOK,
 			mType: models.Gauge,
 			mName: gName,
-			want:  fmt.Sprintf("%.3f", gValue),
+			//want:  fmt.Sprintf("%.3f", gValue),
+			want: strconv.FormatFloat(gValue, 'f', -1, 64),
 		},
 		{
 			name:  "invalid counter type",
