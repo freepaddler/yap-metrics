@@ -88,7 +88,7 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 			code:   http.StatusBadRequest,
 			mType:  models.Counter,
 			mName:  "c2",
-			mValue: "-0.00117",
+			mValue: "-0.117",
 		},
 		{
 			name:   "invalid gauge value string",
@@ -122,7 +122,7 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 	}
 	var cValue int64 = 10
 	var cName = "c1"
-	var gValue float64 = -0.0017
+	var gValue float64 = -0.117
 	var gName = "g1"
 	srv.storage.CounterSet(cName, cValue)
 	srv.storage.GaugeSet(gName, gValue)
@@ -145,7 +145,7 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 			code:  http.StatusOK,
 			mType: models.Gauge,
 			mName: gName,
-			want:  fmt.Sprintf("%f", gValue),
+			want:  fmt.Sprintf("%.3f", gValue),
 		},
 		{
 			name:  "invalid counter type",
