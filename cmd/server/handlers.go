@@ -11,6 +11,16 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
+const (
+	indexMetricHeader = `
+	<html><head><title>Metrics Index</title></head>
+	<body>
+		<h2>Metrics Index</h2>
+		<table border=1>
+		<tr><th>Name</th><th>Type</th><th>Value</th></tr>
+	`
+)
+
 // UpdateMetricHandler validates update request and writes metrics to storage
 func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("UpdateMetricHandler: Request received  URL=%v\n", r.URL)
@@ -69,14 +79,8 @@ func (srv *MetricsServer) GetMetricHandler(w http.ResponseWriter, r *http.Reques
 // IndexMetricHandler returns page with all metrics
 func (srv *MetricsServer) IndexMetricHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	header := `
-	<html><head><title>Metrics Index</title></head>
-	<body>
-		<h2>Metrics Index</h2>
-		<table border=1>
-		<tr><th>Name</th><th>Type</th><th>Value</th></tr>
-	`
-	w.Write([]byte(header))
+	// TODO: use html templates
+	w.Write([]byte(indexMetricHeader))
 	for _, m := range srv.storage.GetMetrics() {
 		var val string
 		switch m.Type {
