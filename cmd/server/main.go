@@ -43,8 +43,6 @@ func main() {
 	r.Get("/value/{type}/{name}", srv.ValueHandler)
 	r.Get("/", srv.IndexHandler)
 
-	//mux := http.NewServeMux()
-	//mux.HandleFunc("/update/", srv.UpdateHandler)
 	if err := http.ListenAndServe(conf.Address, r); err != nil {
 		panic(err)
 	}

@@ -6,30 +6,6 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
-// TODO: question
-// возможно, имело смысл сделать так
-//type metric interface {
-//	Set()
-//	Get()
-//}
-//
-//type Gauge interface {
-//	metric
-//}
-//
-//type Counter interface {
-//	metric
-//}
-//type Storage interface {
-//	Counter
-//	Gauge
-//}
-//// и тогда использовать именованные обращения с одинаковыми методами
-//type MemStorage struct {
-//	counter Counter
-//	gauge Gauge
-//}
-
 type Gauge interface {
 	GaugeSet(name string, value float64)
 	GaugeGet(name string) (float64, bool)
