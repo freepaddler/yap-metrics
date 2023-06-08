@@ -173,10 +173,10 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			srv.GetMetricHandler(w, req)
 			res := w.Result()
+			defer res.Body.Close()
 
 			require.Equal(t, tt.code, res.StatusCode)
 			if res.StatusCode == http.StatusOK {
-				defer res.Body.Close()
 				resBody, err := io.ReadAll(res.Body)
 				require.NoError(t, err)
 				assert.Equal(t, tt.want, string(resBody))

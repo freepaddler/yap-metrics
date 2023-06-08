@@ -36,12 +36,10 @@ func (r *HTTPReporter) Report(m models.Metrics) bool {
 		fmt.Printf("Failed to send metric with error: %s\n", err)
 		return false
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("Got http status: %s\n", resp.Status)
-		defer func() {
-			// 2 avoid code analysis error
-			_ = resp.Body.Close()
-		}()
+
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Printf("Unable to parse response body with error: %s\n", err)
