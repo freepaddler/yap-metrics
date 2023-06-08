@@ -14,25 +14,28 @@ import (
 // UpdateMetricHandler validates update request and writes metrics to storage
 func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("UpdateMetricHandler: Request received  URL=%v\n", r.URL)
-	switch chi.URLParam(r, "type") {
+	t := chi.URLParam(r, "type")  // metric type
+	n := chi.URLParam(r, "name")  // metric name
+	v := chi.URLParam(r, "value") // metric value
+	switch t {
 	case models.Counter:
-		v, err := strconv.ParseInt(chi.URLParam(r, "value"), 10, 64)
+		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			fmt.Printf("UpdateMetricHandler: wrong counter increment '%s'\n", chi.URLParam(r, "value"))
+			fmt.Printf("UpdateMetricHandler: wrong counter increment '%s'\n", v)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		srv.storage.CounterSet(chi.URLParam(r, "name"), v)
+		srv.storage.CounterSet(n, i)
 	case models.Gauge:
-		v, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
+		g, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			fmt.Printf("UpdateMetricHandler: wrong gauge value '%s'\n", chi.URLParam(r, "value"))
+			fmt.Printf("UpdateMetricHandler: wrong gauge value '%s'\n", v)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		srv.storage.GaugeSet(chi.URLParam(r, "name"), v)
+		srv.storage.GaugeSet(n, g)
 	default:
-		fmt.Printf("UpdateMetricHandler: wrong metric type '%s'\n", chi.URLParam(r, "type"))
+		fmt.Printf("UpdateMetricHandler: wrong metric type '%s'\n", t)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 }
@@ -41,23 +44,25 @@ func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Req
 func (srv *MetricsServer) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("GetMetricHandler: Request received  URL=%v\n", r.URL)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	switch t := chi.URLParam(r, "type"); t {
+	t := chi.URLParam(r, "type") // metric type
+	n := chi.URLParam(r, "name") // metric name
+	switch t {
 	case models.Counter:
-		if v, ok := srv.storage.CounterGet(chi.URLParam(r, "name")); ok {
+		if v, ok := srv.storage.CounterGet(n); ok {
 			w.Write([]byte(strconv.FormatInt(v, 10)))
 			return
 		}
 	case models.Gauge:
-		if v, ok := srv.storage.GaugeGet(chi.URLParam(r, "name")); ok {
+		if v, ok := srv.storage.GaugeGet(n); ok {
 			w.Write([]byte(strconv.FormatFloat(v, 'f', -1, 64)))
 			return
 		}
 	default:
-		fmt.Printf("GetMetricHandler: bad metric type %s\n", chi.URLParam(r, "type"))
+		fmt.Printf("GetMetricHandler: bad metric type %s\n", t)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("GetMetricHandler: requested metric %s does not exist\n", chi.URLParam(r, "name"))
+	fmt.Printf("GetMetricHandler: requested metric %s does not exist\n", n)
 	w.WriteHeader(http.StatusNotFound)
 }
 
@@ -76,10 +81,8 @@ func (srv *MetricsServer) IndexMetricHandler(w http.ResponseWriter, r *http.Requ
 		var val string
 		switch m.Type {
 		case models.Counter:
-			//val = fmt.Sprintf("%d", m.Value)
 			val = strconv.FormatInt(m.Value, 10)
 		case models.Gauge:
-			//val = fmt.Sprintf("%.3f", m.Gauge)
 			val = strconv.FormatFloat(m.Gauge, 'f', -1, 64)
 		default:
 			continue
