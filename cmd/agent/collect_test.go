@@ -16,8 +16,6 @@ type singleReporter struct {
 	MName     string
 }
 
-var _ agent.Reporter = (*singleReporter)(nil)
-
 func newSingleReporter(mType, mName string) *singleReporter {
 	return &singleReporter{
 		MType:     mType,

@@ -28,8 +28,6 @@ type MemStorage struct {
 	gauges   map[string]float64
 }
 
-var _ Storage = (*MemStorage)(nil)
-
 func (ms *MemStorage) GetMetrics() []models.Metrics {
 	set := make([]models.Metrics, 0)
 	for name, value := range ms.counters {

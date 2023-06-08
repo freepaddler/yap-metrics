@@ -14,8 +14,6 @@ type HTTPReporter struct {
 	address string
 }
 
-var _ Reporter = (*HTTPReporter)(nil)
-
 func NewHTTPReporter(address string) *HTTPReporter {
 	return &HTTPReporter{
 		address: address,
@@ -57,7 +55,6 @@ func (r *HTTPReporter) Report(m models.Metrics) bool {
 // PrintReporter is a test reporter to stdout
 //type PrintReporter struct {
 //}
-//var _ Reporter = (*PrintReporter)(nil)
 //
 //func NewPrintReporter() *PrintReporter {
 //	return &PrintReporter{}
