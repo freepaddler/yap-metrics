@@ -22,7 +22,7 @@ func TestMetricsServer_IndexHandler(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
-	srv.IndexHandler(w, req)
+	srv.IndexMetricHandler(w, req)
 	res := w.Result()
 	defer res.Body.Close()
 
@@ -107,7 +107,7 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 			rctx.URLParams.Add("value", tt.mValue)
 			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			w := httptest.NewRecorder()
-			srv.UpdateHandler(w, req)
+			srv.UpdateMetricHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 
@@ -171,7 +171,7 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 			rctx.URLParams.Add("name", tt.mName)
 			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			w := httptest.NewRecorder()
-			srv.ValueHandler(w, req)
+			srv.GetMetricHandler(w, req)
 			res := w.Result()
 
 			require.Equal(t, tt.code, res.StatusCode)

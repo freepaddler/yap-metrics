@@ -39,9 +39,9 @@ func main() {
 	srv := &MetricsServer{storage: store.NewMemStorage()}
 
 	r := chi.NewRouter()
-	r.Post("/update/{type}/{name}/{value}", srv.UpdateHandler)
-	r.Get("/value/{type}/{name}", srv.ValueHandler)
-	r.Get("/", srv.IndexHandler)
+	r.Post("/update/{type}/{name}/{value}", srv.UpdateMetricHandler)
+	r.Get("/value/{type}/{name}", srv.GetMetricHandler)
+	r.Get("/", srv.IndexMetricHandler)
 
 	if err := http.ListenAndServe(conf.Address, r); err != nil {
 		panic(err)

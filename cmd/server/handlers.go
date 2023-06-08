@@ -11,14 +11,14 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
-// UpdateHandler validates update request and writes metrics to storage
-func (srv *MetricsServer) UpdateHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("UpdateHandler: Request received  URL=%v\n", r.URL)
+// UpdateMetricHandler validates update request and writes metrics to storage
+func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("UpdateMetricHandler: Request received  URL=%v\n", r.URL)
 	switch chi.URLParam(r, "type") {
 	case models.Counter:
 		v, err := strconv.ParseInt(chi.URLParam(r, "value"), 10, 64)
 		if err != nil {
-			fmt.Printf("UpdateHandler: wrong counter increment '%s'\n", chi.URLParam(r, "value"))
+			fmt.Printf("UpdateMetricHandler: wrong counter increment '%s'\n", chi.URLParam(r, "value"))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -26,20 +26,20 @@ func (srv *MetricsServer) UpdateHandler(w http.ResponseWriter, r *http.Request) 
 	case models.Gauge:
 		v, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
 		if err != nil {
-			fmt.Printf("UpdateHandler: wrong gauge value '%s'\n", chi.URLParam(r, "value"))
+			fmt.Printf("UpdateMetricHandler: wrong gauge value '%s'\n", chi.URLParam(r, "value"))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		srv.storage.GaugeSet(chi.URLParam(r, "name"), v)
 	default:
-		fmt.Printf("UpdateHandler: wrong metric type '%s'\n", chi.URLParam(r, "type"))
+		fmt.Printf("UpdateMetricHandler: wrong metric type '%s'\n", chi.URLParam(r, "type"))
 		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
-// ValueHandler returns stored metrics
-func (srv *MetricsServer) ValueHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("ValueHandler: Request received  URL=%v\n", r.URL)
+// GetMetricHandler returns stored metrics
+func (srv *MetricsServer) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("GetMetricHandler: Request received  URL=%v\n", r.URL)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	switch t := chi.URLParam(r, "type"); t {
 	case models.Counter:
@@ -53,16 +53,16 @@ func (srv *MetricsServer) ValueHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		fmt.Printf("ValueHandler: bad metric type %s\n", chi.URLParam(r, "type"))
+		fmt.Printf("GetMetricHandler: bad metric type %s\n", chi.URLParam(r, "type"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("ValueHandler: requested metric %s does not exist\n", chi.URLParam(r, "name"))
+	fmt.Printf("GetMetricHandler: requested metric %s does not exist\n", chi.URLParam(r, "name"))
 	w.WriteHeader(http.StatusNotFound)
 }
 
-// IndexHandler returns page with all metrics
-func (srv *MetricsServer) IndexHandler(w http.ResponseWriter, r *http.Request) {
+// IndexMetricHandler returns page with all metrics
+func (srv *MetricsServer) IndexMetricHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	header := `
 	<html><head><title>Metrics Index</title></head>
