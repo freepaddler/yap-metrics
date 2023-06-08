@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"runtime"
 
 	"github.com/freepaddler/yap-metrics/internal/agent"
@@ -14,7 +15,7 @@ func collectMetrics(sc *agent.StatsCollector) {
 	sc.Counter("PollCount").Inc(1)
 
 	// update RandomValue
-	rValue := r.Float64()
+	rValue := rand.Float64()
 	sc.Gauge("RandomValue").Update(rValue)
 
 	// update memory stats

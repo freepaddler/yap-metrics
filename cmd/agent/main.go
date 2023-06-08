@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/caarlos0/env/v8"
@@ -17,21 +16,11 @@ const (
 	defaultServerAddress  = "127.0.0.1:8080"
 )
 
-var (
-	// random generator source
-	r *rand.Rand
-)
-
 // global configuration
 type config struct {
 	PollInterval   uint32 `env:"POLL_INTERVAL"`
 	ReportInterval uint32 `env:"REPORT_INTERVAL"`
 	ServerAddress  string `env:"ADDRESS"`
-}
-
-func init() {
-	// init random generator source
-	r = rand.New(rand.NewSource(rand.Int63()))
 }
 
 func main() {
