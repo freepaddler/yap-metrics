@@ -12,11 +12,13 @@ import (
 
 type HTTPReporter struct {
 	address string
+	c       http.Client
 }
 
-func NewHTTPReporter(address string) *HTTPReporter {
+func NewHTTPReporter(address string, timeout time.Duration) *HTTPReporter {
 	return &HTTPReporter{
 		address: address,
+		c:       http.Client{Timeout: timeout * time.Second},
 	}
 }
 
@@ -29,9 +31,8 @@ func (r *HTTPReporter) Report(m models.Metrics) bool {
 		val = strconv.FormatInt(m.Increment, 10)
 	}
 	url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, m.Type, m.Name, val)
-	c := http.Client{Timeout: time.Duration(1) * time.Second}
 	fmt.Printf("Sending metric %s\n", url)
-	resp, err := c.Post(url, "text/plain", nil)
+	resp, err := r.c.Post(url, "text/plain", nil)
 	if err != nil {
 		fmt.Printf("Failed to send metric with error: %s\n", err)
 		return false
@@ -51,19 +52,19 @@ func (r *HTTPReporter) Report(m models.Metrics) bool {
 }
 
 // PrintReporter is a test reporter to stdout
-//type PrintReporter struct {
-//}
-//
-//func NewPrintReporter() *PrintReporter {
-//	return &PrintReporter{}
-//}
-//
-//func (r PrintReporter) ReportAll(m models.Metrics) bool {
-//	switch m.Type {
-//	case models.Counter:
-//		fmt.Printf("Metric: %s, type: %s, value: %d\n", m.Name, m.Type, m.Increment)
-//	case models.Gauge:
-//		fmt.Printf("Metric: %s, type: %s, value: %f\n", m.Name, m.Type, m.Gauge)
-//	}
-//	return true
-//}
+type PrintReporter struct {
+}
+
+func NewPrintReporter() *PrintReporter {
+	return &PrintReporter{}
+}
+
+func (r PrintReporter) Report(m models.Metrics) bool {
+	switch m.Type {
+	case models.Counter:
+		fmt.Printf("Metric: %s, type: %s, value: %d\n", m.Name, m.Type, m.Increment)
+	case models.Gauge:
+		fmt.Printf("Metric: %s, type: %s, value: %f\n", m.Name, m.Type, m.Gauge)
+	}
+	return true
+}

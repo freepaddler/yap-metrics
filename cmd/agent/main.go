@@ -14,13 +14,15 @@ const (
 	defaultPollInterval   = 2
 	defaultReportInterval = 10
 	defaultServerAddress  = "127.0.0.1:8080"
+	defaultHttpTimeout    = 1
 )
 
 // global configuration
 type config struct {
-	PollInterval   uint32 `env:"POLL_INTERVAL"`
-	ReportInterval uint32 `env:"REPORT_INTERVAL"`
-	ServerAddress  string `env:"ADDRESS"`
+	PollInterval   uint32        `env:"POLL_INTERVAL"`
+	ReportInterval uint32        `env:"REPORT_INTERVAL"`
+	ServerAddress  string        `env:"ADDRESS"`
+	HttpTimeout    time.Duration `env:"HTTP_TIMEOUT"`
 }
 
 func main() {
@@ -48,6 +50,13 @@ func main() {
 		defaultPollInterval,
 		"how often to collect metrics (in seconds)",
 	)
+	flag.DurationVarP(
+		&conf.HttpTimeout,
+		"httpTimeout",
+		"t",
+		defaultHttpTimeout,
+		"http server response timeout (in seconds)",
+	)
 	flag.Parse()
 
 	// env vars
@@ -57,14 +66,14 @@ func main() {
 
 	fmt.Printf(`Starting agent...
 		server: %s
-		pollInterval: %d seconds
-		reportInterval: %d seconds
-`, conf.ServerAddress, conf.PollInterval, conf.ReportInterval)
+		pollInterval: %ds
+		reportInterval: %ds
+		httpTimeout: %ds
+`, conf.ServerAddress, conf.PollInterval, conf.ReportInterval, conf.HttpTimeout)
 
 	sc := agent.NewStatsCollector()
-	//var reporter agent.Reporter
-	//printReporter := agent.NewPrintReporter()
-	httpReporter := agent.NewHTTPReporter(conf.ServerAddress)
+	reporter := agent.NewHTTPReporter(conf.ServerAddress, conf.HttpTimeout)
+	//reporter := agent.NewPrintReporter()
 
 	fmt.Println("Starting loop")
 	ticker := 0
@@ -76,7 +85,7 @@ func main() {
 		if ticker%int(conf.ReportInterval) == 0 {
 			fmt.Printf("\n\n======\nNew ReportAll\n\n")
 			//sc.ReportAll(printReporter)
-			sc.ReportAll(httpReporter)
+			sc.ReportAll(reporter)
 			//reportMetrics(sc, &reporter)
 		}
 		time.Sleep(1 * time.Second)
