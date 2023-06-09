@@ -33,9 +33,9 @@ func main() {
 	// create new storage instance
 	storage := memory.NewMemStorage()
 	// create http handlers instance
-	httpHandlers := handler.NewHttpHandlers(storage)
+	httpHandlers := handler.NewHTTPHandlers(storage)
 	// create http router
-	httpRouter := router.NewHttpRouter(httpHandlers)
+	httpRouter := router.NewHTTPRouter(httpHandlers)
 
 	if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
 		panic(err)

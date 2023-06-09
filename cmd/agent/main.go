@@ -18,7 +18,7 @@ func main() {
 		pollInterval: %ds
 		reportInterval: %ds
 		httpTimeout: %ds
-`, conf.ServerAddress, conf.PollInterval, conf.ReportInterval, conf.HttpTimeout)
+`, conf.ServerAddress, conf.PollInterval, conf.ReportInterval, conf.HTTPTimeout)
 
 	// collector should place data in storage
 	// reported should report data from storage, set counters in storage as reported
@@ -26,7 +26,7 @@ func main() {
 	// new memory storage
 	storage := memory.NewMemStorage()
 	//rpt := reporter.NewPrintReporter(storage)
-	rpt := reporter.NewHTTPReporter(storage, conf.ServerAddress, conf.HttpTimeout)
+	rpt := reporter.NewHTTPReporter(storage, conf.ServerAddress, conf.HTTPTimeout)
 
 	fmt.Println("Starting loop")
 	ticker := 0

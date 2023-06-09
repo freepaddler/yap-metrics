@@ -18,7 +18,7 @@ import (
 
 func TestMetricsServer_IndexHandler(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHttpHandlers(s)
+	h := NewHTTPHandlers(s)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	h.IndexMetricHandler(w, req)
@@ -31,7 +31,7 @@ func TestMetricsServer_IndexHandler(t *testing.T) {
 
 func TestMetricsServer_UpdateHandler(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHttpHandlers(s)
+	h := NewHTTPHandlers(s)
 	tests := []struct {
 		name   string
 		code   int
@@ -116,7 +116,7 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 
 func TestMetricsServer_ValueHandler(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHttpHandlers(s)
+	h := NewHTTPHandlers(s)
 	var cValue int64 = 10
 	var cName = "c1"
 	var gValue float64 = -0.110

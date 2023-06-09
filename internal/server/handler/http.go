@@ -12,12 +12,12 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/store"
 )
 
-type HttpHandlers struct {
+type HTTPHandlers struct {
 	storage store.Storage
 }
 
-func NewHttpHandlers(srv store.Storage) *HttpHandlers {
-	return &HttpHandlers{
+func NewHTTPHandlers(srv store.Storage) *HTTPHandlers {
+	return &HTTPHandlers{
 		storage: srv,
 	}
 }
@@ -33,7 +33,7 @@ const (
 )
 
 // UpdateMetricHandler validates update request and writes metrics to storage
-func (h *HttpHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("UpdateMetricHandler: Request received  URL=%v\n", r.URL)
 	t := chi.URLParam(r, "type")  // metric type
 	n := chi.URLParam(r, "name")  // metric name
@@ -62,7 +62,7 @@ func (h *HttpHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 }
 
 // GetMetricHandler returns stored metrics
-func (h *HttpHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("GetMetricHandler: Request received  URL=%v\n", r.URL)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	t := chi.URLParam(r, "type") // metric type
@@ -88,7 +88,7 @@ func (h *HttpHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 // IndexMetricHandler returns page with all metrics
-func (h *HttpHandlers) IndexMetricHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// TODO: use html templates
 	w.Write([]byte(indexMetricHeader))

@@ -12,7 +12,7 @@ const (
 	defaultPollInterval   = 2
 	defaultReportInterval = 10
 	defaultServerAddress  = "127.0.0.1:8080"
-	defaultHttpTimeout    = 1
+	defaultHTTPTimeout    = 1
 )
 
 // Config implements agent configuration
@@ -20,7 +20,7 @@ type Config struct {
 	PollInterval   uint32        `env:"POLL_INTERVAL"`
 	ReportInterval uint32        `env:"REPORT_INTERVAL"`
 	ServerAddress  string        `env:"ADDRESS"`
-	HttpTimeout    time.Duration `env:"HTTP_TIMEOUT"`
+	HTTPTimeout    time.Duration `env:"HTTP_TIMEOUT"`
 }
 
 func NewConfig() *Config {
@@ -48,10 +48,10 @@ func NewConfig() *Config {
 		"how often to collect metrics (in seconds)",
 	)
 	flag.DurationVarP(
-		&c.HttpTimeout,
+		&c.HTTPTimeout,
 		"httpTimeout",
 		"t",
-		defaultHttpTimeout,
+		defaultHTTPTimeout,
 		"http server response timeout (in seconds)",
 	)
 	flag.Parse()
