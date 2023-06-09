@@ -1,7 +1,5 @@
 package models
 
-import "time"
-
 const (
 	Counter = "counter"
 	Gauge   = "gauge"
@@ -9,10 +7,8 @@ const (
 
 // Metrics model
 type Metrics struct {
-	Name      string
-	Type      string
-	FValue    float64 // float values for metrics
-	Increment int64
-	IValue    int64 // int values for metrics
-	TimeStamp time.Time
+	Name   string  // metric name
+	Type   string  // metric type (from constants)
+	FValue float64 // float values for metrics
+	IValue int64   // int values for metrics
 }
