@@ -11,8 +11,8 @@ const (
 type Metrics struct {
 	Name      string
 	Type      string
-	Gauge     float64
+	FValue    float64 // float values for metrics
 	Increment int64
-	Value     int64
+	IValue    int64 // int values for metrics
 	TimeStamp time.Time
 }

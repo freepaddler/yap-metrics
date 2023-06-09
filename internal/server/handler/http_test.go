@@ -13,11 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/freepaddler/yap-metrics/internal/models"
-	"github.com/freepaddler/yap-metrics/internal/store"
+	"github.com/freepaddler/yap-metrics/internal/store/memory"
 )
 
 func TestMetricsServer_IndexHandler(t *testing.T) {
-	s := store.NewMemStorage()
+	s := memory.NewMemStorage()
 	h := NewHttpHandlers(s)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
@@ -30,7 +30,7 @@ func TestMetricsServer_IndexHandler(t *testing.T) {
 }
 
 func TestMetricsServer_UpdateHandler(t *testing.T) {
-	s := store.NewMemStorage()
+	s := memory.NewMemStorage()
 	h := NewHttpHandlers(s)
 	tests := []struct {
 		name   string
@@ -115,7 +115,7 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 }
 
 func TestMetricsServer_ValueHandler(t *testing.T) {
-	s := store.NewMemStorage()
+	s := memory.NewMemStorage()
 	h := NewHttpHandlers(s)
 	var cValue int64 = 10
 	var cName = "c1"

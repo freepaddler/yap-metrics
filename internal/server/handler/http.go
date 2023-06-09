@@ -96,9 +96,9 @@ func (h *HttpHandlers) IndexMetricHandler(w http.ResponseWriter, r *http.Request
 		var val string
 		switch m.Type {
 		case models.Counter:
-			val = strconv.FormatInt(m.Value, 10)
+			val = strconv.FormatInt(m.IValue, 10)
 		case models.Gauge:
-			val = strconv.FormatFloat(m.Gauge, 'f', -1, 64)
+			val = strconv.FormatFloat(m.FValue, 'f', -1, 64)
 		default:
 			continue
 		}

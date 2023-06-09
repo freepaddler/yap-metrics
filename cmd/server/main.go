@@ -7,7 +7,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/server/config"
 	"github.com/freepaddler/yap-metrics/internal/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/server/router"
-	"github.com/freepaddler/yap-metrics/internal/store"
+	"github.com/freepaddler/yap-metrics/internal/store/memory"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 	// router must call handlers
 
 	// create new storage instance
-	storage := store.NewMemStorage()
+	storage := memory.NewMemStorage()
 	// create http handlers instance
 	httpHandlers := handler.NewHttpHandlers(storage)
 	// create http router

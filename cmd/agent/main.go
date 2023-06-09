@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/freepaddler/yap-metrics/internal/agent"
+	"github.com/freepaddler/yap-metrics/internal/agent/collector"
 	"github.com/freepaddler/yap-metrics/internal/agent/config"
+	"github.com/freepaddler/yap-metrics/internal/agent/reporter"
+	"github.com/freepaddler/yap-metrics/internal/store/memory"
 )
 
 func main() {
@@ -18,22 +20,24 @@ func main() {
 		httpTimeout: %ds
 `, conf.ServerAddress, conf.PollInterval, conf.ReportInterval, conf.HttpTimeout)
 
-	sc := agent.NewStatsCollector()
-	reporter := agent.NewHTTPReporter(conf.ServerAddress, conf.HttpTimeout)
-	//reporter := agent.NewPrintReporter()
+	// collector should place data in storage
+	// reported should report data from storage, set counters in storage as reported
+
+	// new memory storage
+	storage := memory.NewMemStorage()
+	//rpt := reporter.NewPrintReporter(storage)
+	rpt := reporter.NewHTTPReporter(storage, conf.ServerAddress, conf.HttpTimeout)
 
 	fmt.Println("Starting loop")
 	ticker := 0
 	for {
 		fmt.Println("ticker:", ticker)
 		if ticker%int(conf.PollInterval) == 0 {
-			collectMetrics(sc)
+			collector.CollectMetrics(storage)
 		}
 		if ticker%int(conf.ReportInterval) == 0 {
-			fmt.Printf("\n\n======\nNew ReportAll\n\n")
-			//sc.ReportAll(printReporter)
-			sc.ReportAll(reporter)
-			//reportMetrics(sc, &reporter)
+			fmt.Printf("\n\n======\nNew Report\n\n")
+			rpt.Report()
 		}
 		time.Sleep(1 * time.Second)
 		ticker++
