@@ -6,29 +6,13 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
-type Gauge interface {
-	GaugeSet(name string, value float64)
-	GaugeGet(name string) (float64, bool)
-}
-
-type Counter interface {
-	CounterSet(name string, value int64)
-	CounterGet(name string) (int64, bool)
-}
-
-type Storage interface {
-	Gauge
-	Counter
-	GetMetrics() []models.Metrics
-}
-
-// MemStorage is in-memory store
+// MemStorage is in-memory metric store
 type MemStorage struct {
 	counters map[string]int64
 	gauges   map[string]float64
 }
 
-func (ms *MemStorage) GetMetrics() []models.Metrics {
+func (ms *MemStorage) GetAllMetrics() []models.Metrics {
 	set := make([]models.Metrics, 0)
 	for name, value := range ms.counters {
 		set = append(set, models.Metrics{Type: models.Counter, Name: name, Value: value})
@@ -47,22 +31,22 @@ func NewMemStorage() *MemStorage {
 	return ms
 }
 
-func (ms *MemStorage) GaugeSet(name string, value float64) {
+func (ms *MemStorage) SetGauge(name string, value float64) {
 	ms.gauges[name] = value
-	fmt.Printf("GaugeSet: store value %f for gauge %s\n", value, name)
+	fmt.Printf("SetGauge: store value %f for gauge %s\n", value, name)
 }
 
-func (ms *MemStorage) GaugeGet(name string) (float64, bool) {
+func (ms *MemStorage) GetGauge(name string) (float64, bool) {
 	v, ok := ms.gauges[name]
 	return v, ok
 }
 
-func (ms *MemStorage) CounterSet(name string, value int64) {
+func (ms *MemStorage) IncCounter(name string, value int64) {
 	ms.counters[name] += value
-	fmt.Printf("CounterSet: add increment %d for counter %s\n", value, name)
+	fmt.Printf("IncCounter: add increment %d for counter %s\n", value, name)
 }
 
-func (ms *MemStorage) CounterGet(name string) (int64, bool) {
+func (ms *MemStorage) GetCounter(name string) (int64, bool) {
 	v, ok := ms.counters[name]
 	return v, ok
 }

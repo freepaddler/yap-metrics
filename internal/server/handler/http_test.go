@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"context"
@@ -17,12 +17,11 @@ import (
 )
 
 func TestMetricsServer_IndexHandler(t *testing.T) {
-	srv := &MetricsServer{
-		storage: store.NewMemStorage(),
-	}
+	s := store.NewMemStorage()
+	h := NewHttpHandlers(s)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
-	srv.IndexMetricHandler(w, req)
+	h.IndexMetricHandler(w, req)
 	res := w.Result()
 	defer res.Body.Close()
 
@@ -31,9 +30,8 @@ func TestMetricsServer_IndexHandler(t *testing.T) {
 }
 
 func TestMetricsServer_UpdateHandler(t *testing.T) {
-	srv := &MetricsServer{
-		storage: store.NewMemStorage(),
-	}
+	s := store.NewMemStorage()
+	h := NewHttpHandlers(s)
 	tests := []struct {
 		name   string
 		code   int
@@ -107,7 +105,7 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 			rctx.URLParams.Add("value", tt.mValue)
 			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			w := httptest.NewRecorder()
-			srv.UpdateMetricHandler(w, req)
+			h.UpdateMetricHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 
@@ -117,15 +115,14 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 }
 
 func TestMetricsServer_ValueHandler(t *testing.T) {
-	srv := &MetricsServer{
-		storage: store.NewMemStorage(),
-	}
+	s := store.NewMemStorage()
+	h := NewHttpHandlers(s)
 	var cValue int64 = 10
 	var cName = "c1"
 	var gValue float64 = -0.110
 	var gName = "g1"
-	srv.storage.CounterSet(cName, cValue)
-	srv.storage.GaugeSet(gName, gValue)
+	h.storage.IncCounter(cName, cValue)
+	h.storage.SetGauge(gName, gValue)
 	tests := []struct {
 		name  string
 		code  int
@@ -171,7 +168,7 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 			rctx.URLParams.Add("name", tt.mName)
 			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			w := httptest.NewRecorder()
-			srv.GetMetricHandler(w, req)
+			h.GetMetricHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 

@@ -35,7 +35,7 @@ func TestMemStorage_CounterUpdate(t *testing.T) {
 			ms := &MemStorage{
 				counters: tt.metricStore,
 			}
-			require.NotPanics(t, func() { ms.CounterSet(tt.metricName, tt.increment) })
+			require.NotPanics(t, func() { ms.IncCounter(tt.metricName, tt.increment) })
 			require.Contains(t, ms.counters, tt.metricName)
 			assert.Equal(t, tt.want, ms.counters[tt.metricName])
 		})
@@ -70,7 +70,7 @@ func TestMemStorage_GaugeUpdate(t *testing.T) {
 			ms := &MemStorage{
 				gauges: tt.metricStore,
 			}
-			require.NotPanics(t, func() { ms.GaugeSet(tt.metricName, tt.value) })
+			require.NotPanics(t, func() { ms.SetGauge(tt.metricName, tt.value) })
 			require.Contains(t, ms.gauges, tt.metricName)
 			assert.Equal(t, tt.want, ms.gauges[tt.metricName])
 		})

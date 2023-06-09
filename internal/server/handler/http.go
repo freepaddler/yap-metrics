@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"fmt"
@@ -9,7 +9,18 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/freepaddler/yap-metrics/internal/models"
+	"github.com/freepaddler/yap-metrics/internal/store"
 )
+
+type HttpHandlers struct {
+	storage store.Storage
+}
+
+func NewHttpHandlers(srv store.Storage) *HttpHandlers {
+	return &HttpHandlers{
+		storage: srv,
+	}
+}
 
 const (
 	indexMetricHeader = `
@@ -22,7 +33,7 @@ const (
 )
 
 // UpdateMetricHandler validates update request and writes metrics to storage
-func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HttpHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("UpdateMetricHandler: Request received  URL=%v\n", r.URL)
 	t := chi.URLParam(r, "type")  // metric type
 	n := chi.URLParam(r, "name")  // metric name
@@ -35,7 +46,7 @@ func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Req
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		srv.storage.CounterSet(n, i)
+		h.storage.IncCounter(n, i)
 	case models.Gauge:
 		g, err := strconv.ParseFloat(v, 64)
 		if err != nil {
@@ -43,7 +54,7 @@ func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Req
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		srv.storage.GaugeSet(n, g)
+		h.storage.SetGauge(n, g)
 	default:
 		fmt.Printf("UpdateMetricHandler: wrong metric type '%s'\n", t)
 		w.WriteHeader(http.StatusBadRequest)
@@ -51,19 +62,19 @@ func (srv *MetricsServer) UpdateMetricHandler(w http.ResponseWriter, r *http.Req
 }
 
 // GetMetricHandler returns stored metrics
-func (srv *MetricsServer) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HttpHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("GetMetricHandler: Request received  URL=%v\n", r.URL)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	t := chi.URLParam(r, "type") // metric type
 	n := chi.URLParam(r, "name") // metric name
 	switch t {
 	case models.Counter:
-		if v, ok := srv.storage.CounterGet(n); ok {
+		if v, ok := h.storage.GetCounter(n); ok {
 			w.Write([]byte(strconv.FormatInt(v, 10)))
 			return
 		}
 	case models.Gauge:
-		if v, ok := srv.storage.GaugeGet(n); ok {
+		if v, ok := h.storage.GetGauge(n); ok {
 			w.Write([]byte(strconv.FormatFloat(v, 'f', -1, 64)))
 			return
 		}
@@ -77,11 +88,11 @@ func (srv *MetricsServer) GetMetricHandler(w http.ResponseWriter, r *http.Reques
 }
 
 // IndexMetricHandler returns page with all metrics
-func (srv *MetricsServer) IndexMetricHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HttpHandlers) IndexMetricHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// TODO: use html templates
 	w.Write([]byte(indexMetricHeader))
-	for _, m := range srv.storage.GetMetrics() {
+	for _, m := range h.storage.GetAllMetrics() {
 		var val string
 		switch m.Type {
 		case models.Counter:
