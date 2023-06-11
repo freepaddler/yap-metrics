@@ -16,9 +16,9 @@ type HTTPHandlers struct {
 	storage store.Storage
 }
 
-func NewHTTPHandlers(srv store.Storage) *HTTPHandlers {
+func NewHTTPHandlers(s store.Storage) *HTTPHandlers {
 	return &HTTPHandlers{
-		storage: srv,
+		storage: s,
 	}
 }
 
