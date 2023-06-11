@@ -14,6 +14,6 @@ type Gauge interface {
 
 // Reporter interface implements sending metrics
 type Reporter interface {
-	// Report sends metric and returns true on success report
+	// Report sends all metrics one-by-one, then delete successfully reported metric from store
 	Report()
 }
