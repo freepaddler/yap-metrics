@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -27,6 +28,8 @@ type Config struct {
 
 func NewConfig() *Config {
 	var c Config
+	var output io.Writer = os.Stderr
+	flag.CommandLine.SetOutput(output)
 	// sorting is based on long args, doesn't look too good
 	flag.CommandLine.SortFlags = false
 	// avoid message "pflag: help requested"
@@ -72,7 +75,7 @@ func NewConfig() *Config {
 	// check
 	if c.HTTPTimeout.Seconds() < 0.5 || c.HTTPTimeout.Seconds() > 999 {
 		fmt.Fprintf(
-			os.Stderr,
+			output,
 			"Error: invalid httpTimeout value %s. Using default %s\n",
 			c.HTTPTimeout.String(),
 			defaultHTTPTimeout.String(),
