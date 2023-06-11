@@ -17,9 +17,9 @@ func main() {
 		server: %s
 		pollInterval: %ds
 		reportInterval: %ds
-		httpTimeout: %ds
-`, conf.ServerAddress, conf.PollInterval, conf.ReportInterval, conf.HTTPTimeout)
-
+		httpTimeout: %s
+`, conf.ServerAddress, conf.PollInterval, conf.ReportInterval, conf.HTTPTimeout.String())
+	//return
 	// collector should place data in storage
 	// reported should report data from storage, set counters in storage as reported
 
