@@ -1,9 +1,12 @@
 package memory
 
 import (
-	"fmt"
-
+	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/models"
+)
+
+var (
+	l = &logger.L
 )
 
 // MemStorage is in-memory metric store
@@ -33,7 +36,7 @@ func NewMemStorage() *MemStorage {
 
 func (ms *MemStorage) SetGauge(name string, iValue float64) {
 	ms.gauges[name] = iValue
-	fmt.Printf("SetGauge: store value %f for gauge %s\n", iValue, name)
+	l.Debug().Msgf("SetGauge: store value %f for gauge %s", iValue, name)
 }
 
 func (ms *MemStorage) GetGauge(name string) (float64, bool) {
@@ -47,7 +50,7 @@ func (ms *MemStorage) DelGauge(name string) {
 
 func (ms *MemStorage) IncCounter(name string, iValue int64) {
 	ms.counters[name] += iValue
-	fmt.Printf("IncCounter: add increment %d for counter %s\n", iValue, name)
+	l.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
 }
 
 func (ms *MemStorage) GetCounter(name string) (int64, bool) {

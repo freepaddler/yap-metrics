@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
+	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/server/config"
 	"github.com/freepaddler/yap-metrics/internal/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/server/router"
@@ -11,9 +11,13 @@ import (
 )
 
 func main() {
+	// global logger
+	l := &logger.L
 	// server configuration
 	conf := config.NewConfig()
-	fmt.Printf("Starting server at %s...\n", conf.Address)
+	// set log level
+
+	l.Info().Msgf("Starting http server at %s...", conf.Address)
 
 	// let's define app composition
 	//
@@ -38,9 +42,9 @@ func main() {
 	httpRouter := router.NewHTTPRouter(httpHandlers)
 
 	if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
-		panic(err)
+		l.Fatal().Err(err).Msg("unable to start http server")
 	}
 
 	// FIXME: this is never reachable until process control implementation
-	fmt.Println("Stopping server...")
+	l.Info().Msg("Stopping server...")
 }

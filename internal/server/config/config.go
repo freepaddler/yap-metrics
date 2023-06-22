@@ -2,21 +2,28 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 
 	"github.com/caarlos0/env/v8"
 	flag "github.com/spf13/pflag"
+
+	"github.com/freepaddler/yap-metrics/internal/logger"
 )
 
 const (
-	defaultAddress = "127.0.0.1:8080"
+	defaultAddress  = "127.0.0.1:8080"
+	defaultLogLevel = "info"
+)
+
+var (
+	l = &logger.L
 )
 
 // Config implements server configuration
 type Config struct {
-	Address string `env:"ADDRESS"`
+	Address  string `env:"ADDRESS"`
+	LogLevel string `env:"LOG_LEVEL"`
 }
 
 func NewConfig() *Config {
@@ -30,12 +37,18 @@ func NewConfig() *Config {
 
 	// cmd params
 	flag.StringVarP(&c.Address, "address", "a", defaultAddress, "server listening address `HOST:PORT`")
+	flag.StringVarP(&c.LogLevel, "loglevel", "l", defaultLogLevel, "logging `level` (trace, debug, info, warning, error)")
 	flag.Parse()
 
 	// env vars
 	if err := env.Parse(&c); err != nil {
-		fmt.Println("Error while parsing ENV", err)
+		l.Warn().Err(err).Msg("failed to parse ENV")
 	}
+
+	// set global log level
+	logger.SetLevel(c.LogLevel)
+
+	l.Debug().Interface("Config", c).Msg("done config")
 
 	return &c
 }

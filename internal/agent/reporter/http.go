@@ -7,8 +7,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/models"
 	"github.com/freepaddler/yap-metrics/internal/store"
+)
+
+var (
+	l = &logger.L
 )
 
 // HTTPReporter reports metrics to server over HTTP
@@ -38,23 +43,23 @@ func (r HTTPReporter) Report() {
 				val = strconv.FormatInt(v.IValue, 10)
 			}
 			url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, v.Type, v.Name, val)
-			fmt.Printf("Sending metric %s\n", url)
+			l.Debug().Msgf("Sending metric %s", url)
 			resp, err := r.c.Post(url, "text/plain", nil)
 			if err != nil {
-				fmt.Printf("Failed to send metric with error: %s\n", err)
+				l.Warn().Err(err).Msgf("failed to send metric %s", url)
 				return
 			}
 			defer resp.Body.Close()
 			// check if request was successful
 			if resp.StatusCode != http.StatusOK {
 				// request failed
-				fmt.Printf("Got http status: %s\n", resp.Status)
+				l.Warn().Msgf("wrong http response status: %s", resp.Status)
 
 				body, err := io.ReadAll(resp.Body)
 				if err != nil {
-					fmt.Printf("Unable to parse response body with error: %s\n", err)
+					l.Warn().Err(err).Msg("unable to parse response body")
 				}
-				fmt.Printf("Response body: %s\n", body)
+				l.Debug().Msgf("Response body: %s", body)
 				return
 			}
 			// request successes, delete updated metrics
