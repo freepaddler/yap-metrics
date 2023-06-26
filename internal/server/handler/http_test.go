@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +19,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/store/memory"
 )
 
-func TestMetricsServer_IndexHandler(t *testing.T) {
+func TestHTTPHandlers_Index(t *testing.T) {
 	s := memory.NewMemStorage()
 	h := NewHTTPHandlers(s)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -29,7 +32,7 @@ func TestMetricsServer_IndexHandler(t *testing.T) {
 	assert.Equal(t, "text/html; charset=utf-8", res.Header.Get("Content-Type"))
 }
 
-func TestMetricsServer_UpdateHandler(t *testing.T) {
+func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 	s := memory.NewMemStorage()
 	h := NewHTTPHandlers(s)
 	tests := []struct {
@@ -114,7 +117,7 @@ func TestMetricsServer_UpdateHandler(t *testing.T) {
 	}
 }
 
-func TestMetricsServer_ValueHandler(t *testing.T) {
+func TestHTTPHandlers_GetMetric(t *testing.T) {
 	s := memory.NewMemStorage()
 	h := NewHTTPHandlers(s)
 	var cValue int64 = 10
@@ -177,6 +180,221 @@ func TestMetricsServer_ValueHandler(t *testing.T) {
 				resBody, err := io.ReadAll(res.Body)
 				require.NoError(t, err)
 				assert.Equal(t, tt.want, string(resBody))
+			}
+		})
+	}
+}
+
+func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
+	s := memory.NewMemStorage()
+	h := NewHTTPHandlers(s)
+	var cValue int64 = 10
+	var cName = "c1"
+	var gValue float64 = -0.110
+	var gName = "g1"
+	h.storage.IncCounter(cName, cValue)
+	h.storage.SetGauge(gName, gValue)
+	tests := []struct {
+		name   string
+		code   int
+		mType  string
+		mName  string
+		cValue *int64
+		gValue *float64
+	}{
+		{
+			name:   "success counter",
+			code:   200,
+			mType:  models.Counter,
+			mName:  cName,
+			cValue: &cValue,
+			gValue: nil,
+		},
+		{
+			name:   "success gauge",
+			code:   200,
+			mType:  models.Gauge,
+			mName:  gName,
+			gValue: &gValue,
+			cValue: nil,
+		},
+		{
+			name:  "invalid counter type",
+			code:  400,
+			mType: "qqqqq",
+			mName: "d1",
+		},
+		{
+			name:  "invalid gauge name",
+			code:  404,
+			mType: models.Gauge,
+			mName: "gauge101",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, _ := json.Marshal(models.Metrics{
+				Name: tt.mName,
+				Type: tt.mType,
+			})
+			buf := bytes.NewBuffer(m)
+			req := httptest.NewRequest(http.MethodPost, "/value", buf)
+
+			w := httptest.NewRecorder()
+			h.GetMetricJSONHandler(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+
+			require.Equal(t, tt.code, res.StatusCode)
+			if res.StatusCode == http.StatusOK {
+				resBody, err := io.ReadAll(res.Body)
+				require.NoError(t, err)
+				var resJSON models.Metrics
+				require.NoError(t, json.Unmarshal(resBody, &resJSON))
+				assert.Equal(t, models.Metrics{
+					Name:   tt.mName,
+					Type:   tt.mType,
+					FValue: tt.gValue,
+					IValue: tt.cValue,
+				}, resJSON)
+			}
+		})
+	}
+}
+
+func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
+	s := memory.NewMemStorage()
+	h := NewHTTPHandlers(s)
+	tests := []struct {
+		name       string
+		code       int
+		reqString  string
+		wantString string
+	}{
+		{
+			name: "success new counter",
+			code: http.StatusOK,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":10
+				}`, models.Counter),
+			wantString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":10
+				}`, models.Counter),
+		},
+		{
+			name: "success update counter",
+			code: http.StatusOK,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":10
+				}`, models.Counter),
+			wantString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":20
+				}`, models.Counter),
+		},
+		{
+			name: "success new gauge",
+			code: http.StatusOK,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"value":-1.75
+				}`, models.Gauge),
+			wantString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"value":-1.75
+				}`, models.Gauge),
+		},
+		{
+			name: "success update gauge",
+			code: http.StatusOK,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"value":1.000
+				}`, models.Gauge),
+			wantString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"value":1
+				}`, models.Gauge),
+		},
+		{
+			name: "invalid metric type",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":1.000
+				}`, "gauge1"),
+		},
+		{
+			name: "invalid counter value string",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"value":"something"
+				}`, models.Counter),
+		},
+		{
+			name: "invalid counter value float",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"c1",
+					"type":"%s",
+					"value":0.21
+				}`, models.Counter),
+		},
+		{
+			name: "invalid gauge value string",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":"something"
+				}`, models.Gauge),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := bytes.NewBuffer([]byte(tt.reqString))
+			req := httptest.NewRequest(http.MethodPost, "/update", buf)
+
+			w := httptest.NewRecorder()
+			h.UpdateMetricJSONHandler(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+
+			require.Equal(t, tt.code, res.StatusCode)
+			if res.StatusCode == http.StatusOK {
+				resBody, err := io.ReadAll(res.Body)
+				require.NoError(t, err)
+				var resJSON models.Metrics
+				require.NoError(t, json.Unmarshal(resBody, &resJSON))
+				var m models.Metrics
+				json.Unmarshal([]byte(tt.wantString), &m)
+				assert.Equal(t, m, resJSON)
 			}
 		})
 	}
