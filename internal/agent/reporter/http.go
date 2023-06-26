@@ -12,10 +12,6 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/store"
 )
 
-var (
-	l = &logger.L
-)
-
 // HTTPReporter reports metrics to server over HTTP
 type HTTPReporter struct {
 	s       store.Storage
@@ -43,23 +39,23 @@ func (r HTTPReporter) Report() {
 				val = strconv.FormatInt(v.IValue, 10)
 			}
 			url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, v.Type, v.Name, val)
-			l.Debug().Msgf("Sending metric %s", url)
+			logger.Log.Debug().Msgf("Sending metric %s", url)
 			resp, err := r.c.Post(url, "text/plain", nil)
 			if err != nil {
-				l.Warn().Err(err).Msgf("failed to send metric %s", url)
+				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", url)
 				return
 			}
 			defer resp.Body.Close()
 			// check if request was successful
 			if resp.StatusCode != http.StatusOK {
 				// request failed
-				l.Warn().Msgf("wrong http response status: %s", resp.Status)
+				logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
 
 				body, err := io.ReadAll(resp.Body)
 				if err != nil {
-					l.Warn().Err(err).Msg("unable to parse response body")
+					logger.Log.Warn().Err(err).Msg("unable to parse response body")
 				}
-				l.Debug().Msgf("Response body: %s", body)
+				logger.Log.Debug().Msgf("Response body: %s", body)
 				return
 			}
 			// request successes, delete updated metrics

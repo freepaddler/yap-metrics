@@ -16,10 +16,6 @@ const (
 	defaultLogLevel = "info"
 )
 
-var (
-	l = &logger.L
-)
-
 // Config implements server configuration
 type Config struct {
 	Address  string `env:"ADDRESS"`
@@ -42,13 +38,10 @@ func NewConfig() *Config {
 
 	// env vars
 	if err := env.Parse(&c); err != nil {
-		l.Warn().Err(err).Msg("failed to parse ENV")
+		logger.Log.Warn().Err(err).Msg("failed to parse ENV")
 	}
 
-	// set global log level
-	logger.SetLevel(c.LogLevel)
-
-	l.Debug().Interface("Config", c).Msg("done config")
+	logger.Log.Debug().Interface("Config", c).Msg("done config")
 
 	return &c
 }

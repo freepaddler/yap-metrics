@@ -5,10 +5,6 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
 
-var (
-	l = &logger.L
-)
-
 // MemStorage is in-memory metric store
 type MemStorage struct {
 	counters map[string]int64
@@ -36,7 +32,7 @@ func NewMemStorage() *MemStorage {
 
 func (ms *MemStorage) SetGauge(name string, iValue float64) {
 	ms.gauges[name] = iValue
-	l.Debug().Msgf("SetGauge: store value %f for gauge %s", iValue, name)
+	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", iValue, name)
 }
 
 func (ms *MemStorage) GetGauge(name string) (float64, bool) {
@@ -50,7 +46,7 @@ func (ms *MemStorage) DelGauge(name string) {
 
 func (ms *MemStorage) IncCounter(name string, iValue int64) {
 	ms.counters[name] += iValue
-	l.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
+	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
 }
 
 func (ms *MemStorage) GetCounter(name string) (int64, bool) {

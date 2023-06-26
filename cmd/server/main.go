@@ -11,13 +11,12 @@ import (
 )
 
 func main() {
-	// global logger
-	l := &logger.L
 	// server configuration
 	conf := config.NewConfig()
 	// set log level
+	logger.SetLevel(conf.LogLevel)
 
-	l.Info().Msgf("Starting http server at %s...", conf.Address)
+	logger.Log.Info().Msgf("Starting http server at %s...", conf.Address)
 
 	// let's define app composition
 	//
@@ -42,9 +41,9 @@ func main() {
 	httpRouter := router.NewHTTPRouter(httpHandlers)
 
 	if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
-		l.Fatal().Err(err).Msg("unable to start http server")
+		logger.Log.Fatal().Err(err).Msg("unable to start http server")
 	}
 
 	// FIXME: this is never reachable until process control implementation
-	l.Info().Msg("Stopping server...")
+	logger.Log.Info().Msg("Stopping server...")
 }

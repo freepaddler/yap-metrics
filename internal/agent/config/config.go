@@ -20,10 +20,6 @@ const (
 	defaultLogLevel       = "info"
 )
 
-var (
-	l = &logger.L
-)
-
 // Config implements agent configuration
 type Config struct {
 	PollInterval   uint32        `env:"POLL_INTERVAL"`
@@ -83,15 +79,12 @@ func NewConfig() *Config {
 
 	// env vars
 	if err := env.Parse(&c); err != nil {
-		l.Warn().Err(err).Msg("failed to parse ENV")
+		logger.Log.Warn().Err(err).Msg("failed to parse ENV")
 	}
-
-	// set global log level
-	logger.SetLevel(c.LogLevel)
 
 	// check
 	if c.HTTPTimeout.Seconds() < 0.5 || c.HTTPTimeout.Seconds() > 999 {
-		l.Warn().Msgf(
+		logger.Log.Warn().Msgf(
 			"invalid httpTimeout value %s. Using default %s",
 			c.HTTPTimeout.String(),
 			defaultHTTPTimeout.String(),
@@ -99,7 +92,7 @@ func NewConfig() *Config {
 		c.HTTPTimeout = defaultHTTPTimeout
 	}
 
-	l.Debug().Interface("Config", c).Msg("done config")
+	logger.Log.Debug().Interface("Config", c).Msg("done config")
 
 	return &c
 }

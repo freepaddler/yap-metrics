@@ -13,10 +13,6 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/store"
 )
 
-var (
-	l = &logger.L
-)
-
 type HTTPHandlers struct {
 	storage store.Storage
 }
@@ -39,7 +35,7 @@ const (
 
 // UpdateMetricHandler validates update request and writes metrics to storage
 func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
-	l.Debug().Msgf("UpdateMetricHandler: Request received  URL=%v", r.URL)
+	logger.Log.Debug().Msgf("UpdateMetricHandler: Request received  URL=%v", r.URL)
 	t := chi.URLParam(r, "type")  // metric type
 	n := chi.URLParam(r, "name")  // metric name
 	v := chi.URLParam(r, "value") // metric value
@@ -47,7 +43,7 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 	case models.Counter:
 		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			l.Debug().Msgf("UpdateMetricHandler: wrong counter increment '%s'", v)
+			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong counter increment '%s'", v)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -55,13 +51,13 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 	case models.Gauge:
 		g, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			l.Debug().Msgf("UpdateMetricHandler: wrong gauge value '%s'", v)
+			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong gauge value '%s'", v)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		h.storage.SetGauge(n, g)
 	default:
-		l.Debug().Msgf("UpdateMetricHandler: wrong metric type '%s'", t)
+		logger.Log.Debug().Msgf("UpdateMetricHandler: wrong metric type '%s'", t)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -69,7 +65,7 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 
 // GetMetricHandler returns stored metrics
 func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
-	l.Debug().Msgf("GetMetricHandler: Request received  URL=%v", r.URL)
+	logger.Log.Debug().Msgf("GetMetricHandler: Request received  URL=%v", r.URL)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	t := chi.URLParam(r, "type") // metric type
 	n := chi.URLParam(r, "name") // metric name
@@ -85,11 +81,11 @@ func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	default:
-		l.Debug().Msgf("GetMetricHandler: bad metric type %s", t)
+		logger.Log.Debug().Msgf("GetMetricHandler: bad metric type %s", t)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	l.Debug().Msgf("GetMetricHandler: requested metric %s does not exist", n)
+	logger.Log.Debug().Msgf("GetMetricHandler: requested metric %s does not exist", n)
 	w.WriteHeader(http.StatusNotFound)
 }
 
