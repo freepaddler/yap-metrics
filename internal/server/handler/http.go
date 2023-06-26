@@ -98,9 +98,9 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 		var val string
 		switch m.Type {
 		case models.Counter:
-			val = strconv.FormatInt(m.IValue, 10)
+			val = strconv.FormatInt(*m.IValue, 10)
 		case models.Gauge:
-			val = strconv.FormatFloat(m.FValue, 'f', -1, 64)
+			val = strconv.FormatFloat(*m.FValue, 'f', -1, 64)
 		default:
 			continue
 		}
@@ -114,3 +114,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	`, time.Now().Format(time.UnixDate))
 	w.Write([]byte(footer))
 }
+
+//func (h *HTTPHandlers) BunchUpdateMetricHandler(writer http.ResponseWriter, request *http.Request) {
+//
+//}

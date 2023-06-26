@@ -14,10 +14,10 @@ type MemStorage struct {
 func (ms *MemStorage) GetAllMetrics() []models.Metrics {
 	set := make([]models.Metrics, 0)
 	for name, value := range ms.counters {
-		set = append(set, models.Metrics{Type: models.Counter, Name: name, IValue: value})
+		set = append(set, models.Metrics{Type: models.Counter, Name: name, IValue: &value})
 	}
 	for name, value := range ms.gauges {
-		set = append(set, models.Metrics{Type: models.Gauge, Name: name, FValue: value})
+		set = append(set, models.Metrics{Type: models.Gauge, Name: name, FValue: &value})
 	}
 	return set
 }
