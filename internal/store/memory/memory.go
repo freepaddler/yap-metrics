@@ -1,6 +1,8 @@
 package memory
 
 import (
+	"errors"
+
 	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/models"
 )
@@ -35,9 +37,9 @@ func (ms *MemStorage) SetGauge(name string, iValue float64) {
 	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", iValue, name)
 }
 
-func (ms *MemStorage) GetGauge(name string) (float64, bool) {
+func (ms *MemStorage) GetGauge(name string) (*float64, bool) {
 	v, ok := ms.gauges[name]
-	return v, ok
+	return &v, ok
 }
 
 func (ms *MemStorage) DelGauge(name string) {
@@ -49,11 +51,47 @@ func (ms *MemStorage) IncCounter(name string, iValue int64) {
 	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
 }
 
-func (ms *MemStorage) GetCounter(name string) (int64, bool) {
+func (ms *MemStorage) GetCounter(name string) (*int64, bool) {
 	v, ok := ms.counters[name]
-	return v, ok
+	return &v, ok
 }
 
 func (ms *MemStorage) DelCounter(name string) {
 	delete(ms.counters, name)
+}
+
+// GetMetric searches requested metric in store
+// and updates requested metric with value from store
+func (ms *MemStorage) GetMetric(m *models.Metrics) (bool, error) {
+	var found bool
+	var err error
+	switch m.Type {
+	case models.Gauge:
+		m.FValue, found = ms.GetGauge(m.Name)
+	case models.Counter:
+		m.IValue, found = ms.GetCounter(m.Name)
+	default:
+		err = errors.New("invalid metric type")
+	}
+	return found, err
+}
+
+// SetMetric updates metric value in store
+// then, updates passed metric value with new store value
+func (ms *MemStorage) SetMetric(m *models.Metrics) error {
+	var err error
+	switch m.Type {
+	case models.Gauge:
+		ms.SetGauge(m.Name, *m.FValue)
+	case models.Counter:
+		ms.IncCounter(m.Name, *m.IValue)
+	default:
+		err = errors.New("invalid metric type")
+		return err
+	}
+	found, err := ms.GetMetric(m)
+	if err == nil && !found {
+		err = errors.New("just updated metric not found")
+	}
+	return err
 }

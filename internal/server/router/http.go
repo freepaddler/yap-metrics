@@ -11,9 +11,11 @@ func NewHTTPRouter(h *handler.HTTPHandlers) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(logger.LogRequestResponse())
 	r.Post("/update/{type}/{name}/{value}", h.UpdateMetricHandler)
-	//	r.Post("/update/", h.BunchUpdateMetricHandler)
 	r.Get("/value/{type}/{name}", h.GetMetricHandler)
 	r.Get("/", h.IndexMetricHandler)
+	// TODO: we definitely need middleware with context to check request json
+	r.Post("/update", h.UpdateMetricJSONHandler)
+	r.Post("/value", h.GetMetricJSONHandler)
 
 	return r
 }
