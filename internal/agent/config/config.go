@@ -92,7 +92,5 @@ func NewConfig() *Config {
 		c.HTTPTimeout = defaultHTTPTimeout
 	}
 
-	logger.Log.Debug().Interface("Config", c).Msg("done config")
-
 	return &c
 }

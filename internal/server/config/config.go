@@ -12,14 +12,20 @@ import (
 )
 
 const (
-	defaultAddress  = "127.0.0.1:8080"
-	defaultLogLevel = "info"
+	defaultAddress         = "127.0.0.1:8080"
+	defaultLogLevel        = "info"
+	defaultStoreInterval   = 300
+	defaultFileStoragePath = "/tmp/metrics-db.json"
+	defaultRestore         = true
 )
 
 // Config implements server configuration
 type Config struct {
-	Address  string `env:"ADDRESS"`
-	LogLevel string `env:"LOG_LEVEL"`
+	Address         string `env:"ADDRESS"`
+	LogLevel        string `env:"LOG_LEVEL"`
+	StoreInterval   int    `env:"STORE_INTERVAL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	Restore         bool   `env:"RESTORE"`
 }
 
 func NewConfig() *Config {
@@ -34,14 +40,15 @@ func NewConfig() *Config {
 	// cmd params
 	flag.StringVarP(&c.Address, "address", "a", defaultAddress, "server listening address `HOST:PORT`")
 	flag.StringVarP(&c.LogLevel, "loglevel", "l", defaultLogLevel, "logging `level` (trace, debug, info, warning, error)")
+	flag.IntVarP(&c.StoreInterval, "storeInterval", "i", defaultStoreInterval, "store to file interval in `seconds`")
+	flag.StringVarP(&c.FileStoragePath, "fileStoragePath", "f", defaultFileStoragePath, "`path` to storage file")
+	flag.BoolVarP(&c.Restore, "restore", "r", defaultRestore, "restore metrcis after server start: `true/false`")
 	flag.Parse()
 
 	// env vars
 	if err := env.Parse(&c); err != nil {
 		logger.Log.Warn().Err(err).Msg("failed to parse ENV")
 	}
-
-	logger.Log.Debug().Interface("Config", c).Msg("done config")
 
 	return &c
 }

@@ -14,6 +14,7 @@ func main() {
 
 	conf := config.NewConfig()
 	logger.SetLevel(conf.LogLevel)
+	logger.Log.Debug().Interface("Config", conf).Msg("done config")
 	logger.Log.Info().Msg("Starting agent...")
 	//return
 	// collector should place data in storage
