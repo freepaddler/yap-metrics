@@ -34,7 +34,7 @@ import (
 
 // check that value is random (differs between runs)
 func Test_CollectMetrics_RandomValue(t *testing.T) {
-	storage := memory.NewMemStorage()
+	storage := memory.NewMemStorage(nil)
 	CollectMetrics(storage)
 	val1, ok := storage.GetGauge("RandomValue")
 	require.Equal(t, true, ok)
@@ -46,7 +46,7 @@ func Test_CollectMetrics_RandomValue(t *testing.T) {
 
 // check that poll count increases every collection cycle
 func Test_CollectMetrics_PollCount(t *testing.T) {
-	storage := memory.NewMemStorage()
+	storage := memory.NewMemStorage(nil)
 	CollectMetrics(storage)
 	val1, ok := storage.GetCounter("PollCount")
 	require.Equal(t, true, ok)
@@ -60,7 +60,7 @@ func Test_CollectMetrics_PollCount(t *testing.T) {
 // check existence of all stats metrics
 func Test_CollectMetrics_All_Metrics_Exist(t *testing.T) {
 	counters := []string{"PollCount"}
-	storage := memory.NewMemStorage()
+	storage := memory.NewMemStorage(nil)
 	CollectMetrics(storage)
 	gauges := []string{
 		"RandomValue",
