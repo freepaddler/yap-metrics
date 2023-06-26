@@ -1,0 +1,81 @@
+### GET query /update wrong method
+# curl -i http://localhost:8080/update/counter/name/value
+GET http://localhost:8080/update/counter/name/value
+
+> assert_405_MethodNotAllowed.js
+
+### GET JSON /update wrong method
+# curl -i http://localhost:8080/update
+GET http://localhost:8080/update
+
+> assert_405_MethodNotAllowed.js
+
+### POST query /update missing name
+# curl -X POST -i http://localhost:8080/update/counter/qwe
+POST http://localhost:8080/update/counter/qwe
+
+> assert_404_NotFound.js
+
+### POST JSON /update missing name
+# curl -X POST -i http://localhost:8080/update -d '{"type":"counter"}'
+POST http://localhost:8080/update
+
+{"type":"counter"}
+
+> assert_400_BadRequest.js
+
+
+### POST query /update invalid metric
+# curl -X POST -i http://localhost:8080/update/counter1/c1/10
+POST  http://localhost:8080/update/counter1/c1/10
+
+> assert_400_BadRequest.js
+
+### POST JSON /update invalid metric
+# curl -X POST -i http://localhost:8080/update -d '{"id":"c1","type":"counter1"}'
+POST http://localhost:8080/update
+
+{"id":"c1","type":"counter1"}
+
+> assert_400_BadRequest.js
+
+### POST query /update counter float
+# curl -X POST -i http://localhost:8080/update/counter/c1/10.002
+POST  http://localhost:8080/update/counter/c1/10.002
+
+> assert_400_BadRequest.js
+
+### POST JSON /update counter float
+# curl -X POST -i http://localhost:8080/update -d '{"id":"c1","type":"counter","delta":1.002}'
+POST http://localhost:8080/update
+
+{"id":"c1","type":"counter","delta":1.002}
+
+> assert_400_BadRequest.js
+
+### POST query /update gauge string
+# curl -X POST -i http://localhost:8080/update/gauge/g1/none
+POST http://localhost:8080/update/gauge/g1/none
+
+> assert_400_BadRequest.js
+
+### POST JSON /update gauge string
+# curl -X POST -i http://localhost:8080/update -d '{"id":"g1","type":"gauge","value":"string"}'
+POST http://localhost:8080/update
+
+{"id":"g1","type":"gauge","value":"string"}
+
+> assert_400_BadRequest.js
+
+### POST query /update too many params
+# curl -X POST -i http://localhost:8080/update/counter/c1/10/20/30/40
+POST http://localhost:8080/update/counter/c1/10/20/30/40
+
+> assert_404_NotFound.js
+
+
+#### POST JSON /update empty body
+# curl -X POST -i http://localhost:8080/update
+POST http://localhost:8080/update
+
+> assert_400_BadRequest.js
