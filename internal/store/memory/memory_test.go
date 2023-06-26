@@ -41,7 +41,7 @@ func TestMemStorage_GetCounter(t *testing.T) {
 			v, ok := s.GetCounter(tt.cName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
-				assert.Equal(t, tt.wantValue, v)
+				assert.Equal(t, tt.wantValue, *v)
 			}
 
 		})
@@ -84,7 +84,7 @@ func TestMemStorage_IncCounter(t *testing.T) {
 			s.IncCounter(tt.cName, tt.iValue)
 			v, ok := s.GetCounter(tt.cName)
 			require.Equal(t, tt.wantOk, ok)
-			assert.Equal(t, tt.wantValue, v)
+			assert.Equal(t, tt.wantValue, *v)
 		})
 	}
 }
@@ -132,7 +132,7 @@ func TestMemStorage_GetGauge(t *testing.T) {
 			v, ok := s.GetGauge(tt.cName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
-				assert.Equal(t, tt.wantValue, v)
+				assert.Equal(t, tt.wantValue, *v)
 			}
 
 		})
@@ -175,7 +175,7 @@ func TestMemStorage_SetGauge(t *testing.T) {
 			s.SetGauge(tt.cName, tt.fValue)
 			v, ok := s.GetGauge(tt.cName)
 			require.Equal(t, tt.wantOk, ok)
-			assert.Equal(t, tt.wantValue, v)
+			assert.Equal(t, tt.wantValue, *v)
 		})
 	}
 }

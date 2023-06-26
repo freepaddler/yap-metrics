@@ -23,10 +23,10 @@ func (r PrintReporter) Report() {
 	for _, v := range m {
 		switch v.Type {
 		case models.Counter:
-			fmt.Printf("Metric: %s, type: %s, value: %d\n", v.Name, v.Type, v.IValue)
+			fmt.Printf("Metric: %s, type: %s, value: %d\n", v.Name, v.Type, *v.IValue)
 			r.s.DelCounter(v.Name)
 		case models.Gauge:
-			fmt.Printf("Metric: %s, type: %s, value: %f\n", v.Name, v.Type, v.FValue)
+			fmt.Printf("Metric: %s, type: %s, value: %f\n", v.Name, v.Type, *v.FValue)
 			r.s.DelGauge(v.Name)
 		}
 	}
