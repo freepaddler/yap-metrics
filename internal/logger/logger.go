@@ -32,27 +32,25 @@ func SetLevel(s string) {
 	zerolog.SetGlobalLevel(v)
 }
 
-func LogRequestResponse() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		logFn := func(w http.ResponseWriter, r *http.Request) {
+func LogRequestResponse(next http.Handler) http.Handler {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
 
-			// to get response data
-			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		// to get response data
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-			tStart := time.Now()
-			defer func() {
-				dur := time.Since(tStart)
-				Log.Info().
-					Str("host", r.Host).
-					Str("url", r.URL.Path).
-					Str("method", r.Method).
-					Dur("ms_served", dur).
-					Int("status", ww.Status()).
-					Int("bytes_sent", ww.BytesWritten()).
-					Msg("http request")
-			}()
-			next.ServeHTTP(ww, r)
-		}
-		return http.HandlerFunc(logFn)
+		tStart := time.Now()
+		defer func() {
+			dur := time.Since(tStart)
+			Log.Info().
+				Str("host", r.Host).
+				Str("url", r.URL.Path).
+				Str("method", r.Method).
+				Dur("ms_served", dur).
+				Int("status", ww.Status()).
+				Int("bytes_sent", ww.BytesWritten()).
+				Msg("http request")
+		}()
+		next.ServeHTTP(ww, r)
 	}
+	return http.HandlerFunc(logFn)
 }
