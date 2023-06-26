@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -81,9 +82,26 @@ func (r HTTPReporter) ReportJSON() {
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %s", body)
 			}
-			buf := bytes.NewBuffer(body)
+
+			// compress body
+			var buf bytes.Buffer
+			gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+			_, err = gzBuf.Write(body)
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("unable to compress body")
+				return
+			}
+			gzBuf.Close()
+
+			req, err := http.NewRequest(http.MethodPost, url, &buf)
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("unable to create http request")
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Encoding", "gzip")
+			req.Header.Set("Accept-Encoding", "gzip")
 			logger.Log.Debug().Msgf("sending metric %s", body)
-			resp, err := r.c.Post(url, "application/json", buf)
+			resp, err := r.c.Do(req)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", body)
 				return

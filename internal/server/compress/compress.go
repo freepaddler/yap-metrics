@@ -24,6 +24,7 @@ func newGzWriter(w http.ResponseWriter) *gzWriter {
 func (cw *gzWriter) Write(p []byte) (n int, err error) {
 	ct := cw.Header().Get("Content-Type")
 	if !strings.Contains(ct, "text/html") && !strings.Contains(ct, "application/json") {
+		logger.Log.Debug().Msg("sending compressed response")
 		return cw.ResponseWriter.Write(p)
 	}
 	cw.Header().Set("Content-Encoding", "gzip")
