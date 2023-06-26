@@ -2,6 +2,7 @@ package memory
 
 import (
 	"errors"
+	"sort"
 
 	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/models"
@@ -14,13 +15,21 @@ type MemStorage struct {
 }
 
 func (ms *MemStorage) GetAllMetrics() []models.Metrics {
+	// make values arrays
+	counterV := make([]int64, len(ms.counters))
+	gaugesV := make([]float64, len(ms.gauges))
 	set := make([]models.Metrics, 0)
 	for name, value := range ms.counters {
-		set = append(set, models.Metrics{Type: models.Counter, Name: name, IValue: &value})
+		counterV = append(counterV, value)
+		set = append(set, models.Metrics{Type: models.Counter, Name: name, IValue: &counterV[len(counterV)-1]})
 	}
 	for name, value := range ms.gauges {
-		set = append(set, models.Metrics{Type: models.Gauge, Name: name, FValue: &value})
+		gaugesV = append(gaugesV, value)
+		set = append(set, models.Metrics{Type: models.Gauge, Name: name, FValue: &gaugesV[len(gaugesV)-1]})
 	}
+	sort.Slice(set, func(i, j int) bool {
+		return set[i].Name < set[j].Name
+	})
 	return set
 }
 

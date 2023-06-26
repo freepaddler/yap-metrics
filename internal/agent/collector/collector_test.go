@@ -54,7 +54,7 @@ func Test_CollectMetrics_PollCount(t *testing.T) {
 	CollectMetrics(storage)
 	val2, ok := storage.GetCounter("PollCount")
 	require.Equal(t, true, ok)
-	assert.Equal(t, int64(1), val2-val1)
+	assert.Equal(t, int64(1), *val2-*val1)
 }
 
 // check existence of all stats metrics

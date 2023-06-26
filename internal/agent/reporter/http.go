@@ -1,6 +1,8 @@
 package reporter
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,9 +36,9 @@ func (r HTTPReporter) Report() {
 			var val string
 			switch v.Type {
 			case models.Gauge:
-				val = strconv.FormatFloat(v.FValue, 'f', -1, 64)
+				val = strconv.FormatFloat(*v.FValue, 'f', -1, 64)
 			case models.Counter:
-				val = strconv.FormatInt(v.IValue, 10)
+				val = strconv.FormatInt(*v.IValue, 10)
 			}
 			url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, v.Type, v.Name, val)
 			logger.Log.Debug().Msgf("Sending metric %s", url)
@@ -56,6 +58,40 @@ func (r HTTPReporter) Report() {
 					logger.Log.Warn().Err(err).Msg("unable to parse response body")
 				}
 				logger.Log.Debug().Msgf("Response body: %s", body)
+				return
+			}
+			// request successes, delete updated metrics
+			switch v.Type {
+			case models.Counter:
+				r.s.DelCounter(v.Name)
+			case models.Gauge:
+				r.s.DelGauge(v.Name)
+
+			}
+		}()
+	}
+}
+
+func (r HTTPReporter) ReportJSON() {
+	m := r.s.GetAllMetrics()
+	url := fmt.Sprintf("http://%s/update", r.address)
+	for _, v := range m {
+		func() {
+			body, err := json.Marshal(v)
+			if err != nil {
+				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %s", body)
+			}
+			buf := bytes.NewBuffer(body)
+			logger.Log.Debug().Msgf("sending metric %s", body)
+			resp, err := r.c.Post(url, "application/json", buf)
+			if err != nil {
+				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", body)
+				return
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				// request failed
+				logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
 				return
 			}
 			// request successes, delete updated metrics

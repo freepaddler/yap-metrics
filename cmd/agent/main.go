@@ -33,7 +33,7 @@ func main() {
 		}
 		if ticker%int(conf.ReportInterval) == 0 {
 			logger.Log.Debug().Msgf("\n======\nNew Report\n")
-			rpt.Report()
+			rpt.ReportJSON()
 		}
 		time.Sleep(1 * time.Second)
 		ticker++
