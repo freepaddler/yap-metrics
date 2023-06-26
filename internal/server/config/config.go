@@ -50,5 +50,10 @@ func NewConfig() *Config {
 		logger.Log.Warn().Err(err).Msg("failed to parse ENV")
 	}
 
+	fsp, ok := os.LookupEnv("FILE_STORAGE_PATH")
+	if ok {
+		c.FileStoragePath = fsp
+	}
+
 	return &c
 }

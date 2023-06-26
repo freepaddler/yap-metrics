@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/server/config"
 	"github.com/freepaddler/yap-metrics/internal/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/server/router"
+	"github.com/freepaddler/yap-metrics/internal/store/file"
 	"github.com/freepaddler/yap-metrics/internal/store/memory"
 )
 
@@ -35,12 +35,22 @@ func main() {
 	// storage is interface, which methods should be called by handlers
 	// router must call handlers
 
+	// create file storage
+	fStore, err := file.NewFileStorage(conf.FileStoragePath, conf.StoreInterval)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("unable to init file storage")
+	}
+	defer fStore.Close()
 	// create new storage instance
-	storage := memory.NewMemStorage()
+	storage := memory.NewMemStorage(fStore)
 	// create http handlers instance
 	httpHandlers := handler.NewHTTPHandlers(storage)
 	// create http router
 	httpRouter := router.NewHTTPRouter(httpHandlers)
+
+	if fStore != nil && conf.Restore {
+		fStore.RestoreStorage(storage)
+	}
 
 	go func() {
 		if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
@@ -48,9 +58,16 @@ func main() {
 		}
 	}()
 
+	logger.Log.Debug().Msg("Starting file storage loop...")
+	ticker := 1
 	for {
-		fmt.Println("i am running")
+		if fStore != nil &&
+			conf.StoreInterval > 0 &&
+			ticker%conf.StoreInterval == 0 {
+			fStore.SaveStorage(storage)
+		}
 		time.Sleep(time.Second)
+		ticker++
 	}
 
 	// FIXME: this is never reachable until process control implementation

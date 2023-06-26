@@ -19,5 +19,11 @@ type Storage interface {
 	Counter
 	GetAllMetrics() []models.Metrics
 	GetMetric(metric *models.Metrics) (bool, error)
-	SetMetric(metrics *models.Metrics) error
+	SetMetric(metric *models.Metrics) error
+}
+
+type PersistentStorage interface {
+	RestoreStorage(storage Storage)
+	SaveMetric(metric models.Metrics)
+	SaveStorage(storage Storage)
 }

@@ -21,7 +21,7 @@ func main() {
 	// reported should report data from storage, set counters in storage as reported
 
 	// new memory storage
-	storage := memory.NewMemStorage()
+	storage := memory.NewMemStorage(nil)
 	//rpt := reporter.NewPrintReporter(storage)
 	rpt := reporter.NewHTTPReporter(storage, conf.ServerAddress, conf.HTTPTimeout)
 
