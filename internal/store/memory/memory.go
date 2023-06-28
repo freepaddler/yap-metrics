@@ -27,9 +27,7 @@ func NewMemStorage() *MemStorage {
 
 // RegisterHook registers persistent storage function to get notification that metric was updated
 func (ms *MemStorage) RegisterHook(fns ...func(store.Storage, models.Metrics)) {
-	for _, f := range fns {
-		ms.hooks = append(ms.hooks, f)
-	}
+	ms.hooks = append(ms.hooks, fns...)
 }
 
 // updateHook notifies persistent storage that metric was updated
