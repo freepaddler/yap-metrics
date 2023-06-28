@@ -11,7 +11,7 @@ import (
 )
 
 func TestMemStorage_GetCounter(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	existingName := "c1"
 	existingValue := int64(1)
 	absentName := "c2"
@@ -49,7 +49,7 @@ func TestMemStorage_GetCounter(t *testing.T) {
 }
 
 func TestMemStorage_IncCounter(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	tests := []struct {
 		name      string
 		cName     string
@@ -90,7 +90,7 @@ func TestMemStorage_IncCounter(t *testing.T) {
 }
 
 func TestMemStorage_DelCounter(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	deletedName := "c1"
 	deletedValue := int64(1)
 	s.IncCounter(deletedName, deletedValue)
@@ -102,7 +102,7 @@ func TestMemStorage_DelCounter(t *testing.T) {
 }
 
 func TestMemStorage_GetGauge(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	existingName := "g1"
 	existingValue := -0.117
 	absentName := "g2"
@@ -140,7 +140,7 @@ func TestMemStorage_GetGauge(t *testing.T) {
 }
 
 func TestMemStorage_SetGauge(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	tests := []struct {
 		name      string
 		cName     string
@@ -181,7 +181,7 @@ func TestMemStorage_SetGauge(t *testing.T) {
 }
 
 func TestMemStorage_DelGauge(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	deletedName := "c1"
 	deletedValue := float64(1)
 	s.SetGauge(deletedName, deletedValue)
@@ -194,7 +194,7 @@ func TestMemStorage_DelGauge(t *testing.T) {
 
 // set number of metrics, get same number of metrics with same values
 func TestMemStorage_GetAllMetrics(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	type counter struct {
 		models.Metrics
 		IValue int64
@@ -262,13 +262,13 @@ func TestMemStorage_GetAllMetrics(t *testing.T) {
 }
 
 func TestMemStorage_GetAllMetrics_EmptySet(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	m := s.GetAllMetrics()
 	require.Equal(t, 0, len(m), "No metrics should be returned")
 }
 
 func TestMemStorage_GetMetric(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	existingCounterName := "c1"
 	existingCounterValue := int64(1)
 	absentCounterName := "c2"
@@ -339,7 +339,7 @@ func TestMemStorage_GetMetric(t *testing.T) {
 }
 
 func TestMemStorage_SetMetric(t *testing.T) {
-	s := NewMemStorage(nil)
+	s := NewMemStorage()
 	tests := []struct {
 		name             string
 		gaugeValue       float64
