@@ -14,6 +14,33 @@ type MemStorage struct {
 	counters map[string]int64
 	gauges   map[string]float64
 	ps       store.PersistentStorage
+	hooks    []func(store.Storage, models.Metrics)
+}
+
+// NewMemStorage is a constructor for MemStorage
+func NewMemStorage() *MemStorage {
+	ms := &MemStorage{}
+	ms.counters = make(map[string]int64)
+	ms.gauges = make(map[string]float64)
+	return ms
+}
+
+// RegisterHook registers persistent storage function to get notification that metric was updated
+func (ms *MemStorage) RegisterHook(fns ...func(store.Storage, models.Metrics)) {
+	for _, f := range fns {
+		ms.hooks = append(ms.hooks, f)
+	}
+}
+
+// updateHook notifies persistent storage that metric was updated
+func (ms *MemStorage) updateHook(n, t string) {
+	for _, hook := range ms.hooks {
+		m := models.Metrics{
+			Name: n,
+			Type: t,
+		}
+		hook(ms, m)
+	}
 }
 
 func (ms *MemStorage) GetAllMetrics() []models.Metrics {
@@ -35,26 +62,10 @@ func (ms *MemStorage) GetAllMetrics() []models.Metrics {
 	return set
 }
 
-// NewMemStorage is a constructor for MemStorage
-func NewMemStorage(ps store.PersistentStorage) *MemStorage {
-	ms := &MemStorage{}
-	ms.counters = make(map[string]int64)
-	ms.gauges = make(map[string]float64)
-	ms.ps = ps
-	return ms
-}
-
 func (ms *MemStorage) SetGauge(name string, iValue float64) {
 	ms.gauges[name] = iValue
 	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", iValue, name)
-	if ms.ps != nil {
-		ms.ps.SaveMetric(models.Metrics{
-			Name:   name,
-			Type:   models.Gauge,
-			FValue: &iValue,
-		})
-	}
-
+	ms.updateHook(name, models.Gauge)
 }
 
 func (ms *MemStorage) GetGauge(name string) (*float64, bool) {
@@ -67,16 +78,9 @@ func (ms *MemStorage) DelGauge(name string) {
 }
 
 func (ms *MemStorage) IncCounter(name string, iValue int64) {
-	c := ms.counters[name] + iValue
-	ms.counters[name] = c
+	ms.counters[name] += iValue
 	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
-	if ms.ps != nil {
-		ms.ps.SaveMetric(models.Metrics{
-			Name:   name,
-			Type:   models.Counter,
-			IValue: &c,
-		})
-	}
+	ms.updateHook(name, models.Counter)
 }
 
 func (ms *MemStorage) GetCounter(name string) (*int64, bool) {

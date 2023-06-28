@@ -24,6 +24,6 @@ type Storage interface {
 
 type PersistentStorage interface {
 	RestoreStorage(storage Storage)
-	SaveMetric(metric models.Metrics)
+	Updated(storage Storage, metric models.Metrics)
 	SaveStorage(storage Storage)
 }

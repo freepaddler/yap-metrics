@@ -33,11 +33,16 @@ func NewFileStorage(path string, storeint int) (*FileStorage, error) {
 	}, nil
 }
 
-// SaveMetric called from storage to indicate data change
-func (f *FileStorage) SaveMetric(m models.Metrics) {
-	if f.sw {
-		f.writeMetric(m)
+// Updated id called from storage to indicate metric change
+func (f *FileStorage) Updated(s store.Storage, m models.Metrics) {
+	switch m.Type {
+	// get metric values
+	case models.Gauge:
+		m.FValue, _ = s.GetGauge(m.Name)
+	case models.Counter:
+		m.IValue, _ = s.GetCounter(m.Name)
 	}
+	f.writeMetric(m)
 }
 
 // writeMetric internal method to write metric to file
@@ -61,12 +66,21 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
 	var err error
 	var m models.Metrics
-	for err != io.EOF {
+	for {
 		err = f.dec.Decode(&m)
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			logger.Log.Warn().Err(err).Msg("error parsing file data")
 		}
-		s.SetMetric(&m)
+		switch m.Type {
+		case models.Gauge:
+			s.SetGauge(m.Name, *m.FValue)
+		case models.Counter:
+			s.DelCounter(m.Name)
+			s.IncCounter(m.Name, *m.IValue)
+		}
 	}
 	logger.Log.Debug().Msg("done storage restore")
 }

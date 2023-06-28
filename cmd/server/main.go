@@ -42,15 +42,19 @@ func main() {
 	}
 	defer fStore.Close()
 	// create new storage instance
-	storage := memory.NewMemStorage(fStore)
+	storage := memory.NewMemStorage()
+	// restore storage from file
+	if fStore != nil && conf.Restore {
+		fStore.RestoreStorage(storage)
+	}
+	// register update hook for sync write to persistent storage
+	if fStore != nil && conf.StoreInterval == 0 {
+		storage.RegisterHook(fStore.Updated)
+	}
 	// create http handlers instance
 	httpHandlers := handler.NewHTTPHandlers(storage)
 	// create http router
 	httpRouter := router.NewHTTPRouter(httpHandlers)
-
-	if fStore != nil && conf.Restore {
-		fStore.RestoreStorage(storage)
-	}
 
 	go func() {
 		if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
@@ -71,5 +75,5 @@ func main() {
 	}
 
 	// FIXME: this is never reachable until process control implementation
-	logger.Log.Info().Msg("Stopping server...")
+	// logger.Log.Info().Msg("Stopping server...")
 }
