@@ -80,20 +80,14 @@ func (r HTTPReporter) ReportJSON() {
 		func() {
 			body, err := json.Marshal(v)
 			if err != nil {
-				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %s", body)
+				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %s", v)
+				return
 			}
 
 			// compress body
-			var buf bytes.Buffer
-			gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
-			_, err = gzBuf.Write(body)
-			if err != nil {
-				logger.Log.Error().Err(err).Msg("unable to compress body")
-				return
-			}
-			gzBuf.Close()
+			respBody := compressResponse(&body)
 
-			req, err := http.NewRequest(http.MethodPost, url, &buf)
+			req, err := http.NewRequest(http.MethodPost, url, respBody)
 			if err != nil {
 				logger.Log.Error().Err(err).Msg("unable to create http request")
 			}
@@ -122,4 +116,20 @@ func (r HTTPReporter) ReportJSON() {
 			}
 		}()
 	}
+}
+
+func compressResponse(body *[]byte) *bytes.Buffer {
+	var buf bytes.Buffer
+	gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	defer gzBuf.Close()
+	_, err := gzBuf.Write(*body)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("unable to compress body, sending uncompressed")
+		// return raw body
+		buf.Truncate(0)
+		buf.Write(*body)
+	}
+	logger.Log.Debug().Msg("response compressed")
+	return &buf
+
 }
