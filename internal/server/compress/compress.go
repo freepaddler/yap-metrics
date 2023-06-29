@@ -37,6 +37,20 @@ func (cw *gzWriter) Close() {
 
 func GzipMiddleware(next http.Handler) http.Handler {
 	gz := func(w http.ResponseWriter, r *http.Request) {
+
+		// proceed compressed request
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			zrBody, err := gzip.NewReader(r.Body)
+			if err != nil {
+				logger.Log.Warn().Err(err).Msg("failed to create gzip reader")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			defer zrBody.Close()
+			logger.Log.Debug().Msgf("gzip-compressed request decompressed")
+			r.Body = zrBody
+		}
+
 		// compress response: replace ResponseWriter with gzip Writer
 		// default response writer
 		rw := w
@@ -48,19 +62,6 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			rw = gzrw
 			// because it should be closed
 			defer gzrw.Close()
-		}
-
-		// proceed compressed request
-		if r.Header.Get("Content-Encoding") == "gzip" {
-			zrBody, err := gzip.NewReader(r.Body)
-			if err != nil {
-				logger.Log.Warn().Err(err).Msg("failed to create gzip reader")
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			defer zrBody.Close()
-			logger.Log.Debug().Msgf("gzip-compressed request")
-			r.Body = zrBody
 		}
 
 		next.ServeHTTP(rw, r)
