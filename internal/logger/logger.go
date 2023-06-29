@@ -9,10 +9,16 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var Log *zerolog.Logger
+const (
+	logLevel zerolog.Level = zerolog.InfoLevel // default log level
+)
+
+var (
+	Log *zerolog.Logger
+)
 
 func init() {
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(logLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
 	zerolog.DurationFieldUnit = time.Millisecond
 	consoleLog := zerolog.ConsoleWriter{
@@ -27,8 +33,9 @@ func init() {
 func SetLevel(s string) {
 	v, err := zerolog.ParseLevel(s)
 	if err != nil {
-		Log.Warn().Err(err).Msg("invalid log level specified")
+		Log.Warn().Err(err).Msgf("invalid log level specified, using default level '%s'", logLevel)
 	}
+	Log.Info().Msgf("set log level to '%s'", v)
 	zerolog.SetGlobalLevel(v)
 }
 
