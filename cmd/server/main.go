@@ -36,7 +36,7 @@ func main() {
 	// router must call handlers
 
 	// create file storage
-	fStore, err := file.NewFileStorage(conf.FileStoragePath, conf.StoreInterval)
+	fStore, err := file.NewFileStorage(conf.FileStoragePath)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("unable to init file storage")
 	}

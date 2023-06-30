@@ -15,11 +15,10 @@ type FileStorage struct {
 	file *os.File
 	enc  *json.Encoder
 	dec  *json.Decoder
-	sw   bool
 }
 
 // NewFileStorage is a constructor
-func NewFileStorage(path string, storeint int) (*FileStorage, error) {
+func NewFileStorage(path string) (*FileStorage, error) {
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		logger.Log.Error().Err(err).Msgf("unable to open file %s", path)
@@ -29,7 +28,6 @@ func NewFileStorage(path string, storeint int) (*FileStorage, error) {
 		file: file,
 		enc:  json.NewEncoder(file),
 		dec:  json.NewDecoder(file),
-		sw:   storeint == 0,
 	}, nil
 }
 
