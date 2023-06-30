@@ -20,6 +20,12 @@ type Storage interface {
 	Snapshot() []models.Metrics
 	GetMetric(metric *models.Metrics) (bool, error)
 	SetMetric(metric *models.Metrics) error
+
+	// TODO: question
+	// нужно ли было на самом деле реализовывать методы GetMetric и SetMetric
+	// вполне можно было обойтись методами самих метрик
+	// зато Get/Set Metric позволяют реализовать все в одном месте
+
 }
 
 type PersistentStorage interface {

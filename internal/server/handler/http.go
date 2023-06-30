@@ -117,6 +117,11 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	w.Write([]byte(footer))
 }
 
+// TODO: question
+// Очень хочется в методах без JSON привести формат запроса к моделям
+// и реализовать единую логику для JSON и urlParams методов Get и Update
+// тогда и обработка ошибок станет единообразной
+
 func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var m models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
