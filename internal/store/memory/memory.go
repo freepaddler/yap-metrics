@@ -14,7 +14,7 @@ type MemStorage struct {
 	counters map[string]int64
 	gauges   map[string]float64
 	ps       store.PersistentStorage
-	hooks    []func(store.Storage, models.Metrics)
+	hooks    []func(models.Metrics)
 }
 
 // NewMemStorage is a constructor for MemStorage
@@ -26,18 +26,14 @@ func NewMemStorage() *MemStorage {
 }
 
 // RegisterHook registers persistent storage function to get notification that metric was updated
-func (ms *MemStorage) RegisterHook(fns ...func(store.Storage, models.Metrics)) {
+func (ms *MemStorage) RegisterHook(fns ...func(models.Metrics)) {
 	ms.hooks = append(ms.hooks, fns...)
 }
 
 // updateHook notifies persistent storage that metric was updated
-func (ms *MemStorage) updateHook(n, t string) {
+func (ms *MemStorage) updateHook(m models.Metrics) {
 	for _, hook := range ms.hooks {
-		m := models.Metrics{
-			Name: n,
-			Type: t,
-		}
-		hook(ms, m)
+		hook(m)
 	}
 }
 
@@ -60,10 +56,16 @@ func (ms *MemStorage) GetAllMetrics() []models.Metrics {
 	return set
 }
 
-func (ms *MemStorage) SetGauge(name string, iValue float64) {
-	ms.gauges[name] = iValue
-	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", iValue, name)
-	ms.updateHook(name, models.Gauge)
+func (ms *MemStorage) SetGauge(name string, fValue float64) {
+	ms.gauges[name] = fValue
+	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
+	// pointer to map will not work
+	v := fValue
+	ms.updateHook(models.Metrics{
+		Name:   name,
+		Type:   models.Gauge,
+		FValue: &v,
+	})
 }
 
 func (ms *MemStorage) GetGauge(name string) (*float64, bool) {
@@ -78,7 +80,13 @@ func (ms *MemStorage) DelGauge(name string) {
 func (ms *MemStorage) IncCounter(name string, iValue int64) {
 	ms.counters[name] += iValue
 	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
-	ms.updateHook(name, models.Counter)
+	// pointer to map will not work
+	v := iValue
+	ms.updateHook(models.Metrics{
+		Name:   name,
+		Type:   models.Counter,
+		IValue: &v,
+	})
 }
 
 func (ms *MemStorage) GetCounter(name string) (*int64, bool) {

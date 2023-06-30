@@ -32,14 +32,7 @@ func NewFileStorage(path string) (*FileStorage, error) {
 }
 
 // Updated id called from storage to indicate metric change
-func (f *FileStorage) Updated(s store.Storage, m models.Metrics) {
-	switch m.Type {
-	// get metric values
-	case models.Gauge:
-		m.FValue, _ = s.GetGauge(m.Name)
-	case models.Counter:
-		m.IValue, _ = s.GetCounter(m.Name)
-	}
+func (f *FileStorage) Updated(m models.Metrics) {
 	f.writeMetric(m)
 }
 
