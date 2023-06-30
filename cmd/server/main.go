@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/server/config"
@@ -39,7 +38,6 @@ func main() {
 	storage := memory.NewMemStorage()
 
 	// file storage setup
-	var fStore file.FileStorage
 	if conf.UseFileStorage {
 		// create file storage
 		fStore, err := file.NewFileStorage(conf.FileStoragePath)
@@ -56,6 +54,15 @@ func main() {
 		// register update hook for sync write to persistent storage
 		if conf.StoreInterval == 0 {
 			storage.RegisterHook(fStore.Updated)
+		} else if conf.StoreInterval > 0 {
+			go func() {
+				fStore.SaveLoop(storage, conf.StoreInterval)
+			}()
+		} else {
+			logger.Log.Error().Msgf(
+				"invalid storeInterval=%d, should be 0 or greater. file storage disabled",
+				conf.StoreInterval,
+			)
 		}
 	}
 
@@ -64,23 +71,21 @@ func main() {
 	// create http router
 	httpRouter := router.NewHTTPRouter(httpHandlers)
 
-	go func() {
-		if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
-			logger.Log.Fatal().Err(err).Msg("unable to start http server")
-		}
-	}()
-
-	logger.Log.Debug().Msg("Starting file storage loop...")
-	ticker := 1
-	for {
-		if conf.UseFileStorage &&
-			conf.StoreInterval > 0 &&
-			ticker%conf.StoreInterval == 0 {
-			fStore.SaveStorage(storage)
-		}
-		time.Sleep(time.Second)
-		ticker++
+	if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
+		logger.Log.Fatal().Err(err).Msg("unable to start http server")
 	}
+
+	//logger.Log.Debug().Msg("Starting file storage loop...")
+	//ticker := 1
+	//for {
+	//	if conf.UseFileStorage &&
+	//		conf.StoreInterval > 0 &&
+	//		ticker%conf.StoreInterval == 0 {
+	//		fStore.SaveStorage(storage)
+	//	}
+	//	time.Sleep(time.Second)
+	//	ticker++
+	//}
 
 	// FIXME: this is never reachable until process control implementation
 	// logger.Log.Info().Msg("Stopping server...")

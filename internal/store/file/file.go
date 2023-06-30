@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/models"
@@ -77,4 +78,17 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 // Close closes file
 func (f *FileStorage) Close() {
 	f.file.Close()
+}
+
+// SaveLoop regularly saves storage to file
+func (f *FileStorage) SaveLoop(s store.Storage, interval int) {
+	logger.Log.Debug().Msg("Starting file storage loop...")
+	ticker := 1
+	for {
+		if ticker%interval == 0 {
+			f.SaveStorage(s)
+		}
+		time.Sleep(time.Second)
+		ticker++
+	}
 }
