@@ -35,22 +35,30 @@ func main() {
 	// storage is interface, which methods should be called by handlers
 	// router must call handlers
 
-	// create file storage
-	fStore, err := file.NewFileStorage(conf.FileStoragePath)
-	if err != nil {
-		logger.Log.Error().Err(err).Msg("unable to init file storage")
-	}
-	defer fStore.Close()
 	// create new storage instance
 	storage := memory.NewMemStorage()
-	// restore storage from file
-	if fStore != nil && conf.Restore {
-		fStore.RestoreStorage(storage)
+
+	// file storage setup
+	var fStore file.FileStorage
+	if conf.UseFileStorage {
+		// create file storage
+		fStore, err := file.NewFileStorage(conf.FileStoragePath)
+		if err != nil {
+			logger.Log.Fatal().Err(err).Msg("unable to init file storage")
+		}
+		defer fStore.Close()
+
+		// restore storage from file
+		if conf.Restore {
+			fStore.RestoreStorage(storage)
+		}
+
+		// register update hook for sync write to persistent storage
+		if conf.StoreInterval == 0 {
+			storage.RegisterHook(fStore.Updated)
+		}
 	}
-	// register update hook for sync write to persistent storage
-	if fStore != nil && conf.StoreInterval == 0 {
-		storage.RegisterHook(fStore.Updated)
-	}
+
 	// create http handlers instance
 	httpHandlers := handler.NewHTTPHandlers(storage)
 	// create http router
@@ -65,7 +73,7 @@ func main() {
 	logger.Log.Debug().Msg("Starting file storage loop...")
 	ticker := 1
 	for {
-		if fStore != nil &&
+		if conf.UseFileStorage &&
 			conf.StoreInterval > 0 &&
 			ticker%conf.StoreInterval == 0 {
 			fStore.SaveStorage(storage)

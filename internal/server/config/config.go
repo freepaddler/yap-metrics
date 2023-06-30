@@ -26,6 +26,7 @@ type Config struct {
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	UseFileStorage  bool
 }
 
 func NewConfig() *Config {
@@ -53,6 +54,10 @@ func NewConfig() *Config {
 	fsp, ok := os.LookupEnv("FILE_STORAGE_PATH")
 	if ok {
 		c.FileStoragePath = fsp
+	}
+
+	if len(c.FileStoragePath) > 0 {
+		c.UseFileStorage = true
 	}
 
 	return &c

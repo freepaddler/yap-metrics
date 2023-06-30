@@ -38,10 +38,8 @@ func (f *FileStorage) Updated(m models.Metrics) {
 
 // writeMetric internal method to write metric to file
 func (f *FileStorage) writeMetric(m models.Metrics) {
-	if f.file != nil {
-		logger.Log.Debug().Msgf("saving metric %s to file", m.Name)
-		f.enc.Encode(m)
-	}
+	logger.Log.Debug().Msgf("saving metric %s to file", m.Name)
+	f.enc.Encode(m)
 }
 
 // SaveStorage saves all metrics from storage to file
