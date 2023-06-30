@@ -35,7 +35,7 @@ func (ms *MemStorage) updateHook(m models.Metrics) {
 	}
 }
 
-func (ms *MemStorage) GetAllMetrics() []models.Metrics {
+func (ms *MemStorage) Snapshot() []models.Metrics {
 	// make values arrays
 	counterV := make([]int64, len(ms.counters))
 	gaugesV := make([]float64, len(ms.gauges))

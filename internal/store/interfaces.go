@@ -17,7 +17,7 @@ type Counter interface {
 type Storage interface {
 	Gauge
 	Counter
-	GetAllMetrics() []models.Metrics
+	Snapshot() []models.Metrics
 	GetMetric(metric *models.Metrics) (bool, error)
 	SetMetric(metric *models.Metrics) error
 }

@@ -31,7 +31,7 @@ func NewHTTPReporter(s store.Storage, address string, timeout time.Duration) *HT
 }
 
 func (r HTTPReporter) Report() {
-	m := r.s.GetAllMetrics()
+	m := r.s.Snapshot()
 	for _, v := range m {
 		func() {
 			var val string
@@ -74,7 +74,7 @@ func (r HTTPReporter) Report() {
 }
 
 func (r HTTPReporter) ReportJSON() {
-	m := r.s.GetAllMetrics()
+	m := r.s.Snapshot()
 	url := fmt.Sprintf("http://%s/update", r.address)
 	for _, v := range m {
 		func() {

@@ -249,7 +249,7 @@ func TestMemStorage_GetAllMetrics(t *testing.T) {
 		s.SetGauge(v.Name, v.FValue)
 	}
 
-	m := s.GetAllMetrics()
+	m := s.Snapshot()
 	require.Equal(t, len(counters)+len(gauges), len(m), "Wrong reported metrics count")
 	for _, v := range counters {
 		//assert.Contains(t, m, v)
@@ -263,7 +263,7 @@ func TestMemStorage_GetAllMetrics(t *testing.T) {
 
 func TestMemStorage_GetAllMetrics_EmptySet(t *testing.T) {
 	s := NewMemStorage()
-	m := s.GetAllMetrics()
+	m := s.Snapshot()
 	require.Equal(t, 0, len(m), "No metrics should be returned")
 }
 

@@ -46,7 +46,7 @@ func (f *FileStorage) writeMetric(m models.Metrics) {
 // SaveStorage saves all metrics from storage to file
 func (f *FileStorage) SaveStorage(s store.Storage) {
 	logger.Log.Debug().Msg("Saving store to file...")
-	for _, m := range s.GetAllMetrics() {
+	for _, m := range s.Snapshot() {
 		f.writeMetric(m)
 	}
 }

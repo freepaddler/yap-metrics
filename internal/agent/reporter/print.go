@@ -19,7 +19,7 @@ func NewPrintReporter(s store.Storage) *PrintReporter {
 }
 
 func (r PrintReporter) Report() {
-	m := r.s.GetAllMetrics()
+	m := r.s.Snapshot()
 	for _, v := range m {
 		switch v.Type {
 		case models.Counter:

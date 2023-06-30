@@ -96,7 +96,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// TODO: use html templates
 	w.Write([]byte(indexMetricHeader))
-	for _, m := range h.storage.GetAllMetrics() {
+	for _, m := range h.storage.Snapshot() {
 		var val string
 		switch m.Type {
 		case models.Counter:
