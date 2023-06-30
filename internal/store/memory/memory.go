@@ -6,14 +6,12 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/models"
-	"github.com/freepaddler/yap-metrics/internal/store"
 )
 
 // MemStorage is in-memory metric store
 type MemStorage struct {
 	counters map[string]int64
 	gauges   map[string]float64
-	ps       store.PersistentStorage
 	hooks    []func(models.Metrics)
 }
 
