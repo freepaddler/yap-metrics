@@ -80,7 +80,7 @@ func (r HTTPReporter) ReportJSON() {
 		func() {
 			body, err := json.Marshal(v)
 			if err != nil {
-				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %s", v)
+				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %+v", v)
 				return
 			}
 
