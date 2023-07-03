@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/server/compress"
@@ -11,7 +12,8 @@ import (
 func NewHTTPRouter(h *handler.HTTPHandlers) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(logger.LogRequestResponse)
-	r.Use(compress.GzipMiddleware)
+	r.Use(compress.GunzipMiddleware)
+	r.Use(middleware.Compress(4, "application/json", "text/html"))
 	r.Get("/", h.IndexMetricHandler)
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", h.UpdateMetricJSONHandler)
