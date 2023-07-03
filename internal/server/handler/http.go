@@ -110,7 +110,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	}
 	footer := fmt.Sprintf(`
 		</table>
-		<p><i>Updated: %s</i></p>
+		<p><i>SaveMetric: %s</i></p>
 	</body>
 	</html>
 	`, time.Now().Format(time.UnixDate))

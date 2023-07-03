@@ -53,7 +53,7 @@ func main() {
 
 		// register update hook for sync write to persistent storage
 		if conf.StoreInterval == 0 {
-			storage.RegisterHook(fStore.Updated)
+			storage.RegisterHook(fStore.SaveMetric)
 		} else if conf.StoreInterval > 0 {
 			go func() {
 				fStore.SaveLoop(storage, conf.StoreInterval)

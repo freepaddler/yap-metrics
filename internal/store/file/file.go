@@ -34,8 +34,8 @@ func NewFileStorage(path string) (*FileStorage, error) {
 	}, nil
 }
 
-// Updated id called from storage to indicate metric change
-func (f *FileStorage) Updated(m models.Metrics) {
+// SaveMetric id called from storage to indicate metric change
+func (f *FileStorage) SaveMetric(m models.Metrics) {
 	f.writeMetric(m)
 }
 
