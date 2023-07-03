@@ -35,6 +35,7 @@ func (ms *MemStorage) updateHook(m models.Metrics) {
 	}
 }
 
+// Snapshot makes the copy of whole storage
 func (ms *MemStorage) Snapshot() []models.Metrics {
 	// make values arrays
 	counterV := make([]int64, len(ms.counters))
@@ -52,6 +53,12 @@ func (ms *MemStorage) Snapshot() []models.Metrics {
 		return set[i].Name < set[j].Name
 	})
 	return set
+}
+
+// Flush clears storage
+func (ms *MemStorage) Flush() {
+	ms.counters = make(map[string]int64)
+	ms.gauges = make(map[string]float64)
 }
 
 func (ms *MemStorage) SetGauge(name string, fValue float64) {

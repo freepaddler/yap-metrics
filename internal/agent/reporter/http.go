@@ -74,7 +74,9 @@ func (r HTTPReporter) Report() {
 }
 
 func (r HTTPReporter) ReportJSON() {
+	// TODO: add mutex where? snapsot? or snashot + flush?
 	m := r.s.Snapshot()
+	r.s.Flush()
 
 	// TODO: question
 	// переименование метода GetAllMetrics в Snapshot показало сломанную логику реализации агента
@@ -93,6 +95,7 @@ func (r HTTPReporter) ReportJSON() {
 			body, err := json.Marshal(v)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %+v", v)
+				r.unreported(&v)
 				return
 			}
 
@@ -102,6 +105,8 @@ func (r HTTPReporter) ReportJSON() {
 			req, err := http.NewRequest(http.MethodPost, url, respBody)
 			if err != nil {
 				logger.Log.Error().Err(err).Msg("unable to create http request")
+				r.unreported(&v)
+				return
 			}
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Content-Encoding", "gzip")
@@ -110,23 +115,24 @@ func (r HTTPReporter) ReportJSON() {
 			resp, err := r.c.Do(req)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", body)
+				r.unreported(&v)
 				return
 			}
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				// request failed
 				logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
+				r.unreported(&v)
 				return
 			}
-			// request successes, delete updated metrics
-			switch v.Type {
-			case models.Counter:
-				r.s.DelCounter(v.Name)
-			case models.Gauge:
-				r.s.DelGauge(v.Name)
-
-			}
 		}()
+	}
+}
+
+// unreported restores unsent metric back to storage
+func (r HTTPReporter) unreported(m *models.Metrics) {
+	if updated, _ := r.s.GetMetric(m); updated {
+		r.s.SetMetric(m)
 	}
 }
 

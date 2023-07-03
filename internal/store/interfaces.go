@@ -18,6 +18,7 @@ type Storage interface {
 	Gauge
 	Counter
 	Snapshot() []models.Metrics
+	Flush()
 	GetMetric(metric *models.Metrics) (bool, error)
 	SetMetric(metric *models.Metrics) error
 }
