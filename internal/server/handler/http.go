@@ -35,62 +35,6 @@ const (
 	`
 )
 
-// UpdateMetricHandler validates update request and writes metrics to storage
-func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Debug().Msgf("UpdateMetricHandler: Request received  URL=%v", r.URL)
-	t := chi.URLParam(r, "type")  // metric type
-	n := chi.URLParam(r, "name")  // metric name
-	v := chi.URLParam(r, "value") // metric value
-	switch t {
-	case models.Counter:
-		i, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong counter increment '%s'", v)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		h.storage.IncCounter(n, i)
-	case models.Gauge:
-		g, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong gauge value '%s'", v)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		h.storage.SetGauge(n, g)
-	default:
-		logger.Log.Debug().Msgf("UpdateMetricHandler: wrong metric type '%s'", t)
-		w.WriteHeader(http.StatusBadRequest)
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
-// GetMetricHandler returns stored metrics
-func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Debug().Msgf("GetMetricHandler: Request received  URL=%v", r.URL)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	t := chi.URLParam(r, "type") // metric type
-	n := chi.URLParam(r, "name") // metric name
-	switch t {
-	case models.Counter:
-		if v, ok := h.storage.GetCounter(n); ok {
-			w.Write([]byte(strconv.FormatInt(*v, 10)))
-			return
-		}
-	case models.Gauge:
-		if v, ok := h.storage.GetGauge(n); ok {
-			w.Write([]byte(strconv.FormatFloat(*v, 'f', -1, 64)))
-			return
-		}
-	default:
-		logger.Log.Debug().Msgf("GetMetricHandler: bad metric type %s", t)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	logger.Log.Debug().Msgf("GetMetricHandler: requested metric %s does not exist", n)
-	w.WriteHeader(http.StatusNotFound)
-}
-
 // IndexMetricHandler returns page with all metrics
 func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -117,40 +61,104 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	w.Write([]byte(footer))
 }
 
-// TODO: question
-// Очень хочется в методах без JSON привести формат запроса к моделям
-// и реализовать единую логику для JSON и urlParams методов Get и Update
-// тогда и обработка ошибок станет единообразной
+// GetMetricHandler returns stored metrics
+func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Log.Debug().Msgf("GetMetricHandler: Request received  URL=%v", r.URL)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	t := chi.URLParam(r, "type") // metric type
+	n := chi.URLParam(r, "name") // metric name
+	m := models.Metrics{
+		Name: n,
+		Type: t,
+	}
+	code, _ := h.getMetric(&m)
+	w.WriteHeader(code)
+	switch m.Type {
+	case models.Counter:
+		w.Write([]byte(strconv.FormatInt(*m.IValue, 10)))
+		return
+	case models.Gauge:
+		w.Write([]byte(strconv.FormatFloat(*m.FValue, 'f', -1, 64)))
+		return
+	default:
+		logger.Log.Debug().Msgf("GetMetricHandler: bad metric type %s", t)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+}
 
 func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var m models.Metrics
+	logger.Log.Debug().Msg("GetMetricJSONHandler: Request received: POST /value")
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		logger.Log.Warn().Err(err).Msg("GetMetricJSONHandler: unable to parse request JSON")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := checkMetric(&m); err != nil {
-		logger.Log.Warn().Err(err).Msg("GetMetricJSONHandler: invalid request")
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	code, ok := h.getMetric(&m)
+	if ok {
+		res, err := json.MarshalIndent(&m, "", "  ")
+		if err != nil {
+			logger.Log.Warn().Err(err).Msg("GetMetricJSONHandler: unable to marshal response JSON")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(res)
 	}
-	found, err := h.storage.GetMetric(&m)
+	w.WriteHeader(code)
+}
+
+func (h *HTTPHandlers) getMetric(m *models.Metrics) (int, bool) {
+	if err := validateMetric(m); err != nil {
+		logger.Log.Warn().Err(err).Msg("getMetricHTTP: invalid request")
+		return http.StatusBadRequest, false
+	}
+	logger.Log.Debug().Msgf("getMetricHTTP: requested metric %+v", m)
+	found, err := h.storage.GetMetric(m)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msgf("GetMetricJSONHandler: unable to get metric '%s' of type '%s'", m.Name, m.Type)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		logger.Log.Warn().Err(err).Msgf("getMetricHTTP: unable to get metric '%s' of type '%s'", m.Name, m.Type)
+		return http.StatusBadRequest, false
 	}
 	if !found {
-		w.WriteHeader(http.StatusNotFound)
-		return
+		logger.Log.Debug().Msgf("getMetricHTTP: no such metric '%s' of type '%s'", m.Name, m.Type)
+		return http.StatusNotFound, false
 	}
-	res, err := json.MarshalIndent(&m, "", "  ")
-	if err != nil {
-		logger.Log.Warn().Err(err).Msg("GetMetricJSONHandler: unable to marshal response JSON")
-		w.WriteHeader(http.StatusInternalServerError)
+	return http.StatusOK, true
+}
+
+// UpdateMetricHandler validates update request and writes metrics to storage
+func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Log.Debug().Msgf("UpdateMetricHandler: Request received  URL=%v", r.URL)
+	t := chi.URLParam(r, "type")  // metric type
+	n := chi.URLParam(r, "name")  // metric name
+	v := chi.URLParam(r, "value") // metric value
+	m := models.Metrics{
+		Name: n,
+		Type: t,
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(res)
+	switch t {
+	case models.Counter:
+		i, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong counter increment '%s'", v)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		m.IValue = &i
+	case models.Gauge:
+		g, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong gauge value '%s'", v)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		m.FValue = &g
+	default:
+		logger.Log.Debug().Msgf("UpdateMetricHandler: wrong metric type '%s'", t)
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	code, _ := h.updateMetric(&m)
+	w.WriteHeader(code)
 }
 
 func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,35 +168,38 @@ func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Re
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := checkMetric(&m); err != nil {
-		logger.Log.Warn().Err(err).Msg("GetMetricJSONHandler: invalid request")
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	code, ok := h.updateMetric(&m)
+	if ok {
+		res, err := json.MarshalIndent(&m, "", "  ")
+		if err != nil {
+			logger.Log.Warn().Err(err).Msg("UpdateMetricJSONHandler: unable to marshal response JSON")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(res)
 	}
-	// check that value exists
-	// TODO: may be using validator is better idea
-	if (m.Type == models.Gauge && m.FValue == nil) ||
-		(m.Type == models.Counter && m.IValue == nil) {
-		logger.Log.Warn().Msgf("UpdateMetricJSONHandler: missing value for metric '%s' of type '%s'", m.Name, m.Type)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if err := h.storage.SetMetric(&m); err != nil {
-		logger.Log.Warn().Err(err).Msg("UpdateMetricJSONHandler: failed to update metric")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	res, err := json.MarshalIndent(&m, "", "  ")
-	if err != nil {
-		logger.Log.Warn().Err(err).Msg("UpdateMetricJSONHandler: unable to marshal response JSON")
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(res)
+	w.WriteHeader(code)
 }
 
-func checkMetric(m *models.Metrics) (err error) {
+func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
+	if err := validateMetric(m); err != nil {
+		logger.Log.Warn().Err(err).Msg("updateMetricHTTP: invalid request")
+		return http.StatusBadRequest, false
+	}
+	logger.Log.Debug().Msgf("updateMetricHTTP: requested update of metric %+v", m)
+	if (m.Type == models.Gauge && m.FValue == nil) ||
+		(m.Type == models.Counter && m.IValue == nil) {
+		logger.Log.Warn().Msgf("updateMetricHTTP: missing value for metric '%s' of type '%s'", m.Name, m.Type)
+		return http.StatusBadRequest, false
+	}
+	if err := h.storage.SetMetric(m); err != nil {
+		logger.Log.Warn().Err(err).Msg("updateMetricHTTP: failed to update metric")
+		return http.StatusInternalServerError, false
+	}
+	return http.StatusOK, true
+}
+
+func validateMetric(m *models.Metrics) (err error) {
 	if m.Name == "" {
 		err = errors.New("missing metric name")
 	}
