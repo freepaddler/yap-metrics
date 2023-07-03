@@ -14,7 +14,7 @@ GET http://localhost:8080/value
 # curl -i http://localhost:8080/value/
 GET http://localhost:8080/value/
 
-> assert_404_NotFound.js
+> assert_405_MethodNotAllowed.js
 
 ### POST JSON /value missing type
 # curl - X POST -i http://localhost:8080/value -d '{"id":"c1"}'
