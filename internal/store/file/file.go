@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/logger"
@@ -13,6 +14,7 @@ import (
 
 // FileStorage is persistent storage implementation
 type FileStorage struct {
+	mu   sync.Mutex
 	file *os.File
 	enc  *json.Encoder
 	dec  *json.Decoder
@@ -40,15 +42,19 @@ func (f *FileStorage) Updated(m models.Metrics) {
 // writeMetric internal method to write metric to file
 func (f *FileStorage) writeMetric(m models.Metrics) {
 	logger.Log.Debug().Msgf("saving metric %s to file", m.Name)
+	f.mu.Lock()
 	f.enc.Encode(m)
+	f.mu.Unlock()
 }
 
 // SaveStorage saves all metrics from storage to file
 func (f *FileStorage) SaveStorage(s store.Storage) {
 	logger.Log.Debug().Msg("Saving store to file...")
+	f.mu.Lock()
 	for _, m := range s.Snapshot() {
 		f.writeMetric(m)
 	}
+	f.mu.Unlock()
 }
 
 // RestoreStorage loads metrics from file to storage
@@ -56,6 +62,8 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
 	var err error
 	var m models.Metrics
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	for {
 		err = f.dec.Decode(&m)
 		if err != nil {
