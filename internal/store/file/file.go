@@ -28,6 +28,7 @@ func NewFileStorage(path string) (*FileStorage, error) {
 		return nil, err
 	}
 	return &FileStorage{
+		mu:   sync.Mutex{},
 		file: file,
 		enc:  json.NewEncoder(file),
 		dec:  json.NewDecoder(file),
@@ -43,18 +44,17 @@ func (f *FileStorage) SaveMetric(m models.Metrics) {
 func (f *FileStorage) writeMetric(m models.Metrics) {
 	logger.Log.Debug().Msgf("saving metric %s to file", m.Name)
 	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.enc.Encode(m)
-	f.mu.Unlock()
 }
 
 // SaveStorage saves all metrics from storage to file
 func (f *FileStorage) SaveStorage(s store.Storage) {
 	logger.Log.Debug().Msg("Saving store to file...")
-	f.mu.Lock()
-	for _, m := range s.Snapshot() {
+	snap := s.Snapshot()
+	for _, m := range snap {
 		f.writeMetric(m)
 	}
-	f.mu.Unlock()
 }
 
 // RestoreStorage loads metrics from file to storage
