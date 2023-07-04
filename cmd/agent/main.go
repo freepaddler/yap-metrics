@@ -1,24 +1,21 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/agent/collector"
 	"github.com/freepaddler/yap-metrics/internal/agent/config"
 	"github.com/freepaddler/yap-metrics/internal/agent/reporter"
+	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/store/memory"
 )
 
 func main() {
-	conf := config.NewConfig()
 
-	fmt.Printf(`Starting agent...
-		server: %s
-		pollInterval: %ds
-		reportInterval: %ds
-		httpTimeout: %s
-`, conf.ServerAddress, conf.PollInterval, conf.ReportInterval, conf.HTTPTimeout.String())
+	conf := config.NewConfig()
+	logger.SetLevel(conf.LogLevel)
+	logger.Log.Debug().Interface("Config", conf).Msg("done config")
+	logger.Log.Info().Msg("Starting agent...")
 	//return
 	// collector should place data in storage
 	// reported should report data from storage, set counters in storage as reported
@@ -28,21 +25,21 @@ func main() {
 	//rpt := reporter.NewPrintReporter(storage)
 	rpt := reporter.NewHTTPReporter(storage, conf.ServerAddress, conf.HTTPTimeout)
 
-	fmt.Println("Starting loop")
+	logger.Log.Debug().Msg("Starting loop")
 	ticker := 0
 	for {
-		fmt.Println("ticker:", ticker)
+		logger.Log.Debug().Msgf("ticker: %d", ticker)
 		if ticker%int(conf.PollInterval) == 0 {
 			collector.CollectMetrics(storage)
 		}
 		if ticker%int(conf.ReportInterval) == 0 {
-			fmt.Printf("\n\n======\nNew Report\n\n")
-			rpt.Report()
+			logger.Log.Debug().Msgf("\n======\nNew Report\n")
+			rpt.ReportJSON()
 		}
 		time.Sleep(1 * time.Second)
 		ticker++
 	}
 
 	// FIXME: this is never reachable until process control implementation
-	//fmt.Println("Stopping agent...")
+	//logger.Log.Info().Msg("Stopping agent...")
 }

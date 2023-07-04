@@ -1,0 +1,84 @@
+### POST query /value wrong method
+# curl -X POST -i http://localhost:8080/value/counter/c1
+POST http://localhost:8080/value/counter/c1
+
+> assert_405_MethodNotAllowed.js
+
+### GET JSON /value wrong method
+# curl -X GET -i http://localhost:8080/value
+GET http://localhost:8080/value
+
+> assert_405_MethodNotAllowed.js
+
+### GET query /value missing type
+# curl -i http://localhost:8080/value/
+GET http://localhost:8080/value/
+
+> assert_405_MethodNotAllowed.js
+
+### POST JSON /value missing type
+# curl - X POST -i http://localhost:8080/value -d '{"id":"c1"}'
+POST http://localhost:8080/value
+
+{"id":"c1"}
+
+> assert_400_BadRequest.js
+
+### GET query /value missing name
+# curl -i http://localhost:8080/value/counter/
+GET http://localhost:8080/value/counter/
+
+> assert_404_NotFound.js
+
+### POST JSON /value missing name
+# curl - X POST -i http://localhost:8080/value -d '{"type":"gauge"}'
+POST http://localhost:8080/value
+
+{"type":"gauge"}
+
+> assert_400_BadRequest.js
+
+### GET query /value wrong type
+# curl -i http://localhost:8080/value/counter1/qwe
+GET http://localhost:8080/value/counter1/qwe
+
+> assert_400_BadRequest.js
+
+### POST JSON /value wrong type
+# curl - X POST -i http://localhost:8080/value -d '{"id":"c1","type":"gauge11"}'
+POST http://localhost:8080/value
+
+{"id":"c1","type":"gauge11"}
+
+> assert_400_BadRequest.js
+
+### GET query /value wrong name
+# curl -i http://localhost:8080/value/counter/qwe
+GET http://localhost:8080/value/counter/qwe
+
+> assert_404_NotFound.js
+
+### POST JSON /value wrong name
+# curl - X POST -i http://localhost:8080/value -d '{"id":"c1","type":"gauge11"}'
+POST http://localhost:8080/value
+
+{"id":"c1","type":"gauge"}
+
+> assert_404_NotFound.js
+
+### POST /value empty body
+# curl -X POST -i http://localhost:8080/value -d ''
+POST  http://localhost:8080/value
+
+> assert_400_BadRequest.js
+
+
+
+
+
+
+
+
+
+
+

@@ -26,3 +26,4 @@ vendor/
 
 # local project GOPATH directory
 .gopath
+bin/

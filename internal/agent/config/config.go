@@ -2,13 +2,14 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"time"
 
 	"github.com/caarlos0/env/v8"
 	flag "github.com/spf13/pflag"
+
+	"github.com/freepaddler/yap-metrics/internal/logger"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 	defaultReportInterval = 10
 	defaultServerAddress  = "127.0.0.1:8080"
 	defaultHTTPTimeout    = 5 * time.Second
+	defaultLogLevel       = "info"
 )
 
 // Config implements agent configuration
@@ -24,6 +26,7 @@ type Config struct {
 	ReportInterval uint32        `env:"REPORT_INTERVAL"`
 	ServerAddress  string        `env:"ADDRESS"`
 	HTTPTimeout    time.Duration `env:"HTTP_TIMEOUT"`
+	LogLevel       string        `env:"LOG_LEVEL"`
 }
 
 func NewConfig() *Config {
@@ -64,24 +67,29 @@ func NewConfig() *Config {
 		defaultHTTPTimeout,
 		"Metrics server response `timeout` min: 0.5s max: 999s",
 	)
+	flag.StringVarP(
+		&c.LogLevel,
+		"loglevel",
+		"l",
+		defaultLogLevel,
+		"logging `level` (trace, debug, info, warning, error)",
+	)
 
 	flag.Parse()
 
 	// env vars
 	if err := env.Parse(&c); err != nil {
-		fmt.Println("Error while parsing ENV", err)
+		logger.Log.Warn().Err(err).Msg("failed to parse ENV")
 	}
 
 	// check
 	if c.HTTPTimeout.Seconds() < 0.5 || c.HTTPTimeout.Seconds() > 999 {
-		fmt.Fprintf(
-			output,
-			"Error: invalid httpTimeout value %s. Using default %s\n",
+		logger.Log.Warn().Msgf(
+			"invalid httpTimeout value %s. Using default %s",
 			c.HTTPTimeout.String(),
 			defaultHTTPTimeout.String(),
 		)
 		c.HTTPTimeout = defaultHTTPTimeout
-
 	}
 
 	return &c

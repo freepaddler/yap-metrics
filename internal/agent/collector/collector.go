@@ -1,15 +1,15 @@
 package collector
 
 import (
-	"fmt"
 	"math/rand"
 	"runtime"
 
+	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/store"
 )
 
 func CollectMetrics(s store.Storage) {
-	fmt.Println("Start metrics collection routine")
+	logger.Log.Debug().Msg("Start metrics collection routine")
 
 	// update PollCount metric
 	s.IncCounter("PollCount", 1)
@@ -48,5 +48,5 @@ func CollectMetrics(s store.Storage) {
 	s.SetGauge("Sys", float64(memStats.Sys))
 	s.SetGauge("TotalAlloc", float64(memStats.TotalAlloc))
 
-	fmt.Println("Done metrics collection routine")
+	logger.Log.Debug().Msg("Done metrics collection routine")
 }

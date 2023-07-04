@@ -7,8 +7,8 @@ const (
 
 // Metrics model
 type Metrics struct {
-	Name   string  // metric name
-	Type   string  // metric type (from constants)
-	FValue float64 // float values for metrics
-	IValue int64   // int values for metrics
+	Name   string   `json:"id"`
+	Type   string   `json:"type"`
+	FValue *float64 `json:"value,omitempty"`
+	IValue *int64   `json:"delta,omitempty"`
 }
