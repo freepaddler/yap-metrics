@@ -100,7 +100,7 @@ func (r HTTPReporter) ReportJSON() {
 			}
 
 			// compress body
-			respBody := compressResponse(&body)
+			respBody, compressErr := compressResponse(&body)
 
 			req, err := http.NewRequest(http.MethodPost, url, respBody)
 			if err != nil {
@@ -109,8 +109,10 @@ func (r HTTPReporter) ReportJSON() {
 				return
 			}
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Content-Encoding", "gzip")
 			req.Header.Set("Accept-Encoding", "gzip")
+			if compressErr == nil {
+				req.Header.Set("Content-Encoding", "gzip")
+			}
 			logger.Log.Debug().Msgf("sending metric %s", body)
 			resp, err := r.c.Do(req)
 			if err != nil {
@@ -136,7 +138,7 @@ func (r HTTPReporter) unreported(m *models.Metrics) {
 	}
 }
 
-func compressResponse(body *[]byte) *bytes.Buffer {
+func compressResponse(body *[]byte) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
 	defer gzBuf.Close()
@@ -148,6 +150,6 @@ func compressResponse(body *[]byte) *bytes.Buffer {
 		buf.Write(*body)
 	}
 	logger.Log.Debug().Msg("response compressed")
-	return &buf
+	return &buf, err
 
 }
