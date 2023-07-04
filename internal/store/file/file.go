@@ -85,6 +85,7 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 
 // Close closes file
 func (f *FileStorage) Close() {
+	logger.Log.Debug().Msg("Closing file storage...")
 	f.file.Close()
 }
 

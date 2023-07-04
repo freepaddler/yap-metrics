@@ -21,6 +21,7 @@ type Storage interface {
 	Flush()
 	GetMetric(metric *models.Metrics) (bool, error)
 	SetMetric(metric *models.Metrics) error
+	RegisterHook(fns ...func(models.Metrics))
 }
 
 type PersistentStorage interface {
