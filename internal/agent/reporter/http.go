@@ -91,12 +91,12 @@ func (r HTTPReporter) ReportJSON() {
 
 	url := fmt.Sprintf("http://%s/update", r.address)
 	for _, v := range m {
-		func() {
+		// returns false if metric was not successfully reported to server
+		reported := func() bool {
 			body, err := json.Marshal(v)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("unable to marshal JSON: %+v", v)
-				r.unreported(&v)
-				return
+				return false
 			}
 
 			// compress body
@@ -105,8 +105,7 @@ func (r HTTPReporter) ReportJSON() {
 			req, err := http.NewRequest(http.MethodPost, url, respBody)
 			if err != nil {
 				logger.Log.Error().Err(err).Msg("unable to create http request")
-				r.unreported(&v)
-				return
+				return false
 			}
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Accept-Encoding", "gzip")
@@ -117,24 +116,23 @@ func (r HTTPReporter) ReportJSON() {
 			resp, err := r.client.Do(req)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", body)
-				r.unreported(&v)
-				return
+				return false
 			}
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				// request failed
 				logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
-				r.unreported(&v)
-				return
+				return false
 			}
+			return true
 		}()
-	}
-}
-
-// unreported restores unsent metric back to storage
-func (r HTTPReporter) unreported(m *models.Metrics) {
-	if updated, _ := r.storage.GetMetric(m); updated {
-		r.storage.SetMetric(m)
+		// restore unsent metric back to storage
+		if !reported {
+			logger.Log.Debug().Msgf("restore metric %+v back to storage", v)
+			if updated, _ := r.storage.GetMetric(&v); updated {
+				r.storage.SetMetric(&v)
+			}
+		}
 	}
 }
 
