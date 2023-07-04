@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -91,7 +90,7 @@ func initFileStorage(conf *config.Config, storage store.Storage) (*file.FileStor
 				fStore.SaveLoop(storage, conf.StoreInterval)
 			}()
 		} else {
-			err = errors.New(fmt.Sprintf("invalid storeInterval=%d, should be 0 or greater", conf.StoreInterval))
+			err = fmt.Errorf("invalid storeInterval=%d, should be 0 or greater", conf.StoreInterval)
 			return nil, err
 		}
 	}
