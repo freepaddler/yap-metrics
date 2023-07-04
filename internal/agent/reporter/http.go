@@ -17,21 +17,21 @@ import (
 
 // HTTPReporter reports metrics to server over HTTP
 type HTTPReporter struct {
-	s       store.Storage
+	storage store.Storage
 	address string
-	c       http.Client
+	client  http.Client
 }
 
 func NewHTTPReporter(s store.Storage, address string, timeout time.Duration) *HTTPReporter {
 	return &HTTPReporter{
-		s:       s,
+		storage: s,
 		address: address,
-		c:       http.Client{Timeout: timeout},
+		client:  http.Client{Timeout: timeout},
 	}
 }
 
 func (r HTTPReporter) Report() {
-	m := r.s.Snapshot()
+	m := r.storage.Snapshot()
 	for _, v := range m {
 		func() {
 			var val string
@@ -43,7 +43,7 @@ func (r HTTPReporter) Report() {
 			}
 			url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, v.Type, v.Name, val)
 			logger.Log.Debug().Msgf("Sending metric %s", url)
-			resp, err := r.c.Post(url, "text/plain", nil)
+			resp, err := r.client.Post(url, "text/plain", nil)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", url)
 				return
@@ -64,9 +64,9 @@ func (r HTTPReporter) Report() {
 			// request successes, delete updated metrics
 			switch v.Type {
 			case models.Counter:
-				r.s.DelCounter(v.Name)
+				r.storage.DelCounter(v.Name)
 			case models.Gauge:
-				r.s.DelGauge(v.Name)
+				r.storage.DelGauge(v.Name)
 
 			}
 		}()
@@ -75,8 +75,8 @@ func (r HTTPReporter) Report() {
 
 func (r HTTPReporter) ReportJSON() {
 	// TODO: add mutex where? snapsot? or snashot + flush?
-	m := r.s.Snapshot()
-	r.s.Flush()
+	m := r.storage.Snapshot()
+	r.storage.Flush()
 
 	// TODO: question
 	// переименование метода GetAllMetrics в Snapshot показало сломанную логику реализации агента
@@ -114,7 +114,7 @@ func (r HTTPReporter) ReportJSON() {
 				req.Header.Set("Content-Encoding", "gzip")
 			}
 			logger.Log.Debug().Msgf("sending metric %s", body)
-			resp, err := r.c.Do(req)
+			resp, err := r.client.Do(req)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", body)
 				r.unreported(&v)
@@ -133,8 +133,8 @@ func (r HTTPReporter) ReportJSON() {
 
 // unreported restores unsent metric back to storage
 func (r HTTPReporter) unreported(m *models.Metrics) {
-	if updated, _ := r.s.GetMetric(m); updated {
-		r.s.SetMetric(m)
+	if updated, _ := r.storage.GetMetric(m); updated {
+		r.storage.SetMetric(m)
 	}
 }
 
