@@ -13,7 +13,7 @@ import (
 
 const (
 	defaultAddress         = "127.0.0.1:8080"
-	defaultLogLevel        = "info"
+	defaultLogLevel        = "debug"
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestore         = true
@@ -56,7 +56,7 @@ func NewConfig() *Config {
 		c.FileStoragePath = fsp
 	}
 
-	if len(c.FileStoragePath) > 0 {
+	if c.FileStoragePath != "" {
 		c.UseFileStorage = true
 	}
 
