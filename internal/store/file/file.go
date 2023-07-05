@@ -37,20 +37,22 @@ func NewFileStorage(path string) (*FileStorage, error) {
 
 // SaveMetric id called from storage to indicate metric change
 func (f *FileStorage) SaveMetric(m models.Metrics) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.writeMetric(m)
 }
 
 // writeMetric internal method to write metric to file
 func (f *FileStorage) writeMetric(m models.Metrics) {
 	logger.Log.Debug().Msgf("saving metric %s to file", m.Name)
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.enc.Encode(m)
 }
 
 // SaveStorage saves all metrics from storage to file
 func (f *FileStorage) SaveStorage(s store.Storage) {
-	logger.Log.Debug().Msg("Saving store to file...")
+	logger.Log.Debug().Msg("saving store to file...")
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	snap := s.Snapshot()
 	for _, m := range snap {
 		f.writeMetric(m)
