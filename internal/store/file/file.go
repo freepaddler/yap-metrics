@@ -101,8 +101,9 @@ func (f *FileStorage) Close() {
 // SaveLoop regularly saves storage to file
 func (f *FileStorage) SaveLoop(s store.Storage, interval int) {
 	logger.Log.Debug().Msg("starting file storage loop...")
-	t := time.Tick(time.Duration(interval) * time.Second)
-	for range t {
+	t := time.NewTicker(time.Duration(interval) * time.Second)
+	defer t.Stop()
+	for range t.C {
 		if f.closed {
 			logger.Log.Debug().Msg("file storage loop stopped")
 			break
