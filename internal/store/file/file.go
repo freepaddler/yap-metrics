@@ -18,6 +18,8 @@ type FileStorage struct {
 	file *os.File
 	enc  *json.Encoder
 	dec  *json.Decoder
+	// temporary solution
+	closed bool
 }
 
 // NewFileStorage is a constructor
@@ -28,10 +30,11 @@ func NewFileStorage(path string) (*FileStorage, error) {
 		return nil, err
 	}
 	return &FileStorage{
-		mu:   sync.Mutex{},
-		file: file,
-		enc:  json.NewEncoder(file),
-		dec:  json.NewDecoder(file),
+		mu:     sync.Mutex{},
+		file:   file,
+		enc:    json.NewEncoder(file),
+		dec:    json.NewDecoder(file),
+		closed: false,
 	}, nil
 }
 
@@ -50,7 +53,7 @@ func (f *FileStorage) writeMetric(m models.Metrics) {
 
 // SaveStorage saves all metrics from storage to file
 func (f *FileStorage) SaveStorage(s store.Storage) {
-	logger.Log.Debug().Msg("Saving store to file...")
+	logger.Log.Debug().Msg("saving store to file...")
 	snap := s.Snapshot()
 	for _, m := range snap {
 		f.writeMetric(m)
@@ -85,15 +88,25 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 
 // Close closes file
 func (f *FileStorage) Close() {
-	logger.Log.Debug().Msg("Closing file storage...")
-	f.file.Close()
+	if !f.closed {
+		f.closed = true
+		logger.Log.Debug().Msg("closing file storage")
+		if err := f.file.Close(); err != nil {
+			logger.Log.Warn().Err(err).Msg("closing file storage error")
+			return
+		}
+	}
 }
 
 // SaveLoop regularly saves storage to file
 func (f *FileStorage) SaveLoop(s store.Storage, interval int) {
-	logger.Log.Debug().Msg("Starting file storage loop...")
+	logger.Log.Debug().Msg("starting file storage loop...")
 	t := time.Tick(time.Duration(interval) * time.Second)
 	for range t {
+		if f.closed {
+			logger.Log.Debug().Msg("file storage loop stopped")
+			break
+		}
 		f.SaveStorage(s)
 	}
 }

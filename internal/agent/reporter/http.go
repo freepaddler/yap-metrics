@@ -42,7 +42,7 @@ func (r HTTPReporter) Report() {
 				val = strconv.FormatInt(*v.IValue, 10)
 			}
 			url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, v.Type, v.Name, val)
-			logger.Log.Debug().Msgf("Sending metric %s", url)
+			logger.Log.Debug().Msgf("sending metric %s", url)
 			resp, err := r.client.Post(url, "text/plain", nil)
 			if err != nil {
 				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", url)
@@ -58,7 +58,7 @@ func (r HTTPReporter) Report() {
 				if err != nil {
 					logger.Log.Warn().Err(err).Msg("unable to parse response body")
 				}
-				logger.Log.Debug().Msgf("Response body: %s", body)
+				logger.Log.Debug().Msgf("response body: %s", body)
 				return
 			}
 			// request successes, delete updated metrics

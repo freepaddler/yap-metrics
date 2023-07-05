@@ -14,7 +14,7 @@ func main() {
 
 	conf := config.NewConfig()
 	logger.SetLevel(conf.LogLevel)
-	logger.Log.Debug().Interface("Config", conf).Msg("done config")
+	logger.Log.Debug().Interface("Config", conf).Msg("Done config")
 	logger.Log.Info().Msg("Starting agent...")
 	//return
 	// collector should place data in storage
@@ -25,7 +25,7 @@ func main() {
 	//rpt := reporter.NewPrintReporter(storage)
 	rpt := reporter.NewHTTPReporter(storage, conf.ServerAddress, conf.HTTPTimeout)
 
-	logger.Log.Debug().Msg("Starting loop")
+	logger.Log.Debug().Msg("starting loop")
 	ticker := 0
 	for {
 		logger.Log.Debug().Msgf("ticker: %d", ticker)
@@ -41,5 +41,5 @@ func main() {
 	}
 
 	// FIXME: this is never reachable until process control implementation
-	//logger.Log.Info().Msg("Stopping agent...")
+	//logger.Log.Info().Msg("stopping agent...")
 }

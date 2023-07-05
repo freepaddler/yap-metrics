@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/freepaddler/yap-metrics/internal/logger"
 	"github.com/freepaddler/yap-metrics/internal/server/config"
@@ -18,8 +21,8 @@ func main() {
 	conf := config.NewConfig()
 	// set log level
 	logger.SetLevel(conf.LogLevel)
-	logger.Log.Debug().Interface("Config", conf).Msg("done config")
-	logger.Log.Info().Msgf("Starting http server at %s...", conf.Address)
+	logger.Log.Debug().Interface("config", conf).Msg("done config")
+	logger.Log.Info().Msgf("starting http server at %s...", conf.Address)
 
 	// let's define app composition
 	//
@@ -60,19 +63,40 @@ func main() {
 	// create http router
 	httpRouter := router.NewHTTPRouter(httpHandlers)
 
-	if err := http.ListenAndServe(conf.Address, httpRouter); err != nil {
-		logger.Log.Fatal().Err(err).Msg("unable to start http server")
+	httpServer := &http.Server{Addr: conf.Address, Handler: httpRouter}
+
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Log.Fatal().Err(err).Msg("unable to start http server")
+		}
+	}()
+
+	// shutdown gracefully
+	gracefulShutdown := make(chan os.Signal, 1)
+	signal.Notify(gracefulShutdown, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	sig := <-gracefulShutdown
+
+	logger.Log.Info().Msgf("got '%v' signal. server stopping routine...", sig)
+	logger.Log.Info().Msg("stopping http server")
+	// TODO: replace with shutdown after context topic
+	if err := httpServer.Close(); err != nil {
+		logger.Log.Warn().Err(err).Msg("failed to stop http server")
 	}
+	if fStore != nil {
+		logger.Log.Info().Msg("stopping file storage")
+		fStore.SaveStorage(storage)
+		fStore.Close()
+	}
+	logger.Log.Info().Msg("server stopped")
 
 	// FIXME: this is never reachable until process control implementation
-	// logger.Log.Info().Msg("Stopping server...")
+	// logger.Log.Info().Msg("stopping server...")
 }
 
-func initFileStorage(conf *config.Config, storage store.Storage) (*file.FileStorage, error) {
-	var fStore *file.FileStorage
+func initFileStorage(conf *config.Config, storage store.Storage) (fStore *file.FileStorage, err error) {
 	if conf.UseFileStorage {
 		// create file storage
-		fStore, err := file.NewFileStorage(conf.FileStoragePath)
+		fStore, err = file.NewFileStorage(conf.FileStoragePath)
 		if err != nil {
 			logger.Log.Fatal().Err(err).Msg("unable to init file storage")
 		}
