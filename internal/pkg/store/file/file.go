@@ -1,15 +1,16 @@
 package file
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/freepaddler/yap-metrics/internal/logger"
-	"github.com/freepaddler/yap-metrics/internal/models"
-	"github.com/freepaddler/yap-metrics/internal/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
 
 // FileStorage is persistent storage implementation
@@ -53,7 +54,7 @@ func (f *FileStorage) writeMetric(m models.Metrics) {
 
 // SaveStorage saves all metrics from storage to file
 func (f *FileStorage) SaveStorage(s store.Storage) {
-	logger.Log.Debug().Msg("saving store to file...")
+	logger.Log.Debug().Msg("saving store to file")
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	snap := s.Snapshot()
@@ -101,15 +102,17 @@ func (f *FileStorage) Close() {
 }
 
 // SaveLoop regularly saves storage to file
-func (f *FileStorage) SaveLoop(s store.Storage, interval int) {
-	logger.Log.Debug().Msg("starting file storage loop...")
+func (f *FileStorage) SaveLoop(ctx context.Context, s store.Storage, interval int) {
+	logger.Log.Debug().Msg("starting file storage loop")
 	t := time.NewTicker(time.Duration(interval) * time.Second)
 	defer t.Stop()
-	for range t.C {
-		if f.closed {
+	for {
+		select {
+		case <-ctx.Done():
 			logger.Log.Debug().Msg("file storage loop stopped")
-			break
+			return
+		case <-t.C:
+			f.SaveStorage(s)
 		}
-		f.SaveStorage(s)
 	}
 }

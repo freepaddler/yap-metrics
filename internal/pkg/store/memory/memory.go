@@ -4,8 +4,8 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/freepaddler/yap-metrics/internal/logger"
-	"github.com/freepaddler/yap-metrics/internal/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )
 
 // MemStorage is in-memory metric store

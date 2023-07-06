@@ -10,9 +10,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/freepaddler/yap-metrics/internal/logger"
-	"github.com/freepaddler/yap-metrics/internal/models"
-	"github.com/freepaddler/yap-metrics/internal/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
 
 type HTTPHandlers struct {

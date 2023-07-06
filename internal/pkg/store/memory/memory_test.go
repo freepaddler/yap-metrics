@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/freepaddler/yap-metrics/internal/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )
 
 func TestMemStorage_GetCounter(t *testing.T) {

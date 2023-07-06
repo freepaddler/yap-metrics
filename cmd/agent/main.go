@@ -3,11 +3,11 @@ package main
 import (
 	"time"
 
-	"github.com/freepaddler/yap-metrics/internal/agent/collector"
-	"github.com/freepaddler/yap-metrics/internal/agent/config"
-	"github.com/freepaddler/yap-metrics/internal/agent/reporter"
-	"github.com/freepaddler/yap-metrics/internal/logger"
-	"github.com/freepaddler/yap-metrics/internal/store/memory"
+	"github.com/freepaddler/yap-metrics/internal/app/agent/collector"
+	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
+	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
 func main() {

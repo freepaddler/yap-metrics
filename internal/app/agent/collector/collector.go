@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"runtime"
 
-	"github.com/freepaddler/yap-metrics/internal/logger"
-	"github.com/freepaddler/yap-metrics/internal/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
 
 func CollectMetrics(s store.Storage) {

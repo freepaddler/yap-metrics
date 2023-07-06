@@ -1,6 +1,8 @@
 package store
 
-import "github.com/freepaddler/yap-metrics/internal/models"
+import (
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+)
 
 type Gauge interface {
 	SetGauge(name string, value float64)

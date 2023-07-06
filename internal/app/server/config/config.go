@@ -8,7 +8,7 @@ import (
 	"github.com/caarlos0/env/v8"
 	flag "github.com/spf13/pflag"
 
-	"github.com/freepaddler/yap-metrics/internal/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
 const (
