@@ -19,8 +19,6 @@ type FileStorage struct {
 	file *os.File
 	enc  *json.Encoder
 	dec  *json.Decoder
-	// temporary solution
-	closed bool
 }
 
 // NewFileStorage is a constructor
@@ -31,11 +29,10 @@ func NewFileStorage(path string) (*FileStorage, error) {
 		return nil, err
 	}
 	return &FileStorage{
-		mu:     sync.Mutex{},
-		file:   file,
-		enc:    json.NewEncoder(file),
-		dec:    json.NewDecoder(file),
-		closed: false,
+		mu:   sync.Mutex{},
+		file: file,
+		enc:  json.NewEncoder(file),
+		dec:  json.NewDecoder(file),
 	}, nil
 }
 
