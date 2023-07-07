@@ -14,7 +14,7 @@ func main() {
 	logger.SetLevel(conf.LogLevel)
 
 	// print running config
-	logger.Log.Debug().Interface("config", conf).Msg("done config")
+	logger.Log.Info().Interface("config", conf).Msg("done config")
 
 	// init and run server
 	app := server.New(conf)

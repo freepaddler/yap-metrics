@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,11 +19,13 @@ import (
 
 type HTTPHandlers struct {
 	storage store.Storage
+	db      *sql.DB
 }
 
-func NewHTTPHandlers(s store.Storage) *HTTPHandlers {
+func NewHTTPHandlers(s store.Storage, db *sql.DB) *HTTPHandlers {
 	return &HTTPHandlers{
 		storage: s,
+		db:      db,
 	}
 }
 
@@ -197,6 +201,24 @@ func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 		return http.StatusInternalServerError, false
 	}
 	return http.StatusOK, true
+}
+
+func (h *HTTPHandlers) PingDBHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Log.Debug().Msgf("PingDBHandler: Request received  URL=%v", r.URL)
+	if h.db == nil {
+		logger.Log.Debug().Msg("PingDBHandler: no database connection setup")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// avoid wrong hostnames
+	ctxPing, ctxPingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer ctxPingCancel()
+	if err := h.db.PingContext(ctxPing); err != nil {
+		logger.Log.Warn().Err(err).Msg("PingDBHandler: database connection failed")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func validateMetric(m *models.Metrics) (err error) {

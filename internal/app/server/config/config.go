@@ -17,6 +17,7 @@ const (
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestore         = true
+	defaultDBURL           = ""
 )
 
 // Config implements server configuration
@@ -27,6 +28,8 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	UseFileStorage  bool
+	DBURL           string `env:"DATABASE_DSN"`
+	UseDB           bool
 }
 
 func NewConfig() *Config {
@@ -44,6 +47,7 @@ func NewConfig() *Config {
 	flag.IntVarP(&c.StoreInterval, "storeInterval", "i", defaultStoreInterval, "store to file interval in `seconds`")
 	flag.StringVarP(&c.FileStoragePath, "fileStoragePath", "f", defaultFileStoragePath, "`path` to storage file")
 	flag.BoolVarP(&c.Restore, "restore", "r", defaultRestore, "restore metrcis after server start: `true/false`")
+	flag.StringVarP(&c.DBURL, "dbUri", "d", defaultDBURL, "database `uri` i.e. postgres://user:password@host:port/db")
 	flag.Parse()
 
 	// env vars
@@ -58,6 +62,10 @@ func NewConfig() *Config {
 
 	if c.FileStoragePath != "" {
 		c.UseFileStorage = true
+	}
+
+	if c.DBURL != "" {
+		c.UseDB = true
 	}
 
 	return &c

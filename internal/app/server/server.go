@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/db"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
@@ -42,6 +44,7 @@ type Server struct {
 	httpHandlers *handler.HTTPHandlers
 	httpRouter   *chi.Mux
 	httpServer   *http.Server
+	db           *sql.DB
 }
 
 // New creates new server instance
@@ -51,8 +54,13 @@ func New(conf *config.Config) *Server {
 	// init new memory storage
 	srv.store = memory.NewMemStorage()
 
+	// create database connection
+	if conf.UseDB {
+		srv.db = db.New(conf.DBURL)
+	}
+
 	// create http handlers instance
-	srv.httpHandlers = handler.NewHTTPHandlers(srv.store)
+	srv.httpHandlers = handler.NewHTTPHandlers(srv.store, srv.db)
 
 	// create http router
 	srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers)

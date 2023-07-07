@@ -1,6 +1,7 @@
 #!/bin/bash
 
 binPath="test/bin/metricstest-darwin-arm64"
+#export LOG_LEVEL=debug
 
 rnd() {
   echo $((RANDOM % 30000 + 20000))
@@ -100,26 +101,27 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 -source-path=.
 [ $? -eq 0 ] || exit 1
 
-## inc10
-#SERVER_PORT=$(rnd)
-#ADDRESS="localhost:${SERVER_PORT}"
-#TEMP_FILE="/tmp/metrictest$(rnd)"
-#metricstest -test.v -test.run=^TestIteration10[AB]$ \
-#-agent-binary-path=cmd/agent/agent \
-#-binary-path=cmd/server/server \
-#-database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
-#-server-port=$SERVER_PORT \
-#-source-path=.
-#[ $? -eq 0 ] || exit 1
-#
+#export LOG_LEVEL=debug
+# inc10
+SERVER_PORT=$(rnd)
+ADDRESS="localhost:${SERVER_PORT}"
+TEMP_FILE="/tmp/metrictest$(rnd)"
+"$binPath" -test.v -test.run=^TestIteration10[AB]$ \
+-agent-binary-path=cmd/agent/agent \
+-binary-path=cmd/server/server \
+-database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
+-server-port="$SERVER_PORT" \
+-source-path=.
+[ $? -eq 0 ] || exit 1
+
 ## inc11
 #SERVER_PORT=$(rnd)
 #ADDRESS="localhost:${SERVER_PORT}"
 #TEMP_FILE="/tmp/metrictest$(rnd)"
-#metricstest -test.v -test.run=^TestIteration11$ \
+#"$binPath" -test.v -test.run=^TestIteration11$ \
 #-agent-binary-path=cmd/agent/agent \
 #-binary-path=cmd/server/server \
-#-database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+#-database-dsn='postgres://metrics@metrics:5432/metrics?sslmode=disable' \
 #-server-port=$SERVER_PORT \
 #-source-path=.
 #[ $? -eq 0 ] || exit 1
@@ -128,10 +130,10 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 #SERVER_PORT=$(rnd)
 #ADDRESS="localhost:${SERVER_PORT}"
 #TEMP_FILE="/tmp/metrictest$(rnd)"
-#metricstest -test.v -test.run=^TestIteration12$ \
+#"$binPath" -test.v -test.run=^TestIteration12$ \
 #-agent-binary-path=cmd/agent/agent \
 #-binary-path=cmd/server/server \
-#-database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+#-database-dsn='postgres://metrics@metrics:5432/metrics?sslmode=disable' \
 #-server-port=$SERVER_PORT \
 #-source-path=.
 #[ $? -eq 0 ] || exit 1
@@ -140,10 +142,10 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 #SERVER_PORT=$(rnd)
 #ADDRESS="localhost:${SERVER_PORT}"
 #TEMP_FILE="/tmp/metrictest$(rnd)"
-#metricstest -test.v -test.run=^TestIteration13$ \
+#"$binPath" -test.v -test.run=^TestIteration13$ \
 #-agent-binary-path=cmd/agent/agent \
 #-binary-path=cmd/server/server \
-#-database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+#-database-dsn='postgres://metrics@metrics:5432/metrics?sslmode=disable' \
 #-server-port=$SERVER_PORT \
 #-source-path=.
 #[ $? -eq 0 ] || exit 1
@@ -152,10 +154,10 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 #SERVER_PORT=$(rnd)
 #ADDRESS="localhost:${SERVER_PORT}"
 #TEMP_FILE="/tmp/metrictest$(rnd)"
-#metricstest -test.v -test.run=^TestIteration14$ \
+#"$binPath" -test.v -test.run=^TestIteration14$ \
 #-agent-binary-path=cmd/agent/agent \
 #-binary-path=cmd/server/server \
-#-database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+#-database-dsn='postgres://metrics@metrics:5432/metrics?sslmode=disable' \
 #-key="${TEMP_FILE}" \
 #-server-port=$SERVER_PORT \
 #-source-path=.
