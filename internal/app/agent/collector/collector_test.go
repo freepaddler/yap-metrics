@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/freepaddler/yap-metrics/internal/store/memory"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
 // mock reporter to check only one requested metric

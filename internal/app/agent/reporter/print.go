@@ -3,8 +3,8 @@ package reporter
 import (
 	"fmt"
 
-	"github.com/freepaddler/yap-metrics/internal/models"
-	"github.com/freepaddler/yap-metrics/internal/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
 
 // PrintReporter is a test reporter to stdout

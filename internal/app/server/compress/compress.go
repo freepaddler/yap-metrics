@@ -4,7 +4,7 @@ import (
 	"compress/gzip"
 	"net/http"
 
-	"github.com/freepaddler/yap-metrics/internal/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
 // GunzipMiddleware unzip incoming request
