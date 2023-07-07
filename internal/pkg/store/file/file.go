@@ -3,7 +3,9 @@ package file
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"sync"
 	"time"
@@ -89,7 +91,7 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 // Close closes file
 func (f *FileStorage) Close() {
 	logger.Log.Debug().Msg("closing file storage")
-	if err := f.file.Close(); err != nil {
+	if err := f.file.Close(); err != nil && !errors.Is(err, fs.ErrClosed) {
 		logger.Log.Warn().Err(err).Msg("closing file storage error")
 		return
 	}
