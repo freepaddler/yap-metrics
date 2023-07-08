@@ -24,6 +24,5 @@ vendor/
 .idea
 .vscode
 
-# local project GOPATH directory
-.gopath
+# Directories with binaries
 bin/

@@ -4,12 +4,12 @@ import (
 	"math/rand"
 	"runtime"
 
-	"github.com/freepaddler/yap-metrics/internal/logger"
-	"github.com/freepaddler/yap-metrics/internal/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
 
 func CollectMetrics(s store.Storage) {
-	logger.Log.Debug().Msg("Start metrics collection routine")
+	logger.Log.Debug().Msg("start metrics collection routine")
 
 	// update PollCount metric
 	s.IncCounter("PollCount", 1)
@@ -48,5 +48,5 @@ func CollectMetrics(s store.Storage) {
 	s.SetGauge("Sys", float64(memStats.Sys))
 	s.SetGauge("TotalAlloc", float64(memStats.TotalAlloc))
 
-	logger.Log.Debug().Msg("Done metrics collection routine")
+	logger.Log.Debug().Msg("done metrics collection routine")
 }

@@ -15,13 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/freepaddler/yap-metrics/internal/models"
-	"github.com/freepaddler/yap-metrics/internal/store/memory"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
 func TestHTTPHandlers_Index(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	h := NewHTTPHandlers(s, nil)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	h.IndexMetricHandler(w, req)
@@ -34,7 +34,7 @@ func TestHTTPHandlers_Index(t *testing.T) {
 
 func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	h := NewHTTPHandlers(s, nil)
 	tests := []struct {
 		name   string
 		code   int
@@ -119,7 +119,7 @@ func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 
 func TestHTTPHandlers_GetMetric(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	h := NewHTTPHandlers(s, nil)
 	var cValue int64 = 10
 	var cName = "c1"
 	var gValue float64 = -0.110
@@ -187,7 +187,7 @@ func TestHTTPHandlers_GetMetric(t *testing.T) {
 
 func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	h := NewHTTPHandlers(s, nil)
 	var cValue int64 = 10
 	var cName = "c1"
 	var gValue float64 = -0.110
@@ -264,7 +264,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 
 func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	h := NewHTTPHandlers(s, nil)
 	tests := []struct {
 		name       string
 		code       int
