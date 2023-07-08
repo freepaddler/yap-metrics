@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,13 +17,13 @@ import (
 
 type HTTPHandlers struct {
 	storage store.Storage
-	db      *sql.DB
+	pStore  *store.PersistentStorage
 }
 
-func NewHTTPHandlers(s store.Storage, db *sql.DB) *HTTPHandlers {
+func NewHTTPHandlers(s store.Storage, ps *store.PersistentStorage) *HTTPHandlers {
 	return &HTTPHandlers{
 		storage: s,
-		db:      db,
+		pStore:  ps,
 	}
 }
 
@@ -58,7 +56,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	}
 	footer := fmt.Sprintf(`
 		</table>
-		<p><i>SaveMetric: %s</i></p>
+		<p><i>Updated at %s</i></p>
 	</body>
 	</html>
 	`, time.Now().Format(time.UnixDate))
@@ -203,18 +201,16 @@ func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 	return http.StatusOK, true
 }
 
-func (h *HTTPHandlers) PingDBHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Debug().Msgf("PingDBHandler: Request received  URL=%v", r.URL)
-	if h.db == nil {
-		logger.Log.Debug().Msg("PingDBHandler: no database connection setup")
+func (h *HTTPHandlers) PingHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Log.Debug().Msgf("PingHandler: Request received  URL=%v", r.URL)
+	if h.pStore == nil {
+		logger.Log.Debug().Msg("PingHandler: no persistent storage is setup")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	// avoid wrong hostnames
-	ctxPing, ctxPingCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer ctxPingCancel()
-	if err := h.db.PingContext(ctxPing); err != nil {
-		logger.Log.Warn().Err(err).Msg("PingDBHandler: database connection failed")
+	ps := *h.pStore
+	if err := ps.Ping(); err != nil {
+		logger.Log.Warn().Err(err).Msg("PingHandler: persistent storage connection failed")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

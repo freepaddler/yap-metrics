@@ -23,7 +23,7 @@ func NewHTTPRouter(h *handler.HTTPHandlers) *chi.Mux {
 		r.Post("/", h.GetMetricJSONHandler)
 		r.Get("/{type}/{name}", h.GetMetricHandler)
 	})
-	r.Get("/ping", h.PingDBHandler)
+	r.Get("/ping", h.PingHandler)
 
 	return r
 }

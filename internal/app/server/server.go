@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/db"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
@@ -44,7 +45,7 @@ type Server struct {
 	httpHandlers *handler.HTTPHandlers
 	httpRouter   *chi.Mux
 	httpServer   *http.Server
-	db           *sql.DB
+	pStore       *store.PersistentStorage
 }
 
 // New creates new server instance
@@ -53,14 +54,11 @@ func New(conf *config.Config) *Server {
 
 	// init new memory storage
 	srv.store = memory.NewMemStorage()
-
-	// create database connection
-	if conf.UseDB {
-		srv.db = db.New(conf.DBURL)
-	}
+	// init new persistent storage
+	srv.pStore = new(store.PersistentStorage)
 
 	// create http handlers instance
-	srv.httpHandlers = handler.NewHTTPHandlers(srv.store, srv.db)
+	srv.httpHandlers = handler.NewHTTPHandlers(srv.store, srv.pStore)
 
 	// create http router
 	srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers)
@@ -75,19 +73,34 @@ func New(conf *config.Config) *Server {
 func (srv *Server) Run() {
 	logger.Log.Info().Msg("starting metrics server")
 
-	// trap os signals
-	shutdownSig := make(chan os.Signal, 1)
-	signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// file storage setup
-	fStore, err := srv.initFileStorage(ctx)
-	if err != nil {
-		logger.Log.Error().Err(err).Msg("file storage disabled")
-	} else {
-		defer fStore.Close()
+	// persistent storage setup
+	var pStore store.PersistentStorage
+	var err error
+	switch {
+	case srv.conf.UseDB:
+		// database storage setup
+		logger.Log.Info().Msg("using database as persistent storage")
+		ctxDB, ctxDBCancel := context.WithTimeout(ctx, db.DBTimeout*time.Second)
+		defer ctxDBCancel()
+		pStore, err = srv.initDBStorage(ctxDB)
+		if err != nil {
+			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
+			logger.Log.Error().Err(err).Msg("database storage disabled")
+		}
+	case srv.conf.UseFileStorage:
+		// file storage setup
+		logger.Log.Info().Msg("using file as persistent storage")
+		pStore, err = srv.initFileStorage(ctx)
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("file storage disabled")
+		}
+	}
+	if pStore != nil {
+		*srv.pStore = pStore
+		defer pStore.Close()
 	}
 
 	// start http server
@@ -100,27 +113,32 @@ func (srv *Server) Run() {
 
 	logger.Log.Info().Msg("server started")
 
+	// trap os signals
+	shutdownSig := make(chan os.Signal, 1)
+	signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	// shutdown routine
 	sig := <-shutdownSig
 	logger.Log.Info().Msgf("got '%v' signal. server shutdown routine...", sig)
-
-	// context for httpServer graceful shutdown
-	httpCtx, httpRelease := context.WithTimeout(ctx, 5*time.Second)
-	defer httpRelease()
 
 	// post tasks
 	defer func() {
 		// gracefully stop all context-related goroutines
 		cancel()
 
-		// save all metrics to file storage
-		if fStore != nil {
-			logger.Log.Info().Msg("stopping file storage")
-			fStore.SaveStorage(srv.store)
-			fStore.Close()
+		// save all metrics to persistent storage
+		if pStore != nil {
+			logger.Log.Info().Msg("saving all metrics to persistent storage on exit")
+			ctxSave, ctxSaveCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer ctxSaveCancel()
+			pStore.SaveStorage(ctxSave, srv.store)
 		}
 		logger.Log.Info().Msg("server stopped")
 	}()
+
+	// context for httpServer graceful shutdown
+	httpCtx, httpRelease := context.WithTimeout(ctx, 5*time.Second)
+	defer httpRelease()
 
 	// gracefully stop http server
 	logger.Log.Info().Msg("stopping http server")
@@ -132,29 +150,58 @@ func (srv *Server) Run() {
 
 // initFileStorage sets up file storage
 func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorage, err error) {
-	if srv.conf.UseFileStorage {
-		// create file storage
-		fStore, err = file.NewFileStorage(srv.conf.FileStoragePath)
-		if err != nil {
-			logger.Log.Fatal().Err(err).Msg("unable to init file storage")
-		}
+	// create file storage
+	fStore, err = file.New(srv.conf.FileStoragePath)
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("unable to init file storage")
+	}
 
-		// restore storage from file
-		if srv.conf.Restore {
-			fStore.RestoreStorage(srv.store)
-		}
+	// restore storage from file
+	if srv.conf.Restore {
+		fStore.RestoreStorage(ctx, srv.store)
+	}
 
-		// register update hook for sync write to persistent storage
-		if srv.conf.StoreInterval == 0 {
-			srv.store.RegisterHook(fStore.SaveMetric)
-		} else if srv.conf.StoreInterval > 0 {
-			go func() {
-				fStore.SaveLoop(ctx, srv.store, srv.conf.StoreInterval)
-			}()
-		} else {
-			err = fmt.Errorf("invalid storeInterval=%d, should be 0 or greater", srv.conf.StoreInterval)
-			return nil, err
-		}
+	// register update hook for sync write to persistent storage
+	if srv.conf.StoreInterval == 0 {
+		srv.store.RegisterHook(
+			func(m models.Metrics) {
+				go func() {
+					fStore.SaveMetric(ctx, m)
+				}()
+			})
+	} else if srv.conf.StoreInterval > 0 {
+		go func() {
+			fStore.SaveLoop(ctx, srv.store, srv.conf.StoreInterval)
+		}()
+	} else {
+		err = fmt.Errorf("invalid storeInterval=%d, should be 0 or greater", srv.conf.StoreInterval)
+		return nil, err
 	}
 	return fStore, nil
+}
+
+// initDBStorage sets up file storage
+func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
+	// create database storage
+	dbStore, err := db.New(ctx, srv.conf.DBURL)
+	if err != nil {
+		// Error here instead of Fatal to let server work without db to pass tests 10[ab]
+		logger.Log.Error().Err(err).Msg("unable to init database storage")
+		return nil, err
+	}
+
+	// restore storage from file
+	if srv.conf.Restore {
+		dbStore.RestoreStorage(ctx, srv.store)
+	}
+
+	// register update hook for sync write to persistent storage
+	srv.store.RegisterHook(
+		func(m models.Metrics) {
+			go func() {
+				dbStore.SaveMetric(ctx, m)
+			}()
+		})
+
+	return dbStore, nil
 }

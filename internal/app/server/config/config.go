@@ -60,12 +60,12 @@ func NewConfig() *Config {
 		c.FileStoragePath = fsp
 	}
 
-	if c.FileStoragePath != "" {
-		c.UseFileStorage = true
-	}
-
-	if c.DBURL != "" {
+	// choose persistent storage
+	switch {
+	case c.DBURL != "":
 		c.UseDB = true
+	case c.FileStoragePath != "":
+		c.UseFileStorage = true
 	}
 
 	return &c

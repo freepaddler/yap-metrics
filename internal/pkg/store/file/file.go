@@ -23,8 +23,8 @@ type FileStorage struct {
 	dec  *json.Decoder
 }
 
-// NewFileStorage is a constructor
-func NewFileStorage(path string) (*FileStorage, error) {
+// New is a constructor
+func New(path string) (*FileStorage, error) {
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		logger.Log.Error().Err(err).Msgf("unable to open file %s", path)
@@ -39,7 +39,7 @@ func NewFileStorage(path string) (*FileStorage, error) {
 }
 
 // SaveMetric id called from storage to indicate metric change
-func (f *FileStorage) SaveMetric(m models.Metrics) {
+func (f *FileStorage) SaveMetric(_ context.Context, m models.Metrics) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.writeMetric(m)
@@ -52,7 +52,7 @@ func (f *FileStorage) writeMetric(m models.Metrics) {
 }
 
 // SaveStorage saves all metrics from storage to file
-func (f *FileStorage) SaveStorage(s store.Storage) {
+func (f *FileStorage) SaveStorage(_ context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("saving store to file")
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -63,7 +63,7 @@ func (f *FileStorage) SaveStorage(s store.Storage) {
 }
 
 // RestoreStorage loads metrics from file to storage
-func (f *FileStorage) RestoreStorage(s store.Storage) {
+func (f *FileStorage) RestoreStorage(_ context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
 	var err error
 	var m models.Metrics
@@ -108,7 +108,12 @@ func (f *FileStorage) SaveLoop(ctx context.Context, s store.Storage, interval in
 			logger.Log.Debug().Msg("file storage loop stopped")
 			return
 		case <-t.C:
-			f.SaveStorage(s)
+			f.SaveStorage(ctx, s)
 		}
 	}
+}
+
+// Ping is here only for interface implementation
+func (f *FileStorage) Ping() error {
+	return nil
 }

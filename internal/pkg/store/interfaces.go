@@ -1,6 +1,8 @@
 package store
 
 import (
+	"context"
+
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )
 
@@ -27,7 +29,14 @@ type Storage interface {
 }
 
 type PersistentStorage interface {
-	RestoreStorage(storage Storage)
-	SaveMetric(storage Storage, metric models.Metrics)
-	SaveStorage(storage Storage)
+	// RestoreStorage gets all latest metrics from PersistentStorage and writes to Storage
+	RestoreStorage(ctx context.Context, storage Storage)
+	// SaveMetric saves metric to PersistentStorage
+	SaveMetric(ctx context.Context, metric models.Metrics)
+	// SaveStorage saves all metrics from Storage to PersistentStorage
+	SaveStorage(ctx context.Context, storage Storage)
+	// Close stops and closes PersistentStorage
+	Close()
+	// Ping checks if PersistentStorage is accessible
+	Ping() error
 }
