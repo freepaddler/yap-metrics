@@ -25,16 +25,16 @@ type Storage interface {
 	Flush()
 	GetMetric(metric *models.Metrics) (bool, error)
 	SetMetric(metric *models.Metrics) error
-	RegisterHook(fns ...func(models.Metrics))
+	RegisterHook(fns ...func([]models.Metrics))
 }
 
 type PersistentStorage interface {
 	// RestoreStorage gets all latest metrics from PersistentStorage and writes to Storage
-	RestoreStorage(ctx context.Context, storage Storage)
-	// SaveMetric saves metric to PersistentStorage
-	SaveMetric(ctx context.Context, metric models.Metrics)
+	RestoreStorage(context.Context, Storage)
+	// SaveMetric saves metrics to PersistentStorage
+	SaveMetric(context.Context, []models.Metrics)
 	// SaveStorage saves all metrics from Storage to PersistentStorage
-	SaveStorage(ctx context.Context, storage Storage)
+	SaveStorage(context.Context, Storage)
 	// Close stops and closes PersistentStorage
 	Close()
 	// Ping checks if PersistentStorage is accessible

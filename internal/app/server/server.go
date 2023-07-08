@@ -164,7 +164,7 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 	// register update hook for sync write to persistent storage
 	if srv.conf.StoreInterval == 0 {
 		srv.store.RegisterHook(
-			func(m models.Metrics) {
+			func(m []models.Metrics) {
 				go func() {
 					fStore.SaveMetric(ctx, m)
 				}()
@@ -197,7 +197,7 @@ func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
 
 	// register update hook for sync write to persistent storage
 	srv.store.RegisterHook(
-		func(m models.Metrics) {
+		func(m []models.Metrics) {
 			go func() {
 				dbStore.SaveMetric(ctx, m)
 			}()

@@ -12,7 +12,7 @@ import (
 type MemStorage struct {
 	counters map[string]int64
 	gauges   map[string]float64
-	hooks    []func(models.Metrics)
+	hooks    []func([]models.Metrics)
 }
 
 // NewMemStorage is a constructor for MemStorage
@@ -24,12 +24,12 @@ func NewMemStorage() *MemStorage {
 }
 
 // RegisterHook registers persistent storage function to get notification that metric was updated
-func (ms *MemStorage) RegisterHook(fns ...func(models.Metrics)) {
+func (ms *MemStorage) RegisterHook(fns ...func([]models.Metrics)) {
 	ms.hooks = append(ms.hooks, fns...)
 }
 
 // updateHook notifies persistent storage that metric was updated
-func (ms *MemStorage) updateHook(m models.Metrics) {
+func (ms *MemStorage) updateHook(m []models.Metrics) {
 	for _, hook := range ms.hooks {
 		hook(m)
 	}
@@ -66,11 +66,12 @@ func (ms *MemStorage) SetGauge(name string, fValue float64) {
 	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
 	// pointer to map will not work
 	v := fValue
-	ms.updateHook(models.Metrics{
-		Name:   name,
-		Type:   models.Gauge,
-		FValue: &v,
-	})
+	ms.updateHook([]models.Metrics{
+		{
+			Name:   name,
+			Type:   models.Gauge,
+			FValue: &v,
+		}})
 }
 
 func (ms *MemStorage) GetGauge(name string) (*float64, bool) {
@@ -86,12 +87,13 @@ func (ms *MemStorage) IncCounter(name string, iValue int64) {
 	ms.counters[name] += iValue
 	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
 	// pointer to map will not work
-	v := iValue
-	ms.updateHook(models.Metrics{
-		Name:   name,
-		Type:   models.Counter,
-		IValue: &v,
-	})
+	v := ms.counters[name]
+	ms.updateHook([]models.Metrics{
+		{
+			Name:   name,
+			Type:   models.Counter,
+			IValue: &v,
+		}})
 }
 
 func (ms *MemStorage) GetCounter(name string) (*int64, bool) {

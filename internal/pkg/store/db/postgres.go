@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DBTimeout   = 120 // database query timeout
+	DBTimeout   = 5 // database query timeout
 	qMetricsTbl = `
 		CREATE TABLE IF NOT EXISTS metrics 	(
 			id      INTEGER GENERATED ALWAYS AS IDENTITY,
@@ -48,6 +48,16 @@ const (
 		FOR EACH ROW
 		EXECUTE FUNCTION trg_set_updated_ts();
 	`
+	qUpsertGauge = `
+		INSERT INTO metrics (name,type,f_value) VALUES ($1,$2,$3)
+			ON CONFLICT (name,type)
+			DO UPDATE SET f_value = excluded.f_value;
+	`
+	qUpsertCounter = `
+		INSERT INTO metrics (name,type,i_value) VALUES ($1,$2,$3)
+			ON CONFLICT (name,type)
+			DO UPDATE SET i_value = excluded.i_value;
+	`
 )
 
 type DBStorage struct {
@@ -72,6 +82,35 @@ func New(ctx context.Context, uri string) (*DBStorage, error) {
 	return dbs, nil
 }
 
+// SaveMetric inserts metric in database, updates metric value if metric already exists
+func (dbs *DBStorage) SaveMetric(ctx context.Context, metrics []models.Metrics) {
+	var err error
+	tx, err := dbs.db.BeginTx(ctx, nil)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("unable to begin upsert transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	for _, m := range metrics {
+		switch m.Type {
+		case models.Gauge:
+			_, err = tx.ExecContext(ctx, qUpsertGauge, m.Name, m.Type, *m.FValue)
+		case models.Counter:
+			_, err = tx.ExecContext(ctx, qUpsertCounter, m.Name, m.Type, *m.IValue)
+		}
+		if err != nil {
+			logger.Log.Error().Err(err).Msgf("unable to update metric '%+v'", m)
+			return
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		logger.Log.Error().Err(err).Msg("unable to commit upsert transaction")
+		return
+	}
+	logger.Log.Debug().Msg("metrics saved to db")
+}
+
 func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
 	metrics := dbs.getMetrics(ctx)
@@ -86,15 +125,11 @@ func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
 	}
 	logger.Log.Debug().Msg("done storage restore")
 }
-func (dbs *DBStorage) SaveMetric(ctx context.Context, m models.Metrics) {
-	dbs.updateMetric(ctx, m)
-}
+
 func (dbs *DBStorage) SaveStorage(ctx context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("saving store to database")
 	snap := s.Snapshot()
-	for _, m := range snap {
-		dbs.updateMetric(ctx, m)
-	}
+	dbs.SaveMetric(ctx, snap)
 }
 
 func (dbs *DBStorage) Ping() error {
@@ -135,38 +170,6 @@ func (dbs *DBStorage) getMetrics(ctx context.Context) []models.Metrics {
 		logger.Log.Warn().Err(err).Msg("error while getting metrics from db")
 	}
 	return res
-}
-
-// updateMetric inserts metric in database, updates metric value if metric already exists
-func (dbs *DBStorage) updateMetric(ctx context.Context, m models.Metrics) {
-	var err error
-	switch m.Type {
-	case models.Gauge:
-		_, err = dbs.db.ExecContext(ctx, `
-			INSERT INTO metrics (name,type,f_value) VALUES ($1,$2,$3)
-			ON CONFLICT (name,type)
-			DO UPDATE SET f_value = excluded.f_value;
-    	`,
-			m.Name,
-			m.Type,
-			*m.FValue,
-		)
-	case models.Counter:
-		_, err = dbs.db.ExecContext(ctx, `
-			INSERT INTO metrics (name,type,i_value) VALUES ($1,$2,$3)
-			ON CONFLICT (name,type)
-			DO UPDATE SET i_value = excluded.i_value;
-    	`,
-			m.Name,
-			m.Type,
-			*m.IValue,
-		)
-	}
-	if err != nil {
-		logger.Log.Error().Err(err).Msgf("unable to update metric '%+v'", m)
-		return
-	}
-	logger.Log.Debug().Msgf("metric '%+v' saved to db", m)
 }
 
 // initDB creates necessary database entities: tables, indexes, etc...

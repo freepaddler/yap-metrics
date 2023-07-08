@@ -183,6 +183,10 @@ func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(code)
 }
 
+//func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.Request) {
+//	//
+//}
+
 func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 	if err := validateMetric(m); err != nil {
 		logger.Log.Warn().Err(err).Msg("updateMetricHTTP: invalid request")

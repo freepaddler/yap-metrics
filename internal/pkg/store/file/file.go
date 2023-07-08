@@ -38,11 +38,13 @@ func New(path string) (*FileStorage, error) {
 	}, nil
 }
 
-// SaveMetric id called from storage to indicate metric change
-func (f *FileStorage) SaveMetric(_ context.Context, m models.Metrics) {
+// SaveMetric is called from storage to indicate metrics change
+func (f *FileStorage) SaveMetric(_ context.Context, metrics []models.Metrics) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.writeMetric(m)
+	for _, m := range metrics {
+		f.writeMetric(m)
+	}
 }
 
 // writeMetric internal method to write metric to file

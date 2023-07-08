@@ -121,7 +121,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 -agent-binary-path=cmd/agent/agent \
 -binary-path=cmd/server/server \
 -database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
--server-port=$SERVER_PORT \
+-server-port="$SERVER_PORT" \
 -source-path=.
 [ $? -eq 0 ] || exit 1
 #
@@ -133,7 +133,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 #-agent-binary-path=cmd/agent/agent \
 #-binary-path=cmd/server/server \
 #-database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
-#-server-port=$SERVER_PORT \
+#-server-port="$SERVER_PORT" \
 #-source-path=.
 #[ $? -eq 0 ] || exit 1
 #
@@ -145,7 +145,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 #-agent-binary-path=cmd/agent/agent \
 #-binary-path=cmd/server/server \
 #-database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
-#-server-port=$SERVER_PORT \
+#-server-port="$SERVER_PORT" \
 #-source-path=.
 #[ $? -eq 0 ] || exit 1
 #
@@ -158,7 +158,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 #-binary-path=cmd/server/server \
 #-database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
 #-key="${TEMP_FILE}" \
-#-server-port=$SERVER_PORT \
+#-server-port="$SERVER_PORT" \
 #-source-path=.
 #[ $? -eq 0 ] || exit 1
 #
