@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DBTimeout   = 5 // database query timeout
+	DBTimeout   = 7 // database query timeout
 	qMetricsTbl = `
 		CREATE TABLE IF NOT EXISTS metrics 	(
 			id      INTEGER GENERATED ALWAYS AS IDENTITY,
@@ -82,10 +82,29 @@ func New(ctx context.Context, uri string) (*DBStorage, error) {
 	return dbs, nil
 }
 
-// SaveMetric inserts metric in database, updates metric value if metric already exists
-func (dbs *DBStorage) SaveMetric(ctx context.Context, metrics []models.Metrics) {
+// SaveMetrics inserts metric in database, updates metric value if metric already exists
+func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) {
+	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+	defer ctxDBCancel()
+	if len(metrics) == 0 {
+		logger.Log.Warn().Msg("no metrics to save")
+	}
 	var err error
-	tx, err := dbs.db.BeginTx(ctx, nil)
+	if len(metrics) == 1 {
+		logger.Log.Debug().Msg("upsert one metric without transaction")
+		m := metrics[0]
+		switch m.Type {
+		case models.Gauge:
+			_, err = dbs.db.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
+		case models.Counter:
+			_, err = dbs.db.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
+		}
+		if err != nil {
+			logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
+			return
+		}
+	}
+	tx, err := dbs.db.BeginTx(ctxDB, nil)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("unable to begin upsert transaction")
 		return
@@ -95,12 +114,12 @@ func (dbs *DBStorage) SaveMetric(ctx context.Context, metrics []models.Metrics) 
 	for _, m := range metrics {
 		switch m.Type {
 		case models.Gauge:
-			_, err = tx.ExecContext(ctx, qUpsertGauge, m.Name, m.Type, *m.FValue)
+			_, err = tx.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
 		case models.Counter:
-			_, err = tx.ExecContext(ctx, qUpsertCounter, m.Name, m.Type, *m.IValue)
+			_, err = tx.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
 		}
 		if err != nil {
-			logger.Log.Error().Err(err).Msgf("unable to update metric '%+v'", m)
+			logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
 			return
 		}
 	}
@@ -113,7 +132,9 @@ func (dbs *DBStorage) SaveMetric(ctx context.Context, metrics []models.Metrics) 
 
 func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
-	metrics := dbs.getMetrics(ctx)
+	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+	defer ctxDBCancel()
+	metrics := dbs.getMetrics(ctxDB)
 	for _, m := range metrics {
 		switch m.Type {
 		case models.Gauge:
@@ -129,7 +150,7 @@ func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
 func (dbs *DBStorage) SaveStorage(ctx context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("saving store to database")
 	snap := s.Snapshot(false)
-	dbs.SaveMetric(ctx, snap)
+	dbs.SaveMetrics(ctx, snap)
 }
 
 func (dbs *DBStorage) Ping() error {
@@ -140,8 +161,10 @@ func (dbs *DBStorage) Ping() error {
 
 // getMetrics selects all metrics from database
 func (dbs *DBStorage) getMetrics(ctx context.Context) []models.Metrics {
+	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+	defer ctxDBCancel()
 	var res []models.Metrics
-	rows, err := dbs.db.QueryContext(ctx, `SELECT name, type, f_value, i_value FROM metrics`)
+	rows, err := dbs.db.QueryContext(ctxDB, `SELECT name, type, f_value, i_value FROM metrics`)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("unable to get all metrics from db")
 		return nil
@@ -174,16 +197,18 @@ func (dbs *DBStorage) getMetrics(ctx context.Context) []models.Metrics {
 
 // initDB creates necessary database entities: tables, indexes, etc...
 func (dbs *DBStorage) initDB(ctx context.Context) error {
-	if _, err := dbs.db.ExecContext(ctx, qMetricsTbl); err != nil {
+	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+	defer ctxDBCancel()
+	if _, err := dbs.db.ExecContext(ctxDB, qMetricsTbl); err != nil {
 		return err
 	}
-	if _, err := dbs.db.ExecContext(ctx, qMetricsIdx); err != nil {
+	if _, err := dbs.db.ExecContext(ctxDB, qMetricsIdx); err != nil {
 		return err
 	}
-	if _, err := dbs.db.ExecContext(ctx, qFuncSetUpdatedTS); err != nil {
+	if _, err := dbs.db.ExecContext(ctxDB, qFuncSetUpdatedTS); err != nil {
 		return err
 	}
-	if _, err := dbs.db.ExecContext(ctx, qMetricsTrg); err != nil {
+	if _, err := dbs.db.ExecContext(ctxDB, qMetricsTrg); err != nil {
 		return err
 	}
 	return nil

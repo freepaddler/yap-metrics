@@ -38,8 +38,8 @@ func New(path string) (*FileStorage, error) {
 	}, nil
 }
 
-// SaveMetric is called from storage to indicate metrics change
-func (f *FileStorage) SaveMetric(_ context.Context, metrics []models.Metrics) {
+// SaveMetrics is called from storage to indicate metrics change
+func (f *FileStorage) SaveMetrics(_ context.Context, metrics []models.Metrics) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, m := range metrics {

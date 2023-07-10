@@ -14,20 +14,20 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
-type App struct {
+type Agent struct {
 	conf     *config.Config
 	storage  *memory.MemStorage
 	reporter *reporter.HTTPReporter
 }
 
-func New(c *config.Config) *App {
-	agt := App{conf: c}
+func New(c *config.Config) *Agent {
+	agt := Agent{conf: c}
 	agt.storage = memory.NewMemStorage()
 	agt.reporter = reporter.NewHTTPReporter(agt.storage, agt.conf.ServerAddress, agt.conf.HTTPTimeout)
 	return &agt
 }
 
-func (agt *App) Run() {
+func (agt *Agent) Run() {
 	logger.Log.Info().Msg("starting agent")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -44,6 +44,7 @@ func (agt *App) Run() {
 			select {
 			case <-ctx.Done():
 				logger.Log.Debug().Msg("metrics polling stopped")
+				logger.Log.Debug().Msg("metrics reporting stopped")
 				return
 			case <-tPoll.C:
 				collector.CollectMetrics(agt.storage)

@@ -47,8 +47,8 @@ type Storage interface {
 type PersistentStorage interface {
 	// RestoreStorage gets all latest metrics values from PersistentStorage and overwrites to Storage
 	RestoreStorage(context.Context, Storage)
-	// SaveMetric saves metrics to PersistentStorage
-	SaveMetric(context.Context, []models.Metrics)
+	// SaveMetrics saves metrics to PersistentStorage
+	SaveMetrics(context.Context, []models.Metrics)
 	// SaveStorage saves all metrics from Storage to PersistentStorage
 	SaveStorage(context.Context, Storage)
 	// Close stops and closes PersistentStorage

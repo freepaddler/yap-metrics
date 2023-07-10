@@ -80,9 +80,9 @@ func (srv *Server) Run() {
 	case srv.conf.UseDB:
 		// database storage setup
 		logger.Log.Info().Msg("using database as persistent storage")
-		ctxDB, ctxDBCancel := context.WithTimeout(ctx, db.DBTimeout*time.Second)
-		defer ctxDBCancel()
-		pStore, err = srv.initDBStorage(ctxDB)
+		//ctxDB, ctxDBCancel := context.WithTimeout(ctx, db.DBTimeout*time.Second)
+		//defer ctxDBCancel()
+		pStore, err = srv.initDBStorage(ctx)
 		if err != nil {
 			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
 			logger.Log.Error().Err(err).Msg("database storage disabled")
@@ -165,7 +165,7 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 		srv.store.RegisterHooks(
 			func(m []models.Metrics) {
 				go func() {
-					fStore.SaveMetric(ctx, m)
+					fStore.SaveMetrics(ctx, m)
 				}()
 			})
 	} else if srv.conf.StoreInterval > 0 {
@@ -198,7 +198,7 @@ func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
 	srv.store.RegisterHooks(
 		func(m []models.Metrics) {
 			go func() {
-				dbStore.SaveMetric(ctx, m)
+				dbStore.SaveMetrics(ctx, m)
 			}()
 		})
 
