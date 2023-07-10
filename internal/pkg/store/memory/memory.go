@@ -33,14 +33,7 @@ func (ms *MemStorage) SetGauge(name string, fValue float64) {
 	defer ms.mu.Unlock()
 	ms.gauges[name] = fValue
 	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
-	// pointer to map will not work
-	v := fValue
-	ms.updateHook([]models.Metrics{
-		{
-			Name:   name,
-			Type:   models.Gauge,
-			FValue: &v,
-		}})
+
 }
 func (ms *MemStorage) GetGauge(name string) (*float64, bool) {
 	v, ok := ms.gauges[name]

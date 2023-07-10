@@ -24,6 +24,9 @@ func NewHTTPRouter(h *handler.HTTPHandlers) *chi.Mux {
 		r.Get("/{type}/{name}", h.GetMetricHandler)
 	})
 	r.Get("/ping", h.PingHandler)
+	r.Route("/updates", func(r chi.Router) {
+		r.Post("/", h.UpdateMetricsBatchHandler)
+	})
 
 	return r
 }

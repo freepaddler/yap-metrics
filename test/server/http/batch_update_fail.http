@@ -1,0 +1,68 @@
+## FAIL
+
+### GET /updates wrong method
+# curl -X GET -i http://localhost:8080/updates/
+GET http://localhost:8080/updates
+
+[
+{"id":"c101","type":"counter","delta":1},
+{"id":"g101","type":"gauge","value":-0.1}
+]
+
+> assert_405_MethodNotAllowed.js
+
+### POST /updates empty body
+# curl -X POST -i http://localhost:8080/updates/
+POST http://localhost:8080/updates/
+
+> assert_400_BadRequest.js
+
+### POST /updates empty array
+# curl -X POST -i http://localhost:8080/updates/ -d '[]'
+POST http://localhost:8080/updates/
+
+[]
+
+> assert_400_BadRequest.js
+
+### POST /updates wrong data
+# curl -X POST -i http://localhost:8080/updates/ -d 'asdw,wqer wq fsd '
+POST http://localhost:8080/updates/
+
+asdw,wqer wq fsd
+
+> assert_400_BadRequest.js
+
+### POST /updates bad counter value
+# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"counter","delta":-1.3},]'
+POST http://localhost:8080/updates/
+
+[
+{"id":"c101","type":"counter","delta":-1.3},
+]
+
+> assert_400_BadRequest.js
+
+### POST /updates bad gauage value
+# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"g101","type":"gauge","value":"-0.1"}]'
+POST http://localhost:8080/updates/
+
+[
+{"id":"g101","type":"gauge","value":"-0.1"}
+]
+
+> assert_400_BadRequest.js
+
+### POST /updates invalid JSON
+# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"g101",type":"gauge","value":"-0.1"}]'
+POST http://localhost:8080/updates/
+
+[
+{"id":"g101",type":"gauge","value":"-0.1"}
+{"id":"c101","type":"counter","delta":-1.3},
+]
+
+
+> assert_400_BadRequest.js
+
+

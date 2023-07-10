@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DBTimeout   = 7 // database query timeout
+	DBTimeout   = 240 // database query timeout
 	qMetricsTbl = `
 		CREATE TABLE IF NOT EXISTS metrics 	(
 			id      INTEGER GENERATED ALWAYS AS IDENTITY,
@@ -91,6 +91,7 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 	}
 	var err error
 	if len(metrics) == 1 {
+
 		logger.Log.Debug().Msg("upsert one metric without transaction")
 		m := metrics[0]
 		switch m.Type {
@@ -127,7 +128,7 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 		logger.Log.Error().Err(err).Msg("unable to commit upsert transaction")
 		return
 	}
-	logger.Log.Debug().Msg("metrics saved to db")
+	logger.Log.Debug().Msgf("%d metrics saved to db", len(metrics))
 }
 
 func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
@@ -135,15 +136,16 @@ func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
 	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
 	defer ctxDBCancel()
 	metrics := dbs.getMetrics(ctxDB)
-	for _, m := range metrics {
-		switch m.Type {
-		case models.Gauge:
-			s.SetGauge(m.Name, *m.FValue)
-		case models.Counter:
-			s.DelCounter(m.Name)
-			s.IncCounter(m.Name, *m.IValue)
-		}
-	}
+	s.UpdateMetrics(metrics, true)
+	//for _, m := range metrics {
+	//	switch m.Type {
+	//	case models.Gauge:
+	//		s.SetGauge(m.Name, *m.FValue)
+	//	case models.Counter:
+	//		s.DelCounter(m.Name)
+	//		s.IncCounter(m.Name, *m.IValue)
+	//	}
+	//}
 	logger.Log.Debug().Msg("done storage restore")
 }
 

@@ -41,7 +41,7 @@ const (
 	`
 )
 
-// IndexMetricHandler returns page with all metrics
+// IndexMetricHandler returns webpage page with all metrics
 func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// TODO: use html templates
@@ -67,7 +67,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	w.Write([]byte(footer))
 }
 
-// GetMetricHandler returns stored metrics
+// GetMetricHandler returns stored metrics for url-param request
 func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug().Msgf("GetMetricHandler: Request received  URL=%v", r.URL)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -93,6 +93,7 @@ func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// GetMetricJSONHandler returns stored metrics for JSON single-metric request
 func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var m models.Metrics
 	logger.Log.Debug().Msg("GetMetricJSONHandler: Request received: POST /value")
@@ -114,6 +115,7 @@ func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(code)
 }
 
+// getMetric is a helper, that contains similar logic for GetMetricHandler and GetMetricJSONHandler
 func (h *HTTPHandlers) getMetric(m *models.Metrics) (int, bool) {
 	if err := validateMetric(m); err != nil {
 		logger.Log.Warn().Err(err).Msg("getMetricHTTP: invalid request")
@@ -132,7 +134,7 @@ func (h *HTTPHandlers) getMetric(m *models.Metrics) (int, bool) {
 	return http.StatusOK, true
 }
 
-// UpdateMetricHandler validates update request and writes metrics to storage
+// UpdateMetricHandler validates url-params update request and writes metrics to storage
 func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug().Msgf("UpdateMetricHandler: Request received  URL=%v", r.URL)
 	t := chi.URLParam(r, "type")  // metric type
@@ -167,6 +169,7 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(code)
 }
 
+// UpdateMetricJSONHandler validates JSON single-metric update request and writes metrics to storage
 func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var m models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -187,10 +190,48 @@ func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(code)
 }
 
-//func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.Request) {
-//	//
-//}
+func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.Request) {
+	metrics := make([]models.Metrics, 0)
+	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
+		logger.Log.Warn().Err(err).Msg("UpdateMetricsBatchHandler: unable to parse request JSON")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	reqLen := len(metrics)
+	// validate parsed metrics
+	invalid := make([]models.Metrics, 0)
+	for i := 0; i < len(metrics); i++ {
+		err := validateMetric(&metrics[i])
+		if err != nil {
+			invalid = append(invalid, metrics[i])
+			metrics[i] = metrics[len(metrics)-1]
+			metrics = metrics[:len(metrics)-1]
+			i--
+			continue
+		}
+	}
+	invalid2 := h.storage.UpdateMetrics(metrics, false)
+	if len(invalid2) > 0 {
+		invalid = append(invalid, invalid2...)
+	}
+	if len(invalid) == reqLen {
+		logger.Log.Warn().Msg("UpdateMetricsBatchHandler: all metrics are invalid")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
+	res, err := json.Marshal(invalid)
+	if err != nil {
+		logger.Log.Warn().Msg("UpdateMetricsBatchHandler: unable to marshal invalid JSON")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(res)
+	w.WriteHeader(http.StatusOK)
+}
+
+// updateMetric is a helper, that contains similar logic for UpdateMetricHandler and UpdateMetricJSONHandler
 func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 	if err := validateMetric(m); err != nil {
 		logger.Log.Warn().Err(err).Msg("updateMetricHTTP: invalid request")
@@ -209,6 +250,7 @@ func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 	return http.StatusOK, true
 }
 
+// PingHandler sends connectivity check to persistent storage
 func (h *HTTPHandlers) PingHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug().Msgf("PingHandler: Request received  URL=%v", r.URL)
 	if h.pStore == nil {
@@ -225,6 +267,7 @@ func (h *HTTPHandlers) PingHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// validateMetric check json unmarshalled metric validity
 func validateMetric(m *models.Metrics) (err error) {
 	if m.Name == "" {
 		err = errors.New("missing metric name")
