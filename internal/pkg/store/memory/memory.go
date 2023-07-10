@@ -29,8 +29,6 @@ func NewMemStorage() *MemStorage {
 // var _ store.Gauge = (*MemStorage)(nil)
 
 func (ms *MemStorage) SetGauge(name string, fValue float64) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
 	ms.gauges[name] = fValue
 	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
 
@@ -40,8 +38,6 @@ func (ms *MemStorage) GetGauge(name string) (*float64, bool) {
 	return &v, ok
 }
 func (ms *MemStorage) DelGauge(name string) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
 	delete(ms.gauges, name)
 }
 
@@ -49,8 +45,6 @@ func (ms *MemStorage) DelGauge(name string) {
 // var _ store.Counter = (*MemStorage)(nil)
 
 func (ms *MemStorage) IncCounter(name string, iValue int64) int64 {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
 	ms.counters[name] += iValue
 	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
 	// pointer to map will not work
@@ -62,8 +56,6 @@ func (ms *MemStorage) GetCounter(name string) (*int64, bool) {
 	return &v, ok
 }
 func (ms *MemStorage) DelCounter(name string) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
 	delete(ms.counters, name)
 }
 
@@ -109,8 +101,8 @@ func (ms *MemStorage) GetMetric(m *models.Metrics) (bool, error) {
 	}
 	return found, err
 }
-func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) []models.Metrics {
-	invalid := make([]models.Metrics, 0)
+func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
+	ms.mu.Lock()
 	for i := 0; i < len(m); i++ {
 		switch m[i].Type {
 		case models.Gauge:
@@ -124,18 +116,28 @@ func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) []models
 			}
 		default:
 			logger.Log.Warn().Msgf("UpdateMetrics: invalid metric '%s' type '%s', skipping", m[i].Name, m[i].Type)
-			invalid = append(invalid, m[i])
-			// remove invalid element from slice
-			m[i] = m[len(m)-1]
-			m = m[:len(m)-1]
-			// return index back
-			i--
 		}
 	}
 	// call update persistent storage hooks
+	ms.mu.Unlock()
 	ms.updateHook(m)
-
-	return invalid
+}
+func (ms *MemStorage) RestoreMetrics(m []models.Metrics) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	for _, v := range m {
+		switch v.Type {
+		case models.Counter:
+			ms.IncCounter(v.Name, *v.IValue)
+		case models.Gauge:
+			if _, found := ms.GetGauge(v.Name); found {
+				continue
+			}
+			ms.SetGauge(v.Name, *v.FValue)
+		default:
+			logger.Log.Warn().Msgf("RestoreMetrics: invalid metric '%s' type '%s', skipping", v.Name, v.Type)
+		}
+	}
 }
 func (ms *MemStorage) RegisterHooks(fns ...func([]models.Metrics)) {
 	ms.hooks = append(ms.hooks, fns...)

@@ -137,8 +137,7 @@ func TestMemStorage_IncCounter_UpdateSingleMetric(t *testing.T) {
 			}
 			m.IValue = &tt.iValue
 
-			invalid := s.UpdateMetrics([]models.Metrics{m}, false)
-			require.Emptyf(t, invalid, "invalid records found, but should not")
+			s.UpdateMetrics([]models.Metrics{m}, false)
 			val, ok := s.GetCounter(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
@@ -156,8 +155,7 @@ func TestMemStorage_IncCounter_UpdateSingleMetric(t *testing.T) {
 			}
 			m.IValue = &tt.iValue
 
-			invalid := s.UpdateMetrics([]models.Metrics{m}, false)
-			require.Emptyf(t, invalid, "invalid records found, but should not")
+			s.UpdateMetrics([]models.Metrics{m}, false)
 			val, ok := s.GetCounter(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
@@ -272,8 +270,7 @@ func TestMemStorage_SetGauge_UpdateSingleMetric(t *testing.T) {
 			}
 			m.FValue = &tt.fValue
 
-			invalid := s.UpdateMetrics([]models.Metrics{m}, false)
-			require.Emptyf(t, invalid, "invalid records found, but should not")
+			s.UpdateMetrics([]models.Metrics{m}, false)
 			val, ok := s.GetGauge(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
@@ -291,8 +288,7 @@ func TestMemStorage_SetGauge_UpdateSingleMetric(t *testing.T) {
 			}
 			m.FValue = &tt.fValue
 
-			invalid := s.UpdateMetrics([]models.Metrics{m}, true)
-			require.Emptyf(t, invalid, "invalid records found, but should not")
+			s.UpdateMetrics([]models.Metrics{m}, true)
 			val, ok := s.GetGauge(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
@@ -358,6 +354,53 @@ func TestMemStorage_DelGauge(t *testing.T) {
 	assert.Falsef(t, ok, "gauge exists, but should be deleted")
 }
 
+func TestMemStorage_RestoreMetrics_Counters(t *testing.T) {
+	s, _, _ := PrepareTestStorage()
+	// unupdated metrics to restore
+	mCounterN := models.Metrics{
+		Name:   newCounter,
+		Type:   models.Counter,
+		IValue: new(int64),
+	}
+	*mCounterN.IValue = newCounterVal
+	wantCounterN := newCounterVal
+	mGaugeN := models.Metrics{
+		Name:   newGauge,
+		Type:   models.Gauge,
+		FValue: new(float64),
+	}
+	*mGaugeN.FValue = newGaugeVal
+	wantGaugeN := newGaugeVal
+	// updated metrics to restore
+	mCounterE := models.Metrics{
+		Name:   eCounter2,
+		Type:   models.Counter,
+		IValue: new(int64),
+	}
+	*mCounterE.IValue = eCounter2Val
+	wantCounterE := eCounter2Val * 2
+	mGaugeE := models.Metrics{
+		Name:   eGauge1,
+		Type:   models.Gauge,
+		FValue: new(float64),
+	}
+	*mGaugeE.FValue = eGauge2Val
+	wantGaugeE := eGauge1Val
+	s.RestoreMetrics([]models.Metrics{mCounterN, mGaugeN, mCounterE, mGaugeE})
+	getCounterN, ok := s.GetCounter(mCounterN.Name)
+	require.True(t, ok)
+	assert.Equal(t, wantCounterN, *getCounterN)
+	getCounterE, ok := s.GetCounter(mCounterE.Name)
+	require.True(t, ok)
+	assert.Equal(t, wantCounterE, *getCounterE)
+	getGaugeN, ok := s.GetGauge(mGaugeN.Name)
+	require.True(t, ok)
+	assert.Equal(t, wantGaugeN, *getGaugeN)
+	getGaugeE, ok := s.GetGauge(mGaugeE.Name)
+	require.True(t, ok)
+	assert.Equal(t, wantGaugeE, *getGaugeE)
+}
+
 func TestMemStorage_Snapshot(t *testing.T) {
 	s, gauges, counters := PrepareTestStorage()
 
@@ -417,28 +460,13 @@ func TestMemStorage_UpdateMultiple_and_Hook(t *testing.T) {
 		Type:   models.Gauge,
 		FValue: new(float64),
 	}
-	*mGaugeE.FValue = eGauge1Val
-	wantGaugeE := eGauge1Val
-	// invalid metrics
-	mInv1 := models.Metrics{
-		Name: "invalid1",
-		Type: "someType",
-	}
-	mInv2 := models.Metrics{
-		Name: "invalid2",
-		Type: "someType2",
-	}
-	// check invalid
-	wantInvalid := []models.Metrics{mInv1, mInv2}
+	*mGaugeE.FValue = eGauge2Val
+	wantGaugeE := eGauge2Val
 	s, _, _ := PrepareTestStorage()
 	globalHookMetricsVar = make([]models.Metrics, 0)
 	s.RegisterHooks(testHook)
-	invalid := s.UpdateMetrics([]models.Metrics{mCounterN, mGaugeN, mInv1, mCounterE, mGaugeE, mInv2}, false)
-	t.Run("invalid metrics list", func(t *testing.T) {
-		assert.ElementsMatch(t, wantInvalid, invalid)
-	})
+	s.UpdateMetrics([]models.Metrics{mCounterN, mGaugeN, mCounterE, mGaugeE}, false)
 	t.Run("update success", func(t *testing.T) {
-		assert.Equal(t, wantInvalid, invalid)
 		getCounterN, ok := s.GetCounter(mCounterN.Name)
 		require.True(t, ok)
 		assert.Equal(t, wantCounterN, *getCounterN)
@@ -456,7 +484,6 @@ func TestMemStorage_UpdateMultiple_and_Hook(t *testing.T) {
 		wantValid := []models.Metrics{mCounterN, mGaugeN, mCounterE, mGaugeE}
 		assert.ElementsMatch(t, wantValid, globalHookMetricsVar)
 	})
-
 }
 
 var globalHookMetricsVar []models.Metrics

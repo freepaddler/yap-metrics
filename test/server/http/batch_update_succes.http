@@ -1,6 +1,6 @@
 ## SUCCESS
 
-### POST /updates
+### POST /updates batch big values
 POST http://localhost:8080/updates
 
 [
@@ -10,6 +10,8 @@ POST http://localhost:8080/updates
 {"id":"GaugeBatchZip39","type":"gauge","value":241887.670421}
 ]
 
+> assert_200_OK.js
+
 ### POST /updates batch without invalid values
 # curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"counter","delta":1},{"id":"g101","type":"gauge","value":-0.1}]'
 POST http://localhost:8080/updates
@@ -17,56 +19,6 @@ POST http://localhost:8080/updates
 [
 {"id":"c101","type":"counter","delta":1},
 {"id":"g101","type":"gauge","value":-0.2}
-]
-
-> assert_200_OK.js
-
-### POST /updates batch with 2 invalid values
-# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"counter","delta":1},{"type":"gauge","value":-0.1},{"id":"g101","type":"gauge","value":-0.1},{"id":"g101","type":"gaugenot","value":-0.1}]'
-#
-POST http://localhost:8080/updates
-
-[
-{"id":"c101","type":"counter","delta":1},
-{"type":"gauge","value":-0.1},
-{"id":"g101","type":"gauge","value":-0.1},
-{"id":"g101","type":"gaugenot","value":-0.1}
-]
-
-> {%
-    client.log(JSON.stringify(response))
-    client.test("Check response", function () {
-        client.assert(response.status === 200, "Invalid response. Expected 200 OK")
-    })
-    client.test("Check content-type", function () {
-        client.assert(response.headers.valueOf("Content-Type") === "application/json")
-    })
-    invalid=[
-        {
-            "id": "",
-            "type": "gauge",
-            "value": -0.1
-        },
-        {
-            "id": "g101",
-            "type": "gaugenot",
-            "value": -0.1
-        }
-    ]
-    client.test("Check response", function () {
-        client.assert(JSON.stringify(response.body) === JSON.stringify(invalid))
-    })
-%}
-
-#### FAIL
-
-### GET /updates
-# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"counter","delta":1},{"id":"g101","type":"gauge","value":-0.1}]'
-POST http://localhost:8080/updates
-
-[
-{"id":"c101","type":"counter","delta":1},
-{"id":"g101","type":"gauge","value":-0.1}
 ]
 
 > assert_200_OK.js

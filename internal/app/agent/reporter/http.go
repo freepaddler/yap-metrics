@@ -73,11 +73,7 @@ func (r HTTPReporter) ReportJSON() {
 		// restore unsent metric back to storage
 		if !reported {
 			logger.Log.Debug().Msgf("restore metric %+v back to storage", v)
-			// if gauge was already updated, don't update it
-			if updated, _ := r.storage.GetMetric(&v); v.Type == models.Gauge && updated {
-				break
-			}
-			r.storage.UpdateMetrics([]models.Metrics{v}, false)
+			r.storage.RestoreMetrics([]models.Metrics{v})
 		}
 	}
 }
@@ -128,9 +124,8 @@ func (r HTTPReporter) ReportBatchJSON() {
 	}()
 
 	if !reported {
-		// TODO: make reverse restoration. current storage over snapshot
 		logger.Log.Debug().Msgf("restore %d metrics back to storage", len(m))
-		r.storage.UpdateMetrics(m, false)
+		r.storage.RestoreMetrics(m)
 	}
 
 }

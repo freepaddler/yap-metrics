@@ -199,41 +199,14 @@ func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.
 		return
 	}
 	logger.Log.Debug().Msgf("Batch for update is: %v", metrics)
-	//reqLen := len(metrics)
-	// validate parsed metrics
-	//invalid := make([]models.Metrics, 0)
 	for i := 0; i < len(metrics); i++ {
 		err := validateMetric(&metrics[i])
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
-			//invalid = append(invalid, metrics[i])
-			//metrics[i] = metrics[len(metrics)-1]
-			//metrics = metrics[:len(metrics)-1]
-			//i--
-			//continue
 		}
 	}
-	invalid2 := h.storage.UpdateMetrics(metrics, false)
-	if len(invalid2) > 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-		//invalid = append(invalid, invalid2...)
-	}
-	//if len(invalid) == reqLen {
-	//	logger.Log.Warn().Msg("UpdateMetricsBatchHandler: all metrics are invalid")
-	//	w.WriteHeader(http.StatusBadRequest)
-	//	return
-	//}
-	//res, err := json.MarshalIndent(&metrics, "", "  ")
-	//if err != nil {
-	//	logger.Log.Warn().Msg("UpdateMetricsBatchHandler: unable to marshal response JSON")
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//logger.Log.Debug().Msgf("Marshalled request: %s", res)
-	//w.Header().Set("Content-Type", "application/json")
-	//w.Write(res)
+	h.storage.UpdateMetrics(metrics, false)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -249,10 +222,7 @@ func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 		logger.Log.Warn().Msgf("updateMetricHTTP: missing value for metric '%s' of type '%s'", m.Name, m.Type)
 		return http.StatusBadRequest, false
 	}
-	if invalid := h.storage.UpdateMetrics([]models.Metrics{*m}, false); len(invalid) > 0 {
-		logger.Log.Warn().Msgf("updateMetricHTTP: failed to update metric %+v", m)
-		return http.StatusInternalServerError, false
-	}
+	h.storage.UpdateMetrics([]models.Metrics{*m}, false)
 	return http.StatusOK, true
 }
 
