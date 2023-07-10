@@ -29,6 +29,7 @@ func NewHTTPReporter(s store.Storage, address string, timeout time.Duration) *HT
 }
 
 func (r HTTPReporter) ReportJSON() {
+	logger.Log.Debug().Msg("ReportJSON: reporting metrics")
 	// get storage snapshot
 	m := r.storage.Snapshot(true)
 

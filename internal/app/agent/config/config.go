@@ -82,6 +82,10 @@ func NewConfig() *Config {
 		logger.Log.Warn().Err(err).Msg("failed to parse ENV")
 	}
 
+	if c.ReportInterval < c.PollInterval {
+		logger.Log.Fatal().Msgf("Report interval should be greater or equal to Poll interval")
+	}
+
 	// check
 	if c.HTTPTimeout.Seconds() < 0.5 || c.HTTPTimeout.Seconds() > 999 {
 		logger.Log.Warn().Msgf(
