@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DBTimeout   = 20 // database query timeout
+	DBTimeout   = 30 // database query timeout
 	qMetricsTbl = `
 		CREATE TABLE IF NOT EXISTS metrics 	(
 			id      INT GENERATED ALWAYS AS IDENTITY,
@@ -65,7 +65,7 @@ type DBStorage struct {
 }
 
 // New is a DBStorage constructor
-func New(ctx context.Context, uri string) (*DBStorage, error) {
+func New(uri string) (*DBStorage, error) {
 	dbs := new(DBStorage)
 	var err error
 	dbs.db, err = sql.Open("pgx", uri)
@@ -74,7 +74,7 @@ func New(ctx context.Context, uri string) (*DBStorage, error) {
 		logger.Log.Error().Err(err).Msg("unable to setup database connection")
 		return nil, err
 	}
-	if err = dbs.initDB(ctx); err != nil {
+	if err = dbs.initDB(); err != nil {
 		// Error here instead of Fatal to let server work without db to pass tests 10[ab]
 		logger.Log.Error().Err(err).Msg("unable to init database")
 		return nil, err
@@ -83,8 +83,8 @@ func New(ctx context.Context, uri string) (*DBStorage, error) {
 }
 
 // SaveMetrics inserts metric in database, updates metric value if metric already exists
-func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) {
-	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+func (dbs *DBStorage) SaveMetrics(metrics []models.Metrics) {
+	ctxDB, ctxDBCancel := context.WithTimeout(context.Background(), DBTimeout*time.Second)
 	defer ctxDBCancel()
 	if len(metrics) == 0 {
 		logger.Log.Warn().Msg("no metrics to save")
@@ -131,11 +131,9 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 	logger.Log.Debug().Msgf("%d metrics saved to db", len(metrics))
 }
 
-func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
+func (dbs *DBStorage) RestoreStorage(s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
-	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
-	defer ctxDBCancel()
-	metrics := dbs.getMetrics(ctxDB)
+	metrics := dbs.getMetrics()
 	s.UpdateMetrics(metrics, true)
 	//for _, m := range metrics {
 	//	switch m.Type {
@@ -149,10 +147,10 @@ func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("done storage restore")
 }
 
-func (dbs *DBStorage) SaveStorage(ctx context.Context, s store.Storage) {
+func (dbs *DBStorage) SaveStorage(s store.Storage) {
 	logger.Log.Debug().Msg("saving store to database")
 	snap := s.Snapshot(false)
-	dbs.SaveMetrics(ctx, snap)
+	dbs.SaveMetrics(snap)
 }
 
 func (dbs *DBStorage) Ping() error {
@@ -162,8 +160,8 @@ func (dbs *DBStorage) Ping() error {
 }
 
 // getMetrics selects all metrics from database
-func (dbs *DBStorage) getMetrics(ctx context.Context) []models.Metrics {
-	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+func (dbs *DBStorage) getMetrics() []models.Metrics {
+	ctxDB, ctxDBCancel := context.WithTimeout(context.Background(), DBTimeout*time.Second)
 	defer ctxDBCancel()
 	var res []models.Metrics
 	rows, err := dbs.db.QueryContext(ctxDB, `SELECT name, type, f_value, i_value FROM metrics`)
@@ -198,8 +196,8 @@ func (dbs *DBStorage) getMetrics(ctx context.Context) []models.Metrics {
 }
 
 // initDB creates necessary database entities: tables, indexes, etc...
-func (dbs *DBStorage) initDB(ctx context.Context) error {
-	ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+func (dbs *DBStorage) initDB() error {
+	ctxDB, ctxDBCancel := context.WithTimeout(context.Background(), DBTimeout*time.Second)
 	defer ctxDBCancel()
 	if _, err := dbs.db.ExecContext(ctxDB, qMetricsTbl); err != nil {
 		return err

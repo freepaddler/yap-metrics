@@ -16,7 +16,6 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
-	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/db"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
@@ -82,7 +81,7 @@ func (srv *Server) Run() {
 		logger.Log.Info().Msg("using database as persistent storage")
 		//ctxDB, ctxDBCancel := context.WithTimeout(ctx, db.DBTimeout*time.Second)
 		//defer ctxDBCancel()
-		pStore, err = srv.initDBStorage(ctx)
+		pStore, err = srv.initDBStorage()
 		if err != nil {
 			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
 			logger.Log.Error().Err(err).Msg("database storage disabled")
@@ -128,9 +127,7 @@ func (srv *Server) Run() {
 		// save all metrics to persistent storage
 		if pStore != nil {
 			logger.Log.Info().Msg("saving all metrics to persistent storage on exit")
-			ctxSave, ctxSaveCancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer ctxSaveCancel()
-			pStore.SaveStorage(ctxSave, srv.store)
+			pStore.SaveStorage(srv.store)
 		}
 		logger.Log.Info().Msg("server stopped")
 	}()
@@ -144,7 +141,6 @@ func (srv *Server) Run() {
 	if err := srv.httpServer.Shutdown(httpCtx); err != nil {
 		log.Fatalf("failed to stop http server: %v", err)
 	}
-
 }
 
 // initFileStorage sets up file storage
@@ -157,17 +153,12 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 
 	// restore storage from file
 	if srv.conf.Restore {
-		fStore.RestoreStorage(ctx, srv.store)
+		fStore.RestoreStorage(srv.store)
 	}
 
 	// register update hook for sync write to persistent storage
 	if srv.conf.StoreInterval == 0 {
-		srv.store.RegisterHooks(
-			func(m []models.Metrics) {
-				go func() {
-					fStore.SaveMetrics(ctx, m)
-				}()
-			})
+		srv.store.RegisterHooks(fStore.SaveMetrics)
 	} else if srv.conf.StoreInterval > 0 {
 		go func() {
 			fStore.SaveLoop(ctx, srv.store, srv.conf.StoreInterval)
@@ -180,9 +171,9 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 }
 
 // initDBStorage sets up file storage
-func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
+func (srv *Server) initDBStorage() (*db.DBStorage, error) {
 	// create database storage
-	dbStore, err := db.New(ctx, srv.conf.DBURL)
+	dbStore, err := db.New(srv.conf.DBURL)
 	if err != nil {
 		// Error here instead of Fatal to let server work without db to pass tests 10[ab]
 		logger.Log.Error().Err(err).Msg("unable to init database storage")
@@ -191,16 +182,11 @@ func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
 
 	// restore storage from file
 	if srv.conf.Restore {
-		dbStore.RestoreStorage(ctx, srv.store)
+		dbStore.RestoreStorage(srv.store)
 	}
 
 	// register update hook for sync write to persistent storage
-	srv.store.RegisterHooks(
-		func(m []models.Metrics) {
-			go func() {
-				dbStore.SaveMetrics(ctx, m)
-			}()
-		})
+	srv.store.RegisterHooks(dbStore.SaveMetrics)
 
 	return dbStore, nil
 }

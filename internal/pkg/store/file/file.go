@@ -39,7 +39,7 @@ func New(path string) (*FileStorage, error) {
 }
 
 // SaveMetrics is called from storage to indicate metrics change
-func (f *FileStorage) SaveMetrics(_ context.Context, metrics []models.Metrics) {
+func (f *FileStorage) SaveMetrics(metrics []models.Metrics) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, m := range metrics {
@@ -54,7 +54,7 @@ func (f *FileStorage) writeMetric(m models.Metrics) {
 }
 
 // SaveStorage saves all metrics from storage to file
-func (f *FileStorage) SaveStorage(_ context.Context, s store.Storage) {
+func (f *FileStorage) SaveStorage(s store.Storage) {
 	logger.Log.Debug().Msg("saving store to file")
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -65,7 +65,7 @@ func (f *FileStorage) SaveStorage(_ context.Context, s store.Storage) {
 }
 
 // RestoreStorage loads metrics from file to storage
-func (f *FileStorage) RestoreStorage(_ context.Context, s store.Storage) {
+func (f *FileStorage) RestoreStorage(s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
 	var err error
 	var m models.Metrics
@@ -111,7 +111,7 @@ func (f *FileStorage) SaveLoop(ctx context.Context, s store.Storage, interval in
 			logger.Log.Debug().Msg("file storage loop stopped")
 			return
 		case <-t.C:
-			f.SaveStorage(ctx, s)
+			f.SaveStorage(s)
 		}
 	}
 }

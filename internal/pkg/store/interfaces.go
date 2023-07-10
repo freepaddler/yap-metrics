@@ -1,8 +1,6 @@
 package store
 
 import (
-	"context"
-
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )
 
@@ -46,11 +44,11 @@ type Storage interface {
 // PersistentStorage represents persistent storage for metrics to be restored after server startup
 type PersistentStorage interface {
 	// RestoreStorage gets all latest metrics values from PersistentStorage and overwrites to Storage
-	RestoreStorage(context.Context, Storage)
+	RestoreStorage(Storage)
 	// SaveMetrics saves metrics to PersistentStorage
-	SaveMetrics(context.Context, []models.Metrics)
+	SaveMetrics([]models.Metrics)
 	// SaveStorage saves all metrics from Storage to PersistentStorage
-	SaveStorage(context.Context, Storage)
+	SaveStorage(Storage)
 	// Close stops and closes PersistentStorage
 	Close()
 	// Ping checks if PersistentStorage is accessible
