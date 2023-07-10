@@ -49,7 +49,7 @@ func (agt *Agent) Run() {
 			case <-tPoll.C:
 				collector.CollectMetrics(agt.storage)
 			case <-tRpt.C:
-				agt.reporter.ReportJSON()
+				agt.reporter.ReportBatchJSON()
 			}
 		}
 	}(ctx)

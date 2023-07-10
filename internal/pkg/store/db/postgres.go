@@ -13,15 +13,15 @@ import (
 )
 
 const (
-	DBTimeout   = 240 // database query timeout
+	DBTimeout   = 20 // database query timeout
 	qMetricsTbl = `
 		CREATE TABLE IF NOT EXISTS metrics 	(
-			id      INTEGER GENERATED ALWAYS AS IDENTITY,
+			id      INT GENERATED ALWAYS AS IDENTITY,
 			updated_ts TIMESTAMPTZ NOT NULL DEFAULT current_timestamp(3),
 			name    VARCHAR NOT NULL,
 			type    VARCHAR NOT NULL,
 			f_value DOUBLE PRECISION,
-			i_value INTEGER
+			i_value BIGINT
 		);	
 	`
 	qMetricsIdx = `

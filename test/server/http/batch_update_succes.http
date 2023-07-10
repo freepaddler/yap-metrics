@@ -1,12 +1,22 @@
 ## SUCCESS
 
+### POST /updates
+POST http://localhost:8080/updates
+
+[
+{"id":"CounterBatchZip168","type":"counter","delta":523063882},
+{"id":"GaugeBatchZip39","type":"gauge","value":378476.954248},
+{"id":"CounterBatchZip168","type":"counter","delta":1052376517},
+{"id":"GaugeBatchZip39","type":"gauge","value":241887.670421}
+]
+
 ### POST /updates batch without invalid values
 # curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"counter","delta":1},{"id":"g101","type":"gauge","value":-0.1}]'
 POST http://localhost:8080/updates
 
 [
 {"id":"c101","type":"counter","delta":1},
-{"id":"g101","type":"gauge","value":-0.1}
+{"id":"g101","type":"gauge","value":-0.2}
 ]
 
 > assert_200_OK.js

@@ -191,43 +191,49 @@ func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Re
 }
 
 func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Log.Debug().Msg("UpdateMetricsBatchHandler: request received")
 	metrics := make([]models.Metrics, 0)
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 		logger.Log.Warn().Err(err).Msg("UpdateMetricsBatchHandler: unable to parse request JSON")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	reqLen := len(metrics)
+	logger.Log.Debug().Msgf("Batch for update is: %v", metrics)
+	//reqLen := len(metrics)
 	// validate parsed metrics
-	invalid := make([]models.Metrics, 0)
+	//invalid := make([]models.Metrics, 0)
 	for i := 0; i < len(metrics); i++ {
 		err := validateMetric(&metrics[i])
 		if err != nil {
-			invalid = append(invalid, metrics[i])
-			metrics[i] = metrics[len(metrics)-1]
-			metrics = metrics[:len(metrics)-1]
-			i--
-			continue
+			w.WriteHeader(http.StatusBadRequest)
+			return
+			//invalid = append(invalid, metrics[i])
+			//metrics[i] = metrics[len(metrics)-1]
+			//metrics = metrics[:len(metrics)-1]
+			//i--
+			//continue
 		}
 	}
 	invalid2 := h.storage.UpdateMetrics(metrics, false)
 	if len(invalid2) > 0 {
-		invalid = append(invalid, invalid2...)
-	}
-	if len(invalid) == reqLen {
-		logger.Log.Warn().Msg("UpdateMetricsBatchHandler: all metrics are invalid")
 		w.WriteHeader(http.StatusBadRequest)
 		return
+		//invalid = append(invalid, invalid2...)
 	}
-
-	res, err := json.Marshal(invalid)
-	if err != nil {
-		logger.Log.Warn().Msg("UpdateMetricsBatchHandler: unable to marshal invalid JSON")
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(res)
+	//if len(invalid) == reqLen {
+	//	logger.Log.Warn().Msg("UpdateMetricsBatchHandler: all metrics are invalid")
+	//	w.WriteHeader(http.StatusBadRequest)
+	//	return
+	//}
+	//res, err := json.MarshalIndent(&metrics, "", "  ")
+	//if err != nil {
+	//	logger.Log.Warn().Msg("UpdateMetricsBatchHandler: unable to marshal response JSON")
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//logger.Log.Debug().Msgf("Marshalled request: %s", res)
+	//w.Header().Set("Content-Type", "application/json")
+	//w.Write(res)
 	w.WriteHeader(http.StatusOK)
 }
 
