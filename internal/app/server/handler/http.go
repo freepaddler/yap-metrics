@@ -17,14 +17,18 @@ import (
 
 type HTTPHandlers struct {
 	storage store.Storage
-	pStore  *store.PersistentStorage
+	pStore  store.PersistentStorage
 }
 
-func NewHTTPHandlers(s store.Storage, ps *store.PersistentStorage) *HTTPHandlers {
+func NewHTTPHandlers(s store.Storage) *HTTPHandlers {
 	return &HTTPHandlers{
 		storage: s,
-		pStore:  ps,
+		pStore:  nil,
 	}
+}
+
+func (h *HTTPHandlers) SetPStorage(ps store.PersistentStorage) {
+	h.pStore = ps
 }
 
 const (
@@ -42,7 +46,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// TODO: use html templates
 	w.Write([]byte(indexMetricHeader))
-	for _, m := range h.storage.Snapshot() {
+	for _, m := range h.storage.Snapshot(false) {
 		var val string
 		switch m.Type {
 		case models.Counter:
@@ -198,8 +202,8 @@ func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 		logger.Log.Warn().Msgf("updateMetricHTTP: missing value for metric '%s' of type '%s'", m.Name, m.Type)
 		return http.StatusBadRequest, false
 	}
-	if err := h.storage.SetMetric(m); err != nil {
-		logger.Log.Warn().Err(err).Msg("updateMetricHTTP: failed to update metric")
+	if invalid := h.storage.UpdateMetrics([]models.Metrics{*m}, false); len(invalid) > 0 {
+		logger.Log.Warn().Msgf("updateMetricHTTP: failed to update metric %+v", m)
 		return http.StatusInternalServerError, false
 	}
 	return http.StatusOK, true
@@ -212,8 +216,8 @@ func (h *HTTPHandlers) PingHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	ps := *h.pStore
-	if err := ps.Ping(); err != nil {
+
+	if err := h.pStore.Ping(); err != nil {
 		logger.Log.Warn().Err(err).Msg("PingHandler: persistent storage connection failed")
 		w.WriteHeader(http.StatusInternalServerError)
 		return

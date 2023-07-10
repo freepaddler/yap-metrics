@@ -21,7 +21,7 @@ import (
 
 func TestHTTPHandlers_Index(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s, nil)
+	h := NewHTTPHandlers(s)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	h.IndexMetricHandler(w, req)
@@ -34,7 +34,7 @@ func TestHTTPHandlers_Index(t *testing.T) {
 
 func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s, nil)
+	h := NewHTTPHandlers(s)
 	tests := []struct {
 		name   string
 		code   int
@@ -119,7 +119,7 @@ func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 
 func TestHTTPHandlers_GetMetric(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s, nil)
+	h := NewHTTPHandlers(s)
 	var cValue int64 = 10
 	var cName = "c1"
 	var gValue float64 = -0.110
@@ -187,7 +187,7 @@ func TestHTTPHandlers_GetMetric(t *testing.T) {
 
 func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s, nil)
+	h := NewHTTPHandlers(s)
 	var cValue int64 = 10
 	var cName = "c1"
 	var gValue float64 = -0.110
@@ -264,7 +264,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 
 func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
 	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s, nil)
+	h := NewHTTPHandlers(s)
 	tests := []struct {
 		name       string
 		code       int

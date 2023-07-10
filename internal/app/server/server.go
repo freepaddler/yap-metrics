@@ -45,7 +45,6 @@ type Server struct {
 	httpHandlers *handler.HTTPHandlers
 	httpRouter   *chi.Mux
 	httpServer   *http.Server
-	pStore       *store.PersistentStorage
 }
 
 // New creates new server instance
@@ -54,11 +53,9 @@ func New(conf *config.Config) *Server {
 
 	// init new memory storage
 	srv.store = memory.NewMemStorage()
-	// init new persistent storage
-	srv.pStore = new(store.PersistentStorage)
 
 	// create http handlers instance
-	srv.httpHandlers = handler.NewHTTPHandlers(srv.store, srv.pStore)
+	srv.httpHandlers = handler.NewHTTPHandlers(srv.store)
 
 	// create http router
 	srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers)
@@ -89,6 +86,7 @@ func (srv *Server) Run() {
 		if err != nil {
 			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
 			logger.Log.Error().Err(err).Msg("database storage disabled")
+			pStore = nil
 		}
 	case srv.conf.UseFileStorage:
 		// file storage setup
@@ -96,10 +94,11 @@ func (srv *Server) Run() {
 		pStore, err = srv.initFileStorage(ctx)
 		if err != nil {
 			logger.Log.Error().Err(err).Msg("file storage disabled")
+			pStore = nil
 		}
 	}
 	if pStore != nil {
-		*srv.pStore = pStore
+		srv.httpHandlers.SetPStorage(pStore)
 		defer pStore.Close()
 	}
 
@@ -163,7 +162,7 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 
 	// register update hook for sync write to persistent storage
 	if srv.conf.StoreInterval == 0 {
-		srv.store.RegisterHook(
+		srv.store.RegisterHooks(
 			func(m []models.Metrics) {
 				go func() {
 					fStore.SaveMetric(ctx, m)
@@ -196,7 +195,7 @@ func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
 	}
 
 	// register update hook for sync write to persistent storage
-	srv.store.RegisterHook(
+	srv.store.RegisterHooks(
 		func(m []models.Metrics) {
 			go func() {
 				dbStore.SaveMetric(ctx, m)

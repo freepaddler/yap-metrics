@@ -58,7 +58,7 @@ func (f *FileStorage) SaveStorage(_ context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("saving store to file")
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	snap := s.Snapshot()
+	snap := s.Snapshot(false)
 	for _, m := range snap {
 		f.writeMetric(m)
 	}

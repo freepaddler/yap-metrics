@@ -5,9 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
@@ -30,64 +28,9 @@ func NewHTTPReporter(s store.Storage, address string, timeout time.Duration) *HT
 	}
 }
 
-func (r HTTPReporter) Report() {
-	m := r.storage.Snapshot()
-	for _, v := range m {
-		func() {
-			var val string
-			switch v.Type {
-			case models.Gauge:
-				val = strconv.FormatFloat(*v.FValue, 'f', -1, 64)
-			case models.Counter:
-				val = strconv.FormatInt(*v.IValue, 10)
-			}
-			url := fmt.Sprintf("http://%s/update/%s/%s/%s", r.address, v.Type, v.Name, val)
-			logger.Log.Debug().Msgf("sending metric %s", url)
-			resp, err := r.client.Post(url, "text/plain", nil)
-			if err != nil {
-				logger.Log.Warn().Err(err).Msgf("failed to send metric %s", url)
-				return
-			}
-			defer resp.Body.Close()
-			// check if request was successful
-			if resp.StatusCode != http.StatusOK {
-				// request failed
-				logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
-
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					logger.Log.Warn().Err(err).Msg("unable to parse response body")
-				}
-				logger.Log.Debug().Msgf("response body: %s", body)
-				return
-			}
-			// request successes, delete updated metrics
-			switch v.Type {
-			case models.Counter:
-				r.storage.DelCounter(v.Name)
-			case models.Gauge:
-				r.storage.DelGauge(v.Name)
-
-			}
-		}()
-	}
-}
-
 func (r HTTPReporter) ReportJSON() {
-	// TODO: add mutex where? snapsot? or snashot + flush?
-	m := r.storage.Snapshot()
-	r.storage.Flush()
-
-	// TODO: question
-	// переименование метода GetAllMetrics в Snapshot показало сломанную логику реализации агента
-	// мы отправляем потенциально одно значение (из снапшота), а удаляем другое -
-	// из хранилища, которое могло обновиться - та же проблема, что и запись в файл на сервере
-	// логично сделать так:
-	// при снятии снапшота - удалять метрики, попавшие в снапшот
-	// при неуспешной отравке:
-	// для gauge: восстанавливать из снапшота, если не появилось нового значения
-	// для counter: прибавлять к метрике в хранилище значение из снапшота
-	// но(!) в этом случае методы Snapshot для агента и сервера ДОЛЖНЫ быть разными
+	// get storage snapshot
+	m := r.storage.Snapshot(true)
 
 	url := fmt.Sprintf("http://%s/update", r.address)
 	for _, v := range m {
@@ -129,9 +72,11 @@ func (r HTTPReporter) ReportJSON() {
 		// restore unsent metric back to storage
 		if !reported {
 			logger.Log.Debug().Msgf("restore metric %+v back to storage", v)
-			if updated, _ := r.storage.GetMetric(&v); updated {
-				r.storage.SetMetric(&v)
+			// if gauge was already updated, don't update it
+			if updated, _ := r.storage.GetMetric(&v); v.Type == models.Gauge && updated {
+				break
 			}
+			r.storage.UpdateMetrics([]models.Metrics{v}, false)
 		}
 	}
 }

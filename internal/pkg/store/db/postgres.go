@@ -128,7 +128,7 @@ func (dbs *DBStorage) RestoreStorage(ctx context.Context, s store.Storage) {
 
 func (dbs *DBStorage) SaveStorage(ctx context.Context, s store.Storage) {
 	logger.Log.Debug().Msg("saving store to database")
-	snap := s.Snapshot()
+	snap := s.Snapshot(false)
 	dbs.SaveMetric(ctx, snap)
 }
 
