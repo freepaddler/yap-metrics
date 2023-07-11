@@ -3,13 +3,17 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/retry"
 )
 
 const (
@@ -74,58 +78,70 @@ func New(uri string) (*DBStorage, error) {
 		logger.Log.Error().Err(err).Msg("unable to setup database connection")
 		return nil, err
 	}
+	logger.Log.Info().Msg("initialize database")
 	if err = dbs.initDB(); err != nil {
 		// Error here instead of Fatal to let server work without db to pass tests 10[ab]
 		logger.Log.Error().Err(err).Msg("unable to init database")
 		return nil, err
 	}
+
 	return dbs, nil
 }
 
 // SaveMetrics inserts metric in database, updates metric value if metric already exists
-func (dbs *DBStorage) SaveMetrics(metrics []models.Metrics) {
-	ctxDB, ctxDBCancel := context.WithTimeout(context.Background(), DBTimeout*time.Second)
-	defer ctxDBCancel()
+func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) {
+
 	if len(metrics) == 0 {
 		logger.Log.Warn().Msg("no metrics to save")
 	}
-	var err error
-	if len(metrics) == 1 {
 
-		logger.Log.Debug().Msg("upsert one metric without transaction")
-		m := metrics[0]
-		switch m.Type {
-		case models.Gauge:
-			_, err = dbs.db.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
-		case models.Counter:
-			_, err = dbs.db.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
-		}
-		if err != nil {
-			logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
+	err := retry.WithStrategy(ctx,
+		func(ctx context.Context) (err error) {
+			ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+			defer ctxDBCancel()
+			if len(metrics) == 1 {
+				logger.Log.Debug().Msg("upsert one metric without transaction")
+				m := metrics[0]
+				switch m.Type {
+				case models.Gauge:
+					_, err = dbs.db.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
+				case models.Counter:
+					_, err = dbs.db.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
+				}
+				if err != nil {
+					logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
+					return
+				}
+			}
+			tx, err := dbs.db.BeginTx(ctxDB, nil)
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("unable to begin upsert transaction")
+				return
+			}
+			defer tx.Rollback()
+
+			for _, m := range metrics {
+				switch m.Type {
+				case models.Gauge:
+					_, err = tx.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
+				case models.Counter:
+					_, err = tx.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
+				}
+				if err != nil {
+					logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
+					return
+				}
+			}
+			if err = tx.Commit(); err != nil {
+				logger.Log.Error().Err(err).Msg("unable to commit upsert transaction")
+				return
+			}
 			return
-		}
-	}
-	tx, err := dbs.db.BeginTx(ctxDB, nil)
+		},
+		isRetryErr,
+		1, 3, 5)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("unable to begin upsert transaction")
-		return
-	}
-	defer tx.Rollback()
-
-	for _, m := range metrics {
-		switch m.Type {
-		case models.Gauge:
-			_, err = tx.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
-		case models.Counter:
-			_, err = tx.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
-		}
-		if err != nil {
-			logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
-			return
-		}
-	}
-	if err = tx.Commit(); err != nil {
-		logger.Log.Error().Err(err).Msg("unable to commit upsert transaction")
+		logger.Log.Error().Err(err).Msg("unable to save metrics to db")
 		return
 	}
 	logger.Log.Debug().Msgf("%d metrics saved to db", len(metrics))
@@ -135,83 +151,86 @@ func (dbs *DBStorage) RestoreStorage(s store.Storage) {
 	logger.Log.Debug().Msg("starting storage restore")
 	metrics := dbs.getMetrics()
 	s.UpdateMetrics(metrics, true)
-	//for _, m := range metrics {
-	//	switch m.Type {
-	//	case models.Gauge:
-	//		s.SetGauge(m.Name, *m.FValue)
-	//	case models.Counter:
-	//		s.DelCounter(m.Name)
-	//		s.IncCounter(m.Name, *m.IValue)
-	//	}
-	//}
 	logger.Log.Debug().Msg("done storage restore")
 }
 
 func (dbs *DBStorage) SaveStorage(s store.Storage) {
 	logger.Log.Debug().Msg("saving store to database")
 	snap := s.Snapshot(false)
-	dbs.SaveMetrics(snap)
+	dbs.SaveMetrics(context.TODO(), snap)
 }
 
 func (dbs *DBStorage) Ping() error {
-	ctx, cancel := context.WithTimeout(context.Background(), DBTimeout*time.Second)
-	defer cancel()
-	return dbs.db.PingContext(ctx)
+	err := retry.WithStrategy(context.TODO(),
+		func(ctx context.Context) error {
+			ctx, cancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+			defer cancel()
+			return dbs.db.PingContext(ctx)
+		},
+		isRetryErr,
+		1, 3, 5)
+	return err
 }
 
 // getMetrics selects all metrics from database
 func (dbs *DBStorage) getMetrics() []models.Metrics {
-	ctxDB, ctxDBCancel := context.WithTimeout(context.Background(), DBTimeout*time.Second)
-	defer ctxDBCancel()
 	var res []models.Metrics
-	rows, err := dbs.db.QueryContext(ctxDB, `SELECT name, type, f_value, i_value FROM metrics`)
+	err := retry.WithStrategy(context.TODO(),
+		func(ctx context.Context) error {
+			ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+			defer ctxDBCancel()
+			rows, err := dbs.db.QueryContext(ctxDB, `SELECT name, type, f_value, i_value FROM metrics`)
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("unable to get all metrics from db")
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var (
+					m      models.Metrics
+					iValue sql.NullInt64
+					fValue sql.NullFloat64
+				)
+				if err = rows.Scan(&m.Name, &m.Type, &fValue, &iValue); err != nil {
+					logger.Log.Warn().Err(err).Msg("unable parse metric from db")
+					break
+				}
+				if fValue.Valid {
+					m.FValue = &fValue.Float64
+				}
+				if iValue.Valid {
+					m.IValue = &iValue.Int64
+				}
+				res = append(res, m)
+			}
+			if err = rows.Err(); err != nil {
+				logger.Log.Warn().Err(err).Msg("error while getting metrics from db")
+			}
+			return err
+		},
+		isRetryErr,
+		1, 3, 5)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("unable to get all metrics from db")
 		return nil
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var (
-			m      models.Metrics
-			iValue sql.NullInt64
-			fValue sql.NullFloat64
-		)
-		if err = rows.Scan(&m.Name, &m.Type, &fValue, &iValue); err != nil {
-			logger.Log.Warn().Err(err).Msg("unable parse metric from db")
-			break
-		}
-		if fValue.Valid {
-			m.FValue = &fValue.Float64
-		}
-		if iValue.Valid {
-			m.IValue = &iValue.Int64
-		}
-		res = append(res, m)
-	}
-	if err = rows.Err(); err != nil {
-		logger.Log.Warn().Err(err).Msg("error while getting metrics from db")
 	}
 	return res
 }
 
 // initDB creates necessary database entities: tables, indexes, etc...
-func (dbs *DBStorage) initDB() error {
-	ctxDB, ctxDBCancel := context.WithTimeout(context.Background(), DBTimeout*time.Second)
-	defer ctxDBCancel()
-	if _, err := dbs.db.ExecContext(ctxDB, qMetricsTbl); err != nil {
-		return err
+func (dbs *DBStorage) initDB() (err error) {
+	for _, q := range []string{qMetricsTbl, qMetricsIdx, qFuncSetUpdatedTS, qMetricsTrg} {
+		err = retry.WithStrategy(context.TODO(),
+			func(ctx context.Context) error {
+				ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
+				defer ctxDBCancel()
+				_, err := dbs.db.ExecContext(ctxDB, q)
+				return err
+			},
+			isRetryErr,
+			1, 3, 5)
+		return
 	}
-	if _, err := dbs.db.ExecContext(ctxDB, qMetricsIdx); err != nil {
-		return err
-	}
-	if _, err := dbs.db.ExecContext(ctxDB, qFuncSetUpdatedTS); err != nil {
-		return err
-	}
-	if _, err := dbs.db.ExecContext(ctxDB, qMetricsTrg); err != nil {
-		return err
-	}
-	return nil
+	return
 }
 
 // Close closes database connection
@@ -223,4 +242,19 @@ func (dbs *DBStorage) Close() {
 	if err := dbs.db.Close(); err != nil {
 		logger.Log.Warn().Err(err).Msg("closing database error")
 	}
+}
+
+// isRetryErr returns true, when error is retryable regarding postgres requests
+func isRetryErr(err error) bool {
+	if retry.IsNetErr(err) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	if pgerrcode.IsConnectionException(pgErr.Code) {
+		return true
+	}
+	return false
 }

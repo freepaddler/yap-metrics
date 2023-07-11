@@ -16,6 +16,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/db"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
@@ -81,7 +82,7 @@ func (srv *Server) Run() {
 		logger.Log.Info().Msg("using database as persistent storage")
 		//ctxDB, ctxDBCancel := context.WithTimeout(ctx, db.DBTimeout*time.Second)
 		//defer ctxDBCancel()
-		pStore, err = srv.initDBStorage()
+		pStore, err = srv.initDBStorage(ctx)
 		if err != nil {
 			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
 			logger.Log.Error().Err(err).Msg("database storage disabled")
@@ -158,7 +159,12 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 
 	// register update hook for sync write to persistent storage
 	if srv.conf.StoreInterval == 0 {
-		srv.store.RegisterHooks(fStore.SaveMetrics)
+		srv.store.RegisterHooks(
+			func(m []models.Metrics) {
+				go func() {
+					fStore.SaveMetrics(ctx, m)
+				}()
+			})
 	} else if srv.conf.StoreInterval > 0 {
 		go func() {
 			fStore.SaveLoop(ctx, srv.store, srv.conf.StoreInterval)
@@ -171,12 +177,10 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 }
 
 // initDBStorage sets up file storage
-func (srv *Server) initDBStorage() (*db.DBStorage, error) {
+func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
 	// create database storage
 	dbStore, err := db.New(srv.conf.DBURL)
 	if err != nil {
-		// Error here instead of Fatal to let server work without db to pass tests 10[ab]
-		logger.Log.Error().Err(err).Msg("unable to init database storage")
 		return nil, err
 	}
 
@@ -186,7 +190,12 @@ func (srv *Server) initDBStorage() (*db.DBStorage, error) {
 	}
 
 	// register update hook for sync write to persistent storage
-	srv.store.RegisterHooks(dbStore.SaveMetrics)
+	srv.store.RegisterHooks(
+		func(m []models.Metrics) {
+			go func() {
+				dbStore.SaveMetrics(ctx, m)
+			}()
+		})
 
 	return dbStore, nil
 }

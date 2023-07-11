@@ -23,11 +23,11 @@ func WithStrategy(
 	ctx context.Context,
 	try func(ctx context.Context) error,
 	isRetryError func(error) bool,
-	retries ...int) {
+	retries ...int) (err error) {
 
 	for i := 0; i <= len(retries); i++ {
-		logger.Log.Debug().Msgf("WithStrategy: try %d", i)
-		err := try(ctx)
+		logger.Log.Debug().Msgf("WithStrategy: try %d", i+1)
+		err = try(ctx)
 		if err == nil {
 			logger.Log.Debug().Msg("WithStrategy: normal execution")
 			return
@@ -43,9 +43,10 @@ func WithStrategy(
 		select {
 		case <-time.After(time.Duration(retries[i]) * time.Second):
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	}
+	return
 }
 
 // IsNetErr checks network timeout and connection refused errors

@@ -39,7 +39,7 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 	}
 
 	var reported bool
-	retry.WithStrategy(ctx,
+	err := retry.WithStrategy(ctx,
 		func(context.Context) error {
 			err := func(*bool) (err error) {
 				logger.Log.Debug().Msgf("sending %d metrics in batch", len(m))
@@ -82,6 +82,9 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 		retry.IsNetErr,
 		1, 3, 5,
 	)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("report failed")
+	}
 
 	if !reported {
 		logger.Log.Debug().Msgf("restore %d metrics back to storage", len(m))
