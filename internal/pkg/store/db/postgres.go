@@ -219,6 +219,7 @@ func (dbs *DBStorage) getMetrics() []models.Metrics {
 // initDB creates necessary database entities: tables, indexes, etc...
 func (dbs *DBStorage) initDB() (err error) {
 	for _, q := range []string{qMetricsTbl, qMetricsIdx, qFuncSetUpdatedTS, qMetricsTrg} {
+		logger.Log.Debug().Msgf("run init db script %s", q)
 		err = retry.WithStrategy(context.TODO(),
 			func(ctx context.Context) error {
 				ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
@@ -228,7 +229,6 @@ func (dbs *DBStorage) initDB() (err error) {
 			},
 			isRetryErr,
 			1, 3, 5)
-		return
 	}
 	return
 }
