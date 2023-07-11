@@ -109,13 +109,13 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 					_, err = dbs.db.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
 				}
 				if err != nil {
-					logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
+					logger.Log.Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
 					return
 				}
 			}
 			tx, err := dbs.db.BeginTx(ctxDB, nil)
 			if err != nil {
-				logger.Log.Error().Err(err).Msg("unable to begin upsert transaction")
+				logger.Log.Warn().Err(err).Msg("unable to begin upsert transaction")
 				return
 			}
 			defer tx.Rollback()
@@ -128,12 +128,12 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 					_, err = tx.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
 				}
 				if err != nil {
-					logger.Log.Error().Err(err).Msgf("unable to upsert metric '%+v'", m)
+					logger.Log.Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
 					return
 				}
 			}
 			if err = tx.Commit(); err != nil {
-				logger.Log.Error().Err(err).Msg("unable to commit upsert transaction")
+				logger.Log.Warn().Err(err).Msg("unable to commit upsert transaction")
 				return
 			}
 			return
@@ -254,6 +254,9 @@ func isRetryErr(err error) bool {
 		return false
 	}
 	if pgerrcode.IsConnectionException(pgErr.Code) {
+		return true
+	}
+	if pgerrcode.IsOperatorIntervention(pgErr.Code) {
 		return true
 	}
 	return false

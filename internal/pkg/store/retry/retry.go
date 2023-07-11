@@ -3,6 +3,7 @@ package retry
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"syscall"
 	"time"
@@ -57,6 +58,10 @@ func IsNetErr(err error) bool {
 	}
 	// connection refused
 	if errors.Is(err, syscall.ECONNREFUSED) {
+		return true
+	}
+	// unexpected EOF
+	if errors.Is(err, io.ErrUnexpectedEOF) {
 		return true
 	}
 	// network timeout
