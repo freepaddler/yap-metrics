@@ -1,6 +1,7 @@
 package compress
 
 import (
+	"bytes"
 	"compress/gzip"
 	"net/http"
 
@@ -28,4 +29,20 @@ func GunzipMiddleware(next http.Handler) http.Handler {
 
 	}
 	return http.HandlerFunc(gz)
+}
+
+func CompressBody(body *[]byte) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	defer gzBuf.Close()
+	_, err := gzBuf.Write(*body)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("unable to compress body, sending uncompressed")
+		// return raw body
+		buf.Truncate(0)
+		buf.Write(*body)
+	}
+	logger.Log.Debug().Msg("response compressed")
+	return &buf, err
+
 }

@@ -32,33 +32,14 @@ const (
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_metrics_name_type
 			ON metrics (name, type);
 	`
-	qFuncSetUpdatedTS = `
-		CREATE OR REPLACE FUNCTION trg_set_updated_ts() RETURNS TRIGGER AS $$
-		BEGIN
-		   IF row(NEW.*) IS DISTINCT FROM row(OLD.*) THEN
-			  NEW.updated_ts = current_timestamp(3); 
-			  RETURN NEW;
-		   ELSE
-			  RETURN OLD;
-		   END IF;
-		END;
-		$$ LANGUAGE PLPGSQL;
-	`
-	qMetricsTrg = `
-		DROP TRIGGER IF EXISTS trg_metrics_updated ON metrics;
-		CREATE TRIGGER trg_metrics_updated
-		BEFORE UPDATE 
-		ON metrics
-		FOR EACH ROW
-		EXECUTE FUNCTION trg_set_updated_ts();
-	`
+
 	qUpsertGauge = `
-		INSERT INTO metrics (name,type,f_value) VALUES ($1,$2,$3)
+		INSERT INTO metrics (name,type,f_value,updated_ts) VALUES ($1,$2,$3,$4)
 			ON CONFLICT (name,type)
 			DO UPDATE SET f_value = excluded.f_value;
 	`
 	qUpsertCounter = `
-		INSERT INTO metrics (name,type,i_value) VALUES ($1,$2,$3)
+		INSERT INTO metrics (name,type,i_value,updated_ts) VALUES ($1,$2,$3,$4)
 			ON CONFLICT (name,type)
 			DO UPDATE SET i_value = excluded.i_value;
 	`
@@ -104,9 +85,9 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 				m := metrics[0]
 				switch m.Type {
 				case models.Gauge:
-					_, err = dbs.db.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
+					_, err = dbs.db.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue, time.Now())
 				case models.Counter:
-					_, err = dbs.db.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
+					_, err = dbs.db.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue, time.Now())
 				}
 				if err != nil {
 					logger.Log.Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
@@ -123,9 +104,9 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 			for _, m := range metrics {
 				switch m.Type {
 				case models.Gauge:
-					_, err = tx.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue)
+					_, err = tx.ExecContext(ctxDB, qUpsertGauge, m.Name, m.Type, *m.FValue, time.Now())
 				case models.Counter:
-					_, err = tx.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue)
+					_, err = tx.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue, time.Now())
 				}
 				if err != nil {
 					logger.Log.Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
@@ -218,7 +199,7 @@ func (dbs *DBStorage) getMetrics() []models.Metrics {
 
 // initDB creates necessary database entities: tables, indexes, etc...
 func (dbs *DBStorage) initDB() (err error) {
-	for _, q := range []string{qMetricsTbl, qMetricsIdx, qFuncSetUpdatedTS, qMetricsTrg} {
+	for _, q := range []string{qMetricsTbl, qMetricsIdx} {
 		logger.Log.Debug().Msgf("run init db script %s", q)
 		err = retry.WithStrategy(context.TODO(),
 			func(ctx context.Context) error {

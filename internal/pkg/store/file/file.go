@@ -80,13 +80,6 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 			logger.Log.Warn().Err(err).Msg("error parsing file data")
 		}
 		s.UpdateMetrics([]models.Metrics{m}, true)
-		//switch m.Type {
-		//case models.Gauge:
-		//	s.SetGauge(m.Name, *m.FValue)
-		//case models.Counter:
-		//	s.DelCounter(m.Name)
-		//	s.IncCounter(m.Name, *m.IValue)
-		//}
 	}
 	logger.Log.Debug().Msg("done storage restore")
 }

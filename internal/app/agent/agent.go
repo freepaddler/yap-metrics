@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -32,8 +33,23 @@ func (agt *Agent) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var wg sync.WaitGroup
+
+	// trap os signals
+	go func() {
+		shutdownSig := make(chan os.Signal, 1)
+		signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+		// shutdown routine
+		sig := <-shutdownSig
+		logger.Log.Info().Msgf("got '%v' signal. agent shutdown routine...", sig)
+		cancel()
+	}()
+
 	// start collection loop
+	wg.Add(1)
 	go func(ctx context.Context) {
+		defer wg.Done()
 		logger.Log.Debug().Msgf("starting metrics polling every %d seconds", agt.conf.PollInterval)
 		for {
 			collector.CollectMetrics(agt.storage)
@@ -45,9 +61,10 @@ func (agt *Agent) Run() {
 			}
 		}
 	}(ctx)
-
+	wg.Add(1)
 	// start reporting loop
 	go func(ctx context.Context) {
+		defer wg.Done()
 		logger.Log.Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
 		for {
 			agt.reporter.ReportBatchJSON(ctx)
@@ -60,47 +77,16 @@ func (agt *Agent) Run() {
 		}
 	}(ctx)
 
-	//// start application loop
-	//go func(ctx context.Context) {
-	//	logger.Log.Debug().Msgf("starting metrics polling every %d seconds", agt.conf.PollInterval)
-	//	tPoll := time.NewTicker(time.Duration(agt.conf.PollInterval) * time.Second)
-	//	defer tPoll.Stop()
-	//	logger.Log.Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
-	//	tRpt := time.NewTicker(time.Duration(agt.conf.ReportInterval) * time.Second)
-	//	defer tRpt.Stop()
-	//	for {
-	//		select {
-	//		case <-ctx.Done():
-	//			logger.Log.Debug().Msg("metrics polling stopped")
-	//			logger.Log.Debug().Msg("metrics reporting stopped")
-	//			return
-	//		case <-tPoll.C:
-	//			collector.CollectMetrics(agt.storage)
-	//		case <-tRpt.C:
-	//			agt.reporter.ReportBatchJSON()
-	//		}
-	//	}
-	//}(ctx)
+	// wait until tasks stopped
+	wg.Wait()
 
-	// trap os signals
-	shutdownSig := make(chan os.Signal, 1)
-	signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	// shutdown tasks
 
-	// shutdown routine
-	sig := <-shutdownSig
-	logger.Log.Info().Msgf("got '%v' signal. agent shutdown routine...", sig)
-
-	// post tasks
-	defer func() {
-		// gracefully stop all context-related goroutines
-		cancel()
-
-		// send all metrics to server
-		logger.Log.Info().Msg("sending all metrics to server on exit with 15seconds timeout")
-		ctxRep, ctxRepCancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer ctxRepCancel()
-		agt.reporter.ReportBatchJSON(ctxRep)
-		logger.Log.Info().Msg("agent stopped")
-	}()
+	// send all metrics to server
+	logger.Log.Info().Msg("sending all metrics to server on exit with 15 seconds timeout")
+	ctxRep, ctxRepCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer ctxRepCancel()
+	agt.reporter.ReportBatchJSON(ctxRep)
+	logger.Log.Info().Msg("agent stopped")
 
 }

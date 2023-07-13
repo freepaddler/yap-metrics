@@ -1,14 +1,13 @@
 package reporter
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/retry"
@@ -50,9 +49,9 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 					return
 				}
 				// compress body
-				respBody, compressErr := compressResponse(&body)
+				reqBody, compressErr := compress.CompressBody(&body)
 
-				req, err := http.NewRequest(http.MethodPost, url, respBody)
+				req, err := http.NewRequest(http.MethodPost, url, reqBody)
 				if err != nil {
 					logger.Log.Error().Err(err).Msg("unable to create http request")
 					return
@@ -90,20 +89,4 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 		logger.Log.Debug().Msgf("restore %d metrics back to storage", len(m))
 		r.storage.RestoreMetrics(m)
 	}
-}
-
-func compressResponse(body *[]byte) (*bytes.Buffer, error) {
-	var buf bytes.Buffer
-	gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
-	defer gzBuf.Close()
-	_, err := gzBuf.Write(*body)
-	if err != nil {
-		logger.Log.Error().Err(err).Msg("unable to compress body, sending uncompressed")
-		// return raw body
-		buf.Truncate(0)
-		buf.Write(*body)
-	}
-	logger.Log.Debug().Msg("response compressed")
-	return &buf, err
-
 }

@@ -11,7 +11,7 @@ import (
 
 // MemStorage is in-memory metric store
 type MemStorage struct {
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	counters map[string]int64
 	gauges   map[string]float64
 	hooks    []func([]models.Metrics)
@@ -102,7 +102,7 @@ func (ms *MemStorage) GetMetric(m *models.Metrics) (bool, error) {
 	return found, err
 }
 func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
-	ms.mu.Lock()
+	ms.mu.RLock()
 	for i := 0; i < len(m); i++ {
 		switch m[i].Type {
 		case models.Gauge:
@@ -119,12 +119,12 @@ func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
 		}
 	}
 	// call update persistent storage hooks
-	ms.mu.Unlock()
+	ms.mu.RUnlock()
 	ms.updateHook(m)
 }
 func (ms *MemStorage) RestoreMetrics(m []models.Metrics) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	for _, v := range m {
 		switch v.Type {
 		case models.Counter:

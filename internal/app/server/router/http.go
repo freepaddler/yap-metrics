@@ -4,8 +4,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/freepaddler/yap-metrics/internal/app/server/compress"
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
+	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 

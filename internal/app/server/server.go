@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -47,6 +48,10 @@ type Server struct {
 	httpServer   *http.Server
 }
 
+var (
+	wgRun sync.WaitGroup
+)
+
 // New creates new server instance
 func New(conf *config.Config) *Server {
 	srv := &Server{conf: conf}
@@ -80,8 +85,6 @@ func (srv *Server) Run() {
 	case srv.conf.UseDB:
 		// database storage setup
 		logger.Log.Info().Msg("using database as persistent storage")
-		//ctxDB, ctxDBCancel := context.WithTimeout(ctx, db.DBTimeout*time.Second)
-		//defer ctxDBCancel()
 		pStore, err = srv.initDBStorage(ctx)
 		if err != nil {
 			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
@@ -102,8 +105,32 @@ func (srv *Server) Run() {
 		defer pStore.Close()
 	}
 
-	// start http server
+	// trap os signals
 	go func() {
+		shutdownSig := make(chan os.Signal, 1)
+		signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+		// shutdown routine
+		sig := <-shutdownSig
+		logger.Log.Info().Msgf("got '%v' signal. server shutdown routine...", sig)
+		cancel()
+
+		// context for httpServer graceful shutdown
+		httpCtx, httpRelease := context.WithTimeout(ctx, 5*time.Second)
+		defer httpRelease()
+
+		// gracefully stop http server
+		logger.Log.Info().Msg("stopping http server")
+		if err := srv.httpServer.Shutdown(httpCtx); err != nil {
+			log.Fatalf("failed to stop http server: %v", err)
+		}
+
+	}()
+
+	// start http server
+	wgRun.Add(1)
+	go func() {
+		defer wgRun.Done()
 		logger.Log.Info().Msgf("starting http server at %s", srv.conf.Address)
 		if err := srv.httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			logger.Log.Fatal().Err(err).Msg("unable to start http server")
@@ -112,36 +139,18 @@ func (srv *Server) Run() {
 
 	logger.Log.Info().Msg("server started")
 
-	// trap os signals
-	shutdownSig := make(chan os.Signal, 1)
-	signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	// wait until tasks stopped
+	wgRun.Wait()
 
-	// shutdown routine
-	sig := <-shutdownSig
-	logger.Log.Info().Msgf("got '%v' signal. server shutdown routine...", sig)
+	// shutdown tasks
 
-	// post tasks
-	defer func() {
-		// gracefully stop all context-related goroutines
-		cancel()
-
-		// save all metrics to persistent storage
-		if pStore != nil {
-			logger.Log.Info().Msg("saving all metrics to persistent storage on exit")
-			pStore.SaveStorage(srv.store)
-		}
-		logger.Log.Info().Msg("server stopped")
-	}()
-
-	// context for httpServer graceful shutdown
-	httpCtx, httpRelease := context.WithTimeout(ctx, 5*time.Second)
-	defer httpRelease()
-
-	// gracefully stop http server
-	logger.Log.Info().Msg("stopping http server")
-	if err := srv.httpServer.Shutdown(httpCtx); err != nil {
-		log.Fatalf("failed to stop http server: %v", err)
+	// save all metrics to persistent storage
+	if pStore != nil {
+		logger.Log.Info().Msg("saving all metrics to persistent storage on exit")
+		pStore.SaveStorage(srv.store)
 	}
+	logger.Log.Info().Msg("server stopped")
+
 }
 
 // initFileStorage sets up file storage
@@ -166,7 +175,9 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 				}()
 			})
 	} else if srv.conf.StoreInterval > 0 {
+		wgRun.Add(1)
 		go func() {
+			defer wgRun.Done()
 			fStore.SaveLoop(ctx, srv.store, srv.conf.StoreInterval)
 		}()
 	} else {
