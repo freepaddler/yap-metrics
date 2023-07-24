@@ -24,7 +24,7 @@ type Agent struct {
 func New(c *config.Config) *Agent {
 	agt := Agent{conf: c}
 	agt.storage = memory.NewMemStorage()
-	agt.reporter = reporter.NewHTTPReporter(agt.storage, agt.conf.ServerAddress, agt.conf.HTTPTimeout)
+	agt.reporter = reporter.NewHTTPReporter(agt.storage, agt.conf.ServerAddress, agt.conf.HTTPTimeout, agt.conf.Key)
 	return &agt
 }
 

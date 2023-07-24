@@ -2,6 +2,9 @@ package reporter
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,13 +21,15 @@ type HTTPReporter struct {
 	storage store.Storage
 	address string
 	client  http.Client
+	key     string
 }
 
-func NewHTTPReporter(s store.Storage, address string, timeout time.Duration) *HTTPReporter {
+func NewHTTPReporter(s store.Storage, address string, timeout time.Duration, key string) *HTTPReporter {
 	return &HTTPReporter{
 		storage: s,
 		address: address,
 		client:  http.Client{Timeout: timeout},
+		key:     key,
 	}
 }
 
@@ -48,6 +53,15 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 					logger.Log.Warn().Err(err).Msg("unable to marshal JSON batch")
 					return
 				}
+
+				// calculate hash
+				var HashSHA256 string
+				if r.key != "" {
+					hash := hmac.New(sha256.New, []byte(r.key))
+					hash.Write(body)
+					HashSHA256 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
+				}
+
 				// compress body
 				reqBody, compressErr := compress.CompressBody(&body)
 
@@ -55,6 +69,10 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 				if err != nil {
 					logger.Log.Error().Err(err).Msg("unable to create http request")
 					return
+				}
+				// set hash header
+				if HashSHA256 != "" {
+					req.Header.Set("HashSHA256", HashSHA256)
 				}
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("Accept-Encoding", "gzip")

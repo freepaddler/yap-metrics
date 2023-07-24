@@ -18,6 +18,7 @@ const (
 	defaultServerAddress  = "127.0.0.1:8080"
 	defaultHTTPTimeout    = 5 * time.Second
 	defaultLogLevel       = "info"
+	defaultKey            = ""
 )
 
 // Config implements agent configuration
@@ -27,6 +28,7 @@ type Config struct {
 	ServerAddress  string        `env:"ADDRESS"`
 	HTTPTimeout    time.Duration `env:"HTTP_TIMEOUT"`
 	LogLevel       string        `env:"LOG_LEVEL"`
+	Key            string        `env:"KEY""`
 }
 
 func NewConfig() *Config {
@@ -73,6 +75,13 @@ func NewConfig() *Config {
 		"l",
 		defaultLogLevel,
 		"logging `level` (trace, debug, info, warning, error)",
+	)
+	flag.StringVarP(
+		&c.Key,
+		"key",
+		"k",
+		defaultServerAddress,
+		"key for integrity hash calculation `secretkey`",
 	)
 
 	flag.Parse()
