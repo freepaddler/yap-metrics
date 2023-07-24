@@ -28,7 +28,7 @@ type Config struct {
 	ServerAddress  string        `env:"ADDRESS"`
 	HTTPTimeout    time.Duration `env:"HTTP_TIMEOUT"`
 	LogLevel       string        `env:"LOG_LEVEL"`
-	Key            string        `env:"KEY""`
+	Key            string        `env:"KEY"`
 }
 
 func NewConfig() *Config {
@@ -80,7 +80,7 @@ func NewConfig() *Config {
 		&c.Key,
 		"key",
 		"k",
-		defaultServerAddress,
+		defaultKey,
 		"key for integrity hash calculation `secretkey`",
 	)
 

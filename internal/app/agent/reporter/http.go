@@ -2,9 +2,6 @@ package reporter
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +9,7 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/retry"
 )
@@ -57,9 +55,7 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 				// calculate hash
 				var HashSHA256 string
 				if r.key != "" {
-					hash := hmac.New(sha256.New, []byte(r.key))
-					hash.Write(body)
-					HashSHA256 = base64.StdEncoding.EncodeToString(hash.Sum(nil))
+					HashSHA256 = sign.Get(body, r.key)
 				}
 
 				// compress body
