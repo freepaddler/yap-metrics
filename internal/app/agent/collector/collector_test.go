@@ -1,44 +1,25 @@
 package collector
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
+	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
-// mock reporter to check only one requested metric
-//type singleReporter struct {
-//	RepMetric models.Metrics
-//	MType     string
-//	MName     string
-//}
-
-//func newSingleReporter(mType, mName string) *singleReporter {
-//	return &singleReporter{
-//		MType:     mType,
-//		MName:     mName,
-//		RepMetric: models.Metrics{},
-//	}
-//}
-
-//func (r *singleReporter) Report(m models.Metrics) bool {
-//	if m.Type == r.MType && m.Name == r.MName {
-//		r.RepMetric = m
-//		return true
-//	}
-//	return false
-//}
-
 // check that value is random (differs between runs)
 func Test_CollectMetrics_RandomValue(t *testing.T) {
 	storage := memory.NewMemStorage()
-	CollectMetrics(storage)
+	c := New(storage)
+	c.CollectMetrics()
 	val1, ok := storage.GetGauge("RandomValue")
 	require.Equal(t, true, ok)
-	CollectMetrics(storage)
+	c.CollectMetrics()
 	val2, ok := storage.GetGauge("RandomValue")
 	require.Equal(t, true, ok)
 	assert.NotEqual(t, val1, val2)
@@ -47,11 +28,12 @@ func Test_CollectMetrics_RandomValue(t *testing.T) {
 // check that poll count increases every collection cycle
 func Test_CollectMetrics_PollCount(t *testing.T) {
 	storage := memory.NewMemStorage()
-	CollectMetrics(storage)
+	c := New(storage)
+	c.CollectMetrics()
 	val1, ok := storage.GetCounter("PollCount")
 	require.Equal(t, true, ok)
 	assert.NotEqual(t, int64(0), val1)
-	CollectMetrics(storage)
+	c.CollectMetrics()
 	val2, ok := storage.GetCounter("PollCount")
 	require.Equal(t, true, ok)
 	assert.Equal(t, int64(1), *val2-*val1)
@@ -61,7 +43,9 @@ func Test_CollectMetrics_PollCount(t *testing.T) {
 func Test_CollectMetrics_All_Metrics_Exist(t *testing.T) {
 	counters := []string{"PollCount"}
 	storage := memory.NewMemStorage()
-	CollectMetrics(storage)
+	c := New(storage)
+	c.CollectMetrics()
+	c.CollectGOPSMetrics(context.TODO())
 	gauges := []string{
 		"RandomValue",
 		"Alloc",
@@ -91,6 +75,12 @@ func Test_CollectMetrics_All_Metrics_Exist(t *testing.T) {
 		"StackSys",
 		"Sys",
 		"TotalAlloc",
+		"TotalMemory",
+		"FreeMemory",
+	}
+	cpus, _ := cpu.Counts(true)
+	for i := 0; i < cpus; i++ {
+		gauges = append(gauges, fmt.Sprintf("CPUutilization%d", i+1))
 	}
 	for _, v := range counters {
 		_, ok := storage.GetCounter(v)

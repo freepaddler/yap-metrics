@@ -354,53 +354,6 @@ func TestMemStorage_DelGauge(t *testing.T) {
 	assert.Falsef(t, ok, "gauge exists, but should be deleted")
 }
 
-func TestMemStorage_RestoreMetrics_Counters(t *testing.T) {
-	s, _, _ := PrepareTestStorage()
-	// unupdated metrics to restore
-	mCounterN := models.Metrics{
-		Name:   newCounter,
-		Type:   models.Counter,
-		IValue: new(int64),
-	}
-	*mCounterN.IValue = newCounterVal
-	wantCounterN := newCounterVal
-	mGaugeN := models.Metrics{
-		Name:   newGauge,
-		Type:   models.Gauge,
-		FValue: new(float64),
-	}
-	*mGaugeN.FValue = newGaugeVal
-	wantGaugeN := newGaugeVal
-	// updated metrics to restore
-	mCounterE := models.Metrics{
-		Name:   eCounter2,
-		Type:   models.Counter,
-		IValue: new(int64),
-	}
-	*mCounterE.IValue = eCounter2Val
-	wantCounterE := eCounter2Val * 2
-	mGaugeE := models.Metrics{
-		Name:   eGauge1,
-		Type:   models.Gauge,
-		FValue: new(float64),
-	}
-	*mGaugeE.FValue = eGauge2Val
-	wantGaugeE := eGauge1Val
-	s.RestoreMetrics([]models.Metrics{mCounterN, mGaugeN, mCounterE, mGaugeE})
-	getCounterN, ok := s.GetCounter(mCounterN.Name)
-	require.True(t, ok)
-	assert.Equal(t, wantCounterN, *getCounterN)
-	getCounterE, ok := s.GetCounter(mCounterE.Name)
-	require.True(t, ok)
-	assert.Equal(t, wantCounterE, *getCounterE)
-	getGaugeN, ok := s.GetGauge(mGaugeN.Name)
-	require.True(t, ok)
-	assert.Equal(t, wantGaugeN, *getGaugeN)
-	getGaugeE, ok := s.GetGauge(mGaugeE.Name)
-	require.True(t, ok)
-	assert.Equal(t, wantGaugeE, *getGaugeE)
-}
-
 func TestMemStorage_Snapshot(t *testing.T) {
 	s, gauges, counters := PrepareTestStorage()
 

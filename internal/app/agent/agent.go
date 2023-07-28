@@ -17,15 +17,17 @@ import (
 )
 
 type Agent struct {
-	conf     *config.Config
-	storage  *memory.MemStorage
-	reporter *reporter.HTTPReporter
+	conf      *config.Config
+	storage   *memory.MemStorage
+	reporter  *reporter.HTTPReporter
+	collector *collector.Collector
 }
 
 func New(c *config.Config) *Agent {
 	agt := Agent{conf: c}
 	agt.storage = memory.NewMemStorage()
 	agt.reporter = reporter.NewHTTPReporter(agt.storage, agt.conf.ServerAddress, agt.conf.HTTPTimeout, agt.conf.Key)
+	agt.collector = collector.New(agt.storage)
 	return &agt
 }
 
@@ -47,17 +49,31 @@ func (agt *Agent) Run() {
 		cancel()
 	}()
 
-	// start collection loop
+	// start collection loops
 	wg.Add(1)
 	go func(ctx context.Context) {
 		defer wg.Done()
 		logger.Log.Debug().Msgf("starting metrics polling every %d seconds", agt.conf.PollInterval)
 		for {
-			collector.CollectMetrics(agt.storage)
+			agt.collector.CollectMetrics()
 			select {
 			case <-time.After(time.Duration(agt.conf.PollInterval) * time.Second):
 			case <-ctx.Done():
 				logger.Log.Debug().Msg("metrics polling cancelled")
+				return
+			}
+		}
+	}(ctx)
+	wg.Add(1)
+	go func(ctx context.Context) {
+		defer wg.Done()
+		logger.Log.Debug().Msgf("starting gops metrics polling every %d seconds", agt.conf.PollInterval)
+		for {
+			agt.collector.CollectGOPSMetrics(ctx)
+			select {
+			case <-time.After(time.Duration(agt.conf.PollInterval) * time.Second):
+			case <-ctx.Done():
+				logger.Log.Debug().Msg("gops metrics polling cancelled")
 				return
 			}
 		}
