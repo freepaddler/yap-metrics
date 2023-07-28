@@ -40,10 +40,9 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 		return
 	}
 
-	var reported bool
 	err := retry.WithStrategy(ctx,
 		func(context.Context) error {
-			err := func(*bool) (err error) {
+			err := func() (err error) {
 				logger.Log.Debug().Msgf("sending %d metrics in batch", len(m))
 				url := fmt.Sprintf("http://%s/updates/", r.address)
 				body, err := json.Marshal(m)
@@ -87,9 +86,8 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 					logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
 					return
 				}
-				reported = true
 				return nil
-			}(&reported)
+			}()
 			return err
 		},
 		retry.IsNetErr,
@@ -97,10 +95,5 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 	)
 	if err != nil {
 		logger.Log.Warn().Err(err).Msg("report failed")
-	}
-
-	if !reported {
-		logger.Log.Debug().Msgf("restore %d metrics back to storage", len(m))
-		r.storage.RestoreMetrics(m)
 	}
 }
