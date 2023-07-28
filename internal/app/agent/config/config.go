@@ -19,16 +19,18 @@ const (
 	defaultHTTPTimeout    = 5 * time.Second
 	defaultLogLevel       = "info"
 	defaultKey            = ""
+	defaultRateLimit      = 1
 )
 
 // Config implements agent configuration
 type Config struct {
-	PollInterval   uint32        `env:"POLL_INTERVAL"`
-	ReportInterval uint32        `env:"REPORT_INTERVAL"`
-	ServerAddress  string        `env:"ADDRESS"`
-	HTTPTimeout    time.Duration `env:"HTTP_TIMEOUT"`
-	LogLevel       string        `env:"LOG_LEVEL"`
-	Key            string        `env:"KEY"`
+	PollInterval    uint32        `env:"POLL_INTERVAL"`
+	ReportInterval  uint32        `env:"REPORT_INTERVAL"`
+	ServerAddress   string        `env:"ADDRESS"`
+	HTTPTimeout     time.Duration `env:"HTTP_TIMEOUT"`
+	LogLevel        string        `env:"LOG_LEVEL"`
+	Key             string        `env:"KEY"`
+	ReportRateLimit int           `env:"RATE_LIMIT"`
 }
 
 func NewConfig() *Config {
@@ -72,7 +74,7 @@ func NewConfig() *Config {
 	flag.StringVarP(
 		&c.LogLevel,
 		"loglevel",
-		"l",
+		"d",
 		defaultLogLevel,
 		"logging `level` (trace, debug, info, warning, error)",
 	)
@@ -82,6 +84,13 @@ func NewConfig() *Config {
 		"k",
 		defaultKey,
 		"key for integrity hash calculation `secretkey`",
+	)
+	flag.IntVarP(
+		&c.ReportRateLimit,
+		"rateLimit",
+		"l",
+		defaultRateLimit,
+		"max `number` of simultaneous reporters",
 	)
 
 	flag.Parse()
@@ -93,6 +102,10 @@ func NewConfig() *Config {
 
 	if c.ReportInterval < c.PollInterval {
 		logger.Log.Fatal().Msgf("Report interval should be greater or equal to Poll interval")
+	}
+
+	if c.ReportRateLimit < 1 {
+		logger.Log.Fatal().Msgf("Reporting rate limit should be greater than 0")
 	}
 
 	// check
