@@ -1,3 +1,46 @@
+POST http://localhost:8080/update
+Content-Length: 40
+Content-Type: */*; charset=UTF-8
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.5.14 (Java/17.0.7)
+Accept-Encoding: br,deflate,gzip,x-gzip
+
+{"id":"g2","type":"gauge","value":-1.75}
+
+<> 2023-07-24T200301.200.json
+
+###
+
+POST http://localhost:8080/updates
+Content-Length: 87
+Content-Type: */*; charset=UTF-8
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.5.14 (Java/17.0.7)
+Accept-Encoding: br,deflate,gzip,x-gzip
+
+[
+{"id":"c101","type":"counter","delta":1},
+{"id":"g101","type":"gauge","value":-0.2}
+]
+
+###
+
+POST http://localhost:8080/updates
+Content-Length: 257
+Content-Type: */*; charset=UTF-8
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.5.14 (Java/17.0.7)
+Accept-Encoding: br,deflate,gzip,x-gzip
+
+[
+{"id":"CounterBatchZip168","type":"counter","delta":523063882},
+{"id":"GaugeBatchZip39","type":"gauge","value":378476.954248},
+{"id":"CounterBatchZip168","type":"counter","delta":1052376517},
+{"id":"GaugeBatchZip39","type":"gauge","value":241887.670421}
+]
+
+###
+
 POST http://localhost:8080/updates
 Content-Length: 257
 Content-Type: */*; charset=UTF-8
@@ -486,33 +529,6 @@ User-Agent: Apache-HttpClient/4.5.14 (Java/17.0.6)
 Accept-Encoding: br,deflate,gzip,x-gzip
 
 {"id":"g1","type":"gauge","value":"string"}
-
-###
-
-POST http://localhost:8080/update/gauge/g1/none
-Content-Length: 0
-Connection: Keep-Alive
-User-Agent: Apache-HttpClient/4.5.14 (Java/17.0.6)
-Accept-Encoding: br,deflate,gzip,x-gzip
-
-###
-
-POST http://localhost:8080/update
-Content-Length: 42
-Content-Type: */*; charset=UTF-8
-Connection: Keep-Alive
-User-Agent: Apache-HttpClient/4.5.14 (Java/17.0.6)
-Accept-Encoding: br,deflate,gzip,x-gzip
-
-{"id":"c1","type":"counter","delta":1.002}
-
-###
-
-POST http://localhost:8080/update/counter/c1/10.002
-Content-Length: 0
-Connection: Keep-Alive
-User-Agent: Apache-HttpClient/4.5.14 (Java/17.0.6)
-Accept-Encoding: br,deflate,gzip,x-gzip
 
 ###
 

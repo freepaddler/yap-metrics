@@ -63,7 +63,7 @@ func New(conf *config.Config) *Server {
 	srv.httpHandlers = handler.NewHTTPHandlers(srv.store)
 
 	// create http router
-	srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers)
+	srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers, conf.Key)
 
 	// create http server
 	srv.httpServer = &http.Server{Addr: srv.conf.Address, Handler: srv.httpRouter}

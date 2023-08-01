@@ -9,8 +9,9 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
+	"github.com/freepaddler/yap-metrics/internal/pkg/retry"
+	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/retry"
 )
 
 // HTTPReporter reports metrics to server over HTTP
@@ -18,13 +19,15 @@ type HTTPReporter struct {
 	storage store.Storage
 	address string
 	client  http.Client
+	key     string
 }
 
-func NewHTTPReporter(s store.Storage, address string, timeout time.Duration) *HTTPReporter {
+func NewHTTPReporter(s store.Storage, address string, timeout time.Duration, key string) *HTTPReporter {
 	return &HTTPReporter{
 		storage: s,
 		address: address,
 		client:  http.Client{Timeout: timeout},
+		key:     key,
 	}
 }
 
@@ -37,10 +40,9 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 		return
 	}
 
-	var reported bool
 	err := retry.WithStrategy(ctx,
 		func(context.Context) error {
-			err := func(*bool) (err error) {
+			err := func() (err error) {
 				logger.Log.Debug().Msgf("sending %d metrics in batch", len(m))
 				url := fmt.Sprintf("http://%s/updates/", r.address)
 				body, err := json.Marshal(m)
@@ -48,6 +50,13 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 					logger.Log.Warn().Err(err).Msg("unable to marshal JSON batch")
 					return
 				}
+
+				// calculate hash
+				var HashSHA256 string
+				if r.key != "" {
+					HashSHA256 = sign.Get(body, r.key)
+				}
+
 				// compress body
 				reqBody, compressErr := compress.CompressBody(&body)
 
@@ -55,6 +64,10 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 				if err != nil {
 					logger.Log.Error().Err(err).Msg("unable to create http request")
 					return
+				}
+				// set hash header
+				if HashSHA256 != "" {
+					req.Header.Set("HashSHA256", HashSHA256)
 				}
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("Accept-Encoding", "gzip")
@@ -73,9 +86,8 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 					logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
 					return
 				}
-				reported = true
 				return nil
-			}(&reported)
+			}()
 			return err
 		},
 		retry.IsNetErr,
@@ -83,10 +95,5 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 	)
 	if err != nil {
 		logger.Log.Warn().Err(err).Msg("report failed")
-	}
-
-	if !reported {
-		logger.Log.Debug().Msgf("restore %d metrics back to storage", len(m))
-		r.storage.RestoreMetrics(m)
 	}
 }

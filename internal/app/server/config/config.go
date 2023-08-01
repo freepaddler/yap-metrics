@@ -18,6 +18,7 @@ const (
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestore         = true
 	defaultDBURL           = ""
+	defaultKey             = ""
 )
 
 // Config implements server configuration
@@ -30,6 +31,7 @@ type Config struct {
 	UseFileStorage  bool
 	DBURL           string `env:"DATABASE_DSN"`
 	UseDB           bool
+	Key             string `env:"KEY"`
 }
 
 func NewConfig() *Config {
@@ -48,6 +50,7 @@ func NewConfig() *Config {
 	flag.StringVarP(&c.FileStoragePath, "fileStoragePath", "f", defaultFileStoragePath, "`path` to storage file")
 	flag.BoolVarP(&c.Restore, "restore", "r", defaultRestore, "restore metrcis after server start: `true/false`")
 	flag.StringVarP(&c.DBURL, "dbUri", "d", defaultDBURL, "database `uri` i.e. postgres://user:password@host:port/db")
+	flag.StringVarP(&c.Key, "key", "k", defaultKey, "key for integrity hash calculation `secretkey`")
 	flag.Parse()
 
 	// env vars

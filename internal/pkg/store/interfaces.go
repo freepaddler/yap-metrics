@@ -39,9 +39,6 @@ type Storage interface {
 	// UpdateMetrics updates metrics in store according to metric type, returns invalid metrics slice
 	// if overwrite is true, then overwrite metric value instead of update
 	UpdateMetrics(m []models.Metrics, overwrite bool)
-	// RestoreMetrics used to restore values from snapshot back to storage,
-	// preserving updates, that happened after snapshot was made
-	RestoreMetrics(m []models.Metrics)
 	// RegisterHooks registers hooks which will be called on metrics update
 	RegisterHooks(fns ...func([]models.Metrics))
 }

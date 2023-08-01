@@ -64,8 +64,8 @@ func (ms *MemStorage) DelCounter(name string) {
 
 func (ms *MemStorage) Snapshot(flush bool) []models.Metrics {
 	// make values arrays
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	counterV := make([]int64, len(ms.counters))
 	gaugesV := make([]float64, len(ms.gauges))
 	set := make([]models.Metrics, 0)
@@ -89,6 +89,8 @@ func (ms *MemStorage) Snapshot(flush bool) []models.Metrics {
 	return set
 }
 func (ms *MemStorage) GetMetric(m *models.Metrics) (bool, error) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	var found bool
 	var err error
 	switch m.Type {
@@ -102,7 +104,7 @@ func (ms *MemStorage) GetMetric(m *models.Metrics) (bool, error) {
 	return found, err
 }
 func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
-	ms.mu.RLock()
+	ms.mu.Lock()
 	for i := 0; i < len(m); i++ {
 		switch m[i].Type {
 		case models.Gauge:
@@ -119,25 +121,8 @@ func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
 		}
 	}
 	// call update persistent storage hooks
-	ms.mu.RUnlock()
+	ms.mu.Unlock()
 	ms.updateHook(m)
-}
-func (ms *MemStorage) RestoreMetrics(m []models.Metrics) {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	for _, v := range m {
-		switch v.Type {
-		case models.Counter:
-			ms.IncCounter(v.Name, *v.IValue)
-		case models.Gauge:
-			if _, found := ms.GetGauge(v.Name); found {
-				continue
-			}
-			ms.SetGauge(v.Name, *v.FValue)
-		default:
-			logger.Log.Warn().Msgf("RestoreMetrics: invalid metric '%s' type '%s', skipping", v.Name, v.Type)
-		}
-	}
 }
 func (ms *MemStorage) RegisterHooks(fns ...func([]models.Metrics)) {
 	ms.hooks = append(ms.hooks, fns...)

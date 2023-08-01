@@ -150,17 +150,17 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 [ $? -eq 0 ] || exit 1
 
 ## inc14
-#SERVER_PORT=$(rnd)
-#ADDRESS="localhost:${SERVER_PORT}"
-#TEMP_FILE="/tmp/metrictest$(rnd)"
-#"$binPath" -test.v -test.run=^TestIteration14$ \
-#-agent-binary-path=cmd/agent/agent \
-#-binary-path=cmd/server/server \
-#-database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
-#-key="${TEMP_FILE}" \
-#-server-port="$SERVER_PORT" \
-#-source-path=.
-#[ $? -eq 0 ] || exit 1
-#
-## inc14 race
-#go test -v -race ./...
+SERVER_PORT=$(rnd)
+ADDRESS="localhost:${SERVER_PORT}"
+TEMP_FILE="/tmp/metrictest$(rnd)"
+"$binPath" -test.v -test.run=^TestIteration14$ \
+-agent-binary-path=cmd/agent/agent \
+-binary-path=cmd/server/server \
+-database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
+-key="${TEMP_FILE}" \
+-server-port="$SERVER_PORT" \
+-source-path=.
+[ $? -eq 0 ] || exit 1
+
+# inc14 race
+go test -v -race ./...
