@@ -2,6 +2,9 @@ package agent
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -38,6 +41,10 @@ func (agt *Agent) Run() {
 
 	var wg sync.WaitGroup
 
+	httpServer := &http.Server{
+		Addr: "127.0.0.1:8091",
+	}
+
 	// trap os signals
 	go func() {
 		shutdownSig := make(chan os.Signal, 1)
@@ -47,7 +54,32 @@ func (agt *Agent) Run() {
 		sig := <-shutdownSig
 		logger.Log.Info().Msgf("got '%v' signal. agent shutdown routine...", sig)
 		cancel()
+
+		// context for httpServer graceful shutdown
+		httpCtx, httpRelease := context.WithTimeout(context.Background(), 10*time.Second)
+		defer httpRelease()
+
+		// gracefully stop http server
+		logger.Log.Info().Msg("stopping pprof http server")
+		if err := httpServer.Shutdown(httpCtx); err != nil {
+			logger.Log.Err(err).Msg("failed to stop pprof http server gracefully. force stop")
+			_ = httpServer.Close()
+		}
+		logger.Log.Info().Msg("pprof http server stopped")
 	}()
+
+	// start http server for profiling
+	if agt.conf.PprofAddress != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			logger.Log.Info().Msgf("starting pprof http server at 'http://%s/debug/pprof'", agt.conf.PprofAddress)
+			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Log.Error().Msg("failed to start pprof http server")
+			}
+			logger.Log.Info().Msg("pprof http server stopped acquiring new connections")
+		}()
+	}
 
 	// start collection loops
 	wg.Add(1)
@@ -110,5 +142,7 @@ func (agt *Agent) Run() {
 	defer ctxRepCancel()
 	agt.reporter.ReportBatchJSON(ctxRep)
 	logger.Log.Info().Msg("agent stopped")
+
+	// stop pprof http server
 
 }

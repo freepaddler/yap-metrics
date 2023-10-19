@@ -31,6 +31,7 @@ type Config struct {
 	LogLevel        string        `env:"LOG_LEVEL"`
 	Key             string        `env:"KEY"`
 	ReportRateLimit int           `env:"RATE_LIMIT"`
+	PprofAddress    string        `env:"PPROF_ADDRESS"`
 }
 
 func NewConfig() *Config {
@@ -91,6 +92,13 @@ func NewConfig() *Config {
 		"l",
 		defaultRateLimit,
 		"max `number` of simultaneous reporters",
+	)
+	flag.StringVarP(
+		&c.PprofAddress,
+		"pprofAddress",
+		"f",
+		"",
+		"enable an run pprof http server on `host:port`",
 	)
 
 	flag.Parse()
