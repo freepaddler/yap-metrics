@@ -11,6 +11,8 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
+// TODO: tests
+
 // WithStrategy executes `try` function with the following retry strategy:
 // If `try` execution result has error, this error is checked with isRetryError function.
 // If resulted error requires retry, then next `try` execution delays on the interval (in seconds)

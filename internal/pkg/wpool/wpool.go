@@ -10,8 +10,10 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
+// TerminationTimeout is a default value for Pool.termTimeout
 const TerminationTimeout = time.Second
 
+// Pool describes worker pool setup
 type Pool struct {
 	size        int           // number of workers in pool
 	chStop      chan struct{} // channel to stop workers
@@ -20,7 +22,6 @@ type Pool struct {
 	termTimeout time.Duration // timeout to wait pool tasks to complete on cancel
 	closed      bool          // if closed, no new tasks allowed
 	Stopped     chan struct{} // when closed, pool is terminated
-
 }
 
 // New is a Pool constructor
@@ -43,6 +44,7 @@ func New(ctx context.Context, size int) *Pool {
 	return pool
 }
 
+// SetStopTimeout changes Pool.termTimeout
 func (p *Pool) SetStopTimeout(to time.Duration) {
 	p.termTimeout = to
 }

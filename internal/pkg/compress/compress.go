@@ -31,6 +31,7 @@ func GunzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(gz)
 }
 
+// TODO: write test
 func CompressBody(body *[]byte) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	// oops, but this is the only thing I could do for a kind of heap optimization :)

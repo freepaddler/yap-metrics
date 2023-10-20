@@ -81,7 +81,7 @@ func (agt *Agent) Run() {
 		}()
 	}
 
-	// start collection loops
+	// start collection loop
 	wg.Add(1)
 	go func(ctx context.Context) {
 		defer wg.Done()
@@ -142,7 +142,5 @@ func (agt *Agent) Run() {
 	defer ctxRepCancel()
 	agt.reporter.ReportBatchJSON(ctxRep)
 	logger.Log.Info().Msg("agent stopped")
-
-	// stop pprof http server
 
 }

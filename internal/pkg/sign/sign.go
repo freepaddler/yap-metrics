@@ -39,6 +39,8 @@ func (rw RespWrapper) Write(b []byte) (int, error) {
 	return rw.ResponseWriter.Write(b)
 }
 
+// TODO: test
+
 // Middleware to check signature of request and add signature of response
 func Middleware(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
