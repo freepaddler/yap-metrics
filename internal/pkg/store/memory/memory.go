@@ -1,4 +1,7 @@
+// Package memory implements in-memory metrics storage
 package memory
+
+// TODO: write examples
 
 import (
 	"errors"
@@ -9,12 +12,12 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )
 
-// MemStorage is in-memory metric store
+// MemStorage is in-memory metric store structure
 type MemStorage struct {
 	mu       sync.RWMutex
-	counters map[string]int64
-	gauges   map[string]float64
-	hooks    []func([]models.Metrics)
+	counters map[string]int64         // metrics of type counter
+	gauges   map[string]float64       // metrics of type gauge
+	hooks    []func([]models.Metrics) // notification hooks
 }
 
 // NewMemStorage is a constructor for MemStorage
@@ -28,15 +31,20 @@ func NewMemStorage() *MemStorage {
 // Gauge interface implementation
 // var _ store.Gauge = (*MemStorage)(nil)
 
+// SetGauge creates or updates gauge metric value in storage by its name
 func (ms *MemStorage) SetGauge(name string, fValue float64) {
 	ms.gauges[name] = fValue
 	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
 
 }
+
+// GetGauge returns gauge metric value and existence flag by its name
 func (ms *MemStorage) GetGauge(name string) (*float64, bool) {
 	v, ok := ms.gauges[name]
 	return &v, ok
 }
+
+// DelGauge removes gauge metric from storage by its name
 func (ms *MemStorage) DelGauge(name string) {
 	delete(ms.gauges, name)
 }
@@ -44,6 +52,7 @@ func (ms *MemStorage) DelGauge(name string) {
 // Counter interface implementation
 // var _ store.Counter = (*MemStorage)(nil)
 
+// IncCounter creates new or increments counter metric value in storage by its name
 func (ms *MemStorage) IncCounter(name string, iValue int64) int64 {
 	ms.counters[name] += iValue
 	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
@@ -51,10 +60,14 @@ func (ms *MemStorage) IncCounter(name string, iValue int64) int64 {
 	v := ms.counters[name]
 	return v
 }
+
+// GetCounter returns counter metric value and existence flag by its name
 func (ms *MemStorage) GetCounter(name string) (*int64, bool) {
 	v, ok := ms.counters[name]
 	return &v, ok
 }
+
+// DelCounter removes gauge metric from storage by its name
 func (ms *MemStorage) DelCounter(name string) {
 	delete(ms.counters, name)
 }
@@ -62,6 +75,7 @@ func (ms *MemStorage) DelCounter(name string) {
 // Storage interface implementation
 //var _ store.Storage = (*MemStorage)(nil)
 
+// Snapshot returns all current memory store metrics in sorted by name slice
 func (ms *MemStorage) Snapshot(flush bool) []models.Metrics {
 	// make values arrays
 	ms.mu.RLock()
@@ -88,6 +102,10 @@ func (ms *MemStorage) Snapshot(flush bool) []models.Metrics {
 	})
 	return set
 }
+
+// GetMetric enriches requested in metric with it current value.
+// Returns true if metric is found, false otherwise.
+// Returns error if metric type is invalid
 func (ms *MemStorage) GetMetric(m *models.Metrics) (bool, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -103,6 +121,9 @@ func (ms *MemStorage) GetMetric(m *models.Metrics) (bool, error) {
 	}
 	return found, err
 }
+
+// UpdateMetrics creates or updates batch of metrics.
+// If overwrite is true, then counter metrics are not incremented, but set to the requested values.
 func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
 	ms.mu.Lock()
 	for i := 0; i < len(m); i++ {
@@ -124,6 +145,8 @@ func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
 	ms.mu.Unlock()
 	ms.updateHook(m)
 }
+
+// RegisterHooks registers functions to be called on metrics update
 func (ms *MemStorage) RegisterHooks(fns ...func([]models.Metrics)) {
 	ms.hooks = append(ms.hooks, fns...)
 }
