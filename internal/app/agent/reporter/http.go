@@ -32,6 +32,7 @@ func NewHTTPReporter(s store.Storage, address string, timeout time.Duration, key
 }
 
 // TODO: write test
+
 func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 	logger.Log.Debug().Msg("reporting metrics")
 	// get storage snapshot
