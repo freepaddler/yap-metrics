@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
@@ -398,4 +401,216 @@ func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHTTPHandlers_UpdateMetricBatch(t *testing.T) {
+	s := memory.NewMemStorage()
+	h := NewHTTPHandlers(s)
+	tests := []struct {
+		name       string
+		code       int
+		reqString  string
+		wantString string
+	}{
+		{
+			name: "success new counter and gauge",
+			code: http.StatusOK,
+			reqString: fmt.Sprintf(`
+				[{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":10
+				},
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":-1.75
+				}]`,
+				models.Counter, models.Gauge),
+		},
+		{
+			name: "success update counter and gauge",
+			code: http.StatusOK,
+			reqString: fmt.Sprintf(`
+				[{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":8
+				},
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":0.07
+				}]`,
+				models.Counter, models.Gauge),
+		},
+		{
+			name: "invalid metric type",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				[{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":8
+				},
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":0.07
+				}]`,
+				models.Counter, "invalid"),
+		},
+		{
+			name: "invalid counter value string",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				[{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":"string"
+				},
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":0.07
+				}]`,
+				models.Counter, models.Gauge),
+		},
+		{
+			name: "invalid counter value float",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				[{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":8.88
+				},
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":0.07
+				}]`,
+				models.Counter, models.Gauge),
+		},
+		{
+			name: "invalid gauge value string",
+			code: http.StatusBadRequest,
+			reqString: fmt.Sprintf(`
+				[{ 
+					"id":"c1",
+					"type":"%s",
+					"delta":8
+				},
+				{ 
+					"id":"g1",
+					"type":"%s",
+					"value":"string"
+				}]`,
+				models.Counter, models.Gauge),
+		},
+		{
+			name:      "invalid json",
+			code:      http.StatusBadRequest,
+			reqString: "[this is not a json}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := bytes.NewBuffer([]byte(tt.reqString))
+			req := httptest.NewRequest(http.MethodPost, "/update", buf)
+
+			w := httptest.NewRecorder()
+			h.UpdateMetricsBatchHandler(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+
+			require.Equal(t, tt.code, res.StatusCode)
+		})
+	}
+}
+
+func Test_validateMetric(t *testing.T) {
+	tests := []struct {
+		name    string
+		metric  models.Metrics
+		wantErr bool
+	}{
+		{
+			name: "correct metric",
+			metric: models.Metrics{
+				Name: "someMetric",
+				Type: models.Gauge,
+			},
+			wantErr: false,
+		},
+		{
+			name: "no metric name",
+			metric: models.Metrics{
+				Type: models.Counter,
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid metric type",
+			metric: models.Metrics{
+				Name: "someMetric",
+				Type: "invalidType",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMetric(&tt.metric)
+			if tt.wantErr {
+				require.Error(t, err, "Error expected")
+			} else {
+				require.NoError(t, err, "No error expected, got '%v'", err)
+			}
+		})
+	}
+}
+
+// for testing ping
+type fakePStore struct {
+	store.PersistentStorage
+	Pingable bool
+}
+
+func (ps fakePStore) Ping() error {
+	if ps.Pingable {
+		return nil
+	}
+	return errors.New("error")
+}
+
+func TestHTTPHandlers_PingHandler(t *testing.T) {
+	s := &memory.MemStorage{}
+	h := NewHTTPHandlers(s)
+	pStore := &fakePStore{
+		PersistentStorage: &file.FileStorage{},
+	}
+	tests := []struct {
+		name     string
+		pingable bool
+		respCode int
+		pstore   store.PersistentStorage
+	}{
+		{name: "ping ok", pingable: true, respCode: http.StatusOK, pstore: pStore},
+		{name: "ping", pingable: false, respCode: http.StatusInternalServerError, pstore: pStore},
+		{name: "no pstore", pingable: false, respCode: http.StatusInternalServerError, pstore: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pStore.Pingable = tt.pingable
+			h.SetPStorage(tt.pstore)
+			req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+			w := httptest.NewRecorder()
+			h.PingHandler(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+			require.Equal(t, tt.respCode, res.StatusCode)
+		})
+	}
+
 }
