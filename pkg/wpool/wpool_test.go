@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	tasks     = 8 // number of tasks to run
+	tasks     = 10 // number of tasks to run
 	workers   = 2
 	taskSleep = 2 * time.Second
 )
@@ -61,7 +61,7 @@ func TestContextStop(t *testing.T) {
 	}
 
 	<-pool.Stopped
-	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, err, ErrClosed, "Expected error '%v', got '%v'", ErrClosed, err)
 	assert.Greater(t, tasks, n.n, "Expected %d got %d", tasks, n.n)
 }
 

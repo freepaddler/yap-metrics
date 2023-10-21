@@ -60,7 +60,7 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 				}
 
 				// compress body
-				reqBody, compressErr := compress.CompressBody(&body)
+				reqBody, compressErr := compress.GzipBody(&body)
 
 				req, err := http.NewRequest(http.MethodPost, url, reqBody)
 				if err != nil {
