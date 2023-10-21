@@ -108,7 +108,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 "$binPath" -test.v -test.run=^TestIteration10[AB]$ \
 -agent-binary-path=cmd/agent/agent \
 -binary-path=cmd/server/server \
--database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
+-database-dsn='postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable' \
 -server-port="$SERVER_PORT" \
 -source-path=.
 [ $? -eq 0 ] || exit 1
@@ -120,7 +120,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 "$binPath" -test.v -test.run=^TestIteration11$ \
 -agent-binary-path=cmd/agent/agent \
 -binary-path=cmd/server/server \
--database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
+-database-dsn='postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable' \
 -server-port="$SERVER_PORT" \
 -source-path=.
 [ $? -eq 0 ] || exit 1
@@ -132,7 +132,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 "$binPath" -test.v -test.run=^TestIteration12$ \
 -agent-binary-path=cmd/agent/agent \
 -binary-path=cmd/server/server \
--database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
+-database-dsn='postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable' \
 -server-port="$SERVER_PORT" \
 -source-path=.
 [ $? -eq 0 ] || exit 1
@@ -144,7 +144,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 "$binPath" -test.v -test.run=^TestIteration13$ \
 -agent-binary-path=cmd/agent/agent \
 -binary-path=cmd/server/server \
--database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
+-database-dsn='postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable' \
 -server-port="$SERVER_PORT" \
 -source-path=.
 [ $? -eq 0 ] || exit 1
@@ -156,7 +156,7 @@ TEMP_FILE="/tmp/metrictest$(rnd)"
 "$binPath" -test.v -test.run=^TestIteration14$ \
 -agent-binary-path=cmd/agent/agent \
 -binary-path=cmd/server/server \
--database-dsn='postgres://metrics:metrics@localhost:5432/metrics?sslmode=disable' \
+-database-dsn='postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable' \
 -key="${TEMP_FILE}" \
 -server-port="$SERVER_PORT" \
 -source-path=.

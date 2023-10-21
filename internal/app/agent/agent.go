@@ -115,7 +115,6 @@ func (agt *Agent) Run() {
 	go func(ctx context.Context) {
 		defer wg.Done()
 		wp := wpool.New(ctx, agt.conf.ReportRateLimit)
-		wp.SetStopTimeout(5 * time.Second)
 		logger.Log.Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
 		for {
 			if err := wp.Task(func() { agt.reporter.ReportBatchJSON(ctx) }); err != nil {
