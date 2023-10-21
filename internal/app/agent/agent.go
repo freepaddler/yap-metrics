@@ -16,7 +16,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
-	"github.com/freepaddler/yap-metrics/internal/pkg/wpool"
+	"github.com/freepaddler/yap-metrics/pkg/wpool"
 )
 
 type Agent struct {

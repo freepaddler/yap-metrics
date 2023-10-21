@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/freepaddler/yap-metrics/internal/pkg/retry"
+	"github.com/freepaddler/yap-metrics/pkg/retry"
 )
 
 func ExampleWithStrategy() {

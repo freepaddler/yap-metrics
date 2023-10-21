@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/freepaddler/yap-metrics/internal/pkg/wpool"
+	"github.com/freepaddler/yap-metrics/pkg/wpool"
 )
 
 func Example() {
