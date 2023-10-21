@@ -1,3 +1,6 @@
+// Package sign implements methods to sign and validate http requests and responses.
+// Response or request bodies are signed with HMAC SHA-256 hash with symmetric key.
+// Hash is placed to HTTP header `HashSHA256`.
 package sign
 
 import (
@@ -11,7 +14,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
-// Get returns base64 encoded HMAC SHA-256 hash
+// Get returns base64 encoded HMAC SHA-256 hash from []byte
 func Get(data []byte, key string) string {
 	hash := hmac.New(sha256.New, []byte(key))
 	hash.Write(data)
@@ -24,6 +27,7 @@ type RespWrapper struct {
 	key string
 }
 
+// NewRespWrapper is a RespWrapper constructor
 func NewRespWrapper(w http.ResponseWriter, k string) *RespWrapper {
 	return &RespWrapper{
 		ResponseWriter: w,
@@ -31,7 +35,7 @@ func NewRespWrapper(w http.ResponseWriter, k string) *RespWrapper {
 	}
 }
 
-// Write calculates and sets HashSHA256 header
+// Write implements RespWrapper Write method, which calculates and sets HashSHA256 header
 func (rw RespWrapper) Write(b []byte) (int, error) {
 	HashSHA256 := Get(b, rw.key)
 	rw.Header().Add("HashSHA256", HashSHA256)
@@ -39,9 +43,13 @@ func (rw RespWrapper) Write(b []byte) (int, error) {
 	return rw.ResponseWriter.Write(b)
 }
 
-// TODO: test
-
 // Middleware to check signature of request and add signature of response
+//
+// # Example
+//
+//	r := chi.NewRouter()
+//	r.Use(sign.Middleware(key))
+//	r...
 func Middleware(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		sigmw := func(w http.ResponseWriter, r *http.Request) {
