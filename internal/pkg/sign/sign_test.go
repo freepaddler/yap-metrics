@@ -78,6 +78,7 @@ func TestSign(t *testing.T) {
 			handler.ServeHTTP(w, req)
 
 			res := w.Result()
+			defer res.Body.Close()
 
 			// check code
 			require.Equal(t, tt.resCode, res.StatusCode, "Expected result %d, got %d", http.StatusOK, res.StatusCode)
