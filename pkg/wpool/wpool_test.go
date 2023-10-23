@@ -52,7 +52,6 @@ func TestStoppedError(t *testing.T) {
 	pool.Stop()
 	// require error trying to add to stopped wpool
 	err := pool.Task(func() {
-		return
 	})
 	require.ErrorIs(t, err, ErrClosed, "Expected error '%v', got '%v'", ErrClosed, err)
 }
