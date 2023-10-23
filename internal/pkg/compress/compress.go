@@ -1,3 +1,4 @@
+// Package compress implements http compression with gzip
 package compress
 
 import (
@@ -8,7 +9,13 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
-// GunzipMiddleware unzip incoming request
+// GunzipMiddleware unzips incoming request body.
+//
+// Usage
+//
+//	r := chi.NewRouter()
+//	r.Use(compress.GunzipMiddleware)
+//	r...
 func GunzipMiddleware(next http.Handler) http.Handler {
 	gz := func(w http.ResponseWriter, r *http.Request) {
 
@@ -31,9 +38,12 @@ func GunzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(gz)
 }
 
-func CompressBody(body *[]byte) (*bytes.Buffer, error) {
+// GzipBody tries to gzip response body.
+// Returns uncompressed body if compression failed
+func GzipBody(body *[]byte) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
-	gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	// oops, but this is the only thing I could do for a kind of heap optimization :)
+	gzBuf, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
 	defer gzBuf.Close()
 	_, err := gzBuf.Write(*body)
 	if err != nil {
@@ -44,5 +54,4 @@ func CompressBody(body *[]byte) (*bytes.Buffer, error) {
 	}
 	logger.Log.Debug().Msg("response compressed")
 	return &buf, err
-
 }

@@ -2,6 +2,9 @@ package agent
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -13,7 +16,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
-	"github.com/freepaddler/yap-metrics/internal/pkg/wpool"
+	"github.com/freepaddler/yap-metrics/pkg/wpool"
 )
 
 type Agent struct {
@@ -38,6 +41,10 @@ func (agt *Agent) Run() {
 
 	var wg sync.WaitGroup
 
+	httpServer := &http.Server{
+		Addr: "127.0.0.1:8091",
+	}
+
 	// trap os signals
 	go func() {
 		shutdownSig := make(chan os.Signal, 1)
@@ -47,9 +54,34 @@ func (agt *Agent) Run() {
 		sig := <-shutdownSig
 		logger.Log.Info().Msgf("got '%v' signal. agent shutdown routine...", sig)
 		cancel()
+
+		// context for httpServer graceful shutdown
+		httpCtx, httpRelease := context.WithTimeout(context.Background(), 10*time.Second)
+		defer httpRelease()
+
+		// gracefully stop http server
+		logger.Log.Info().Msg("stopping pprof http server")
+		if err := httpServer.Shutdown(httpCtx); err != nil {
+			logger.Log.Err(err).Msg("failed to stop pprof http server gracefully. force stop")
+			_ = httpServer.Close()
+		}
+		logger.Log.Info().Msg("pprof http server stopped")
 	}()
 
-	// start collection loops
+	// start http server for profiling
+	if agt.conf.PprofAddress != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			logger.Log.Info().Msgf("starting pprof http server at 'http://%s/debug/pprof'", agt.conf.PprofAddress)
+			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Log.Error().Msg("failed to start pprof http server")
+			}
+			logger.Log.Info().Msg("pprof http server stopped acquiring new connections")
+		}()
+	}
+
+	// start collection loop
 	wg.Add(1)
 	go func(ctx context.Context) {
 		defer wg.Done()
@@ -83,17 +115,16 @@ func (agt *Agent) Run() {
 	go func(ctx context.Context) {
 		defer wg.Done()
 		wp := wpool.New(ctx, agt.conf.ReportRateLimit)
-		wp.SetStopTimeout(5 * time.Second)
 		logger.Log.Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
 		for {
 			if err := wp.Task(func() { agt.reporter.ReportBatchJSON(ctx) }); err != nil {
-				logger.Log.Warn().Err(err).Msg("unable to add reposting task to wpool")
+				logger.Log.Warn().Err(err).Msg("unable to add reporting task to wpool")
 			}
 			select {
 			case <-time.After(time.Duration(agt.conf.ReportInterval) * time.Second):
 			case <-ctx.Done():
 				logger.Log.Debug().Msg("metrics reporting cancelled")
-				<-wp.Stopped
+				<-wp.Stop()
 				return
 			}
 		}

@@ -12,8 +12,8 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
-	"github.com/freepaddler/yap-metrics/internal/pkg/retry"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
+	"github.com/freepaddler/yap-metrics/pkg/retry"
 )
 
 const (

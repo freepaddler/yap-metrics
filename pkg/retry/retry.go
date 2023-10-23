@@ -1,3 +1,4 @@
+// Package retry implements a wrapper to repeat function calls in case of execution errors
 package retry
 
 import (
@@ -15,11 +16,10 @@ import (
 // If `try` execution result has error, this error is checked with isRetryError function.
 // If resulted error requires retry, then next `try` execution delays on the interval (in seconds)
 // from the next value of retries args. WithStrategy exits on the following conditions:
-//
-//	err==nil as a result of `try` execution
-//	number of retries exceeded
-//	`try` function error is not retryable (isRetryError(err)!=true)
-//	context cancellation/expiration/timeout
+//   - err==nil as a result of `try` execution
+//   - number of retries exceeded
+//   - `try` function returned error is not retryable (isRetryError(err)!=true)
+//   - context cancellation/expiration/timeout
 func WithStrategy(
 	ctx context.Context,
 	try func(ctx context.Context) error,
@@ -51,7 +51,7 @@ func WithStrategy(
 }
 
 // IsNetErr checks network timeout and connection refused errors
-// may be used as isRetryError for WithStrategy function
+// may be used as isRetryError function for WithStrategy function
 func IsNetErr(err error) bool {
 	if err == nil {
 		return false

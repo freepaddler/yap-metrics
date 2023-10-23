@@ -1,3 +1,4 @@
+// Package store describes metrics storage interfaces
 package store
 
 import (
@@ -6,7 +7,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )
 
-// Gauge interface implements base operations on with type gauge
+// Gauge interface implements base operations on metrics with type gauge
 type Gauge interface {
 	// SetGauge sets Gauge value
 	SetGauge(name string, value float64)

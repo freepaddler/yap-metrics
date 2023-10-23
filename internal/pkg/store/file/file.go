@@ -38,6 +38,8 @@ func New(path string) (*FileStorage, error) {
 	}, nil
 }
 
+// TODO: tests
+
 // SaveMetrics is called from storage to indicate metrics change
 func (f *FileStorage) SaveMetrics(_ context.Context, metrics []models.Metrics) {
 	f.mu.Lock()

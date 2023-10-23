@@ -9,9 +9,9 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
-	"github.com/freepaddler/yap-metrics/internal/pkg/retry"
 	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
+	"github.com/freepaddler/yap-metrics/pkg/retry"
 )
 
 // HTTPReporter reports metrics to server over HTTP
@@ -58,7 +58,7 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 				}
 
 				// compress body
-				reqBody, compressErr := compress.CompressBody(&body)
+				reqBody, compressErr := compress.GzipBody(&body)
 
 				req, err := http.NewRequest(http.MethodPost, url, reqBody)
 				if err != nil {

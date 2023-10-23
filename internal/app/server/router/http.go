@@ -16,6 +16,7 @@ func NewHTTPRouter(h *handler.HTTPHandlers, key string) *chi.Mux {
 	r.Use(compress.GunzipMiddleware)
 	r.Use(middleware.Compress(4, "application/json", "text/html"))
 	r.Use(sign.Middleware(key))
+	r.Mount("/debug/", middleware.Profiler())
 	r.Get("/", h.IndexMetricHandler)
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", h.UpdateMetricJSONHandler)
