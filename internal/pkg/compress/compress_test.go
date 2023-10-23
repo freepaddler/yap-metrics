@@ -24,9 +24,9 @@ func TestGzipBodySuccess(t *testing.T) {
 	assert.Less(t, got.Len(), len(body), "Expected result size %d less than source size %d", got.Len(), len(body))
 	gunzipped, err := gzip.NewReader(got)
 	if err != nil {
+		require.NoError(t, err, "Got error '%v' on decompression", err)
 	}
 	defer gunzipped.Close()
-	require.NoError(t, err, "Got error '%v' on decompression", err)
 	body2, err := io.ReadAll(gunzipped)
 	require.NoError(t, err, "Got error '%v' reading decompressed body", err)
 	assert.Equal(t, body, body2, "Expected equal, got different")
