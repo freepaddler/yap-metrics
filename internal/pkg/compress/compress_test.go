@@ -16,13 +16,15 @@ import (
 func TestGzipBodySuccess(t *testing.T) {
 	body := make([]byte, 1024)
 	// create random body
-	_, err := rand.Read(body)
+	rand.Read(body)
 	// duplicate it to be sure in compression
 	body = append(body, body...)
 	got, err := GzipBody(&body)
 	require.NoError(t, err)
 	assert.Less(t, got.Len(), len(body), "Expected result size %d less than source size %d", got.Len(), len(body))
 	gunzipped, err := gzip.NewReader(got)
+	if err != nil {
+	}
 	defer gunzipped.Close()
 	require.NoError(t, err, "Got error '%v' on decompression", err)
 	body2, err := io.ReadAll(gunzipped)
@@ -84,6 +86,7 @@ func TestGunzipMiddleware(t *testing.T) {
 			handler := GunzipMiddleware(testHandler)
 			handler.ServeHTTP(w, req)
 			res := w.Result()
+			defer res.Body.Close()
 			require.Equal(t, tt.resCode, res.StatusCode, "Expected result %d, got %d", tt.resCode, res.StatusCode)
 			if res.StatusCode == http.StatusOK {
 				assert.Equal(t, body, resBody, "Expected request and response body to be equal")
