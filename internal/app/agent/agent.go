@@ -118,13 +118,13 @@ func (agt *Agent) Run() {
 		logger.Log.Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
 		for {
 			if err := wp.Task(func() { agt.reporter.ReportBatchJSON(ctx) }); err != nil {
-				logger.Log.Warn().Err(err).Msg("unable to add reposting task to wpool")
+				logger.Log.Warn().Err(err).Msg("unable to add reporting task to wpool")
 			}
 			select {
 			case <-time.After(time.Duration(agt.conf.ReportInterval) * time.Second):
 			case <-ctx.Done():
 				logger.Log.Debug().Msg("metrics reporting cancelled")
-				<-wp.Stopped
+				<-wp.Stop()
 				return
 			}
 		}

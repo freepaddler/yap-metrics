@@ -8,14 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
 const (
-	tasks     = 10 // number of tasks to run
+	tasks     = 8 // number of tasks to run
 	workers   = 2
-	taskSleep = 2 * time.Second
+	taskSleep = time.Second
 )
 
 type counter struct {
@@ -31,57 +29,46 @@ func (c *counter) incPayload() {
 }
 
 // all tasks should be executed
-func TestGracefulStop(t *testing.T) {
-	logger.SetLevel("debug")
+func TestStop(t *testing.T) {
+	//logger.SetLevel("debug")
 	pool := New(context.Background(), workers)
-	n := counter{}
+	n := new(counter)
 	var err error
 	for i := 0; i < tasks; i++ {
 		err = pool.Task(n.incPayload)
+		if err != nil {
+			t.Log(err)
+		}
 	}
-	pool.Stop(true)
+	<-pool.Stop()
 	require.NoError(t, err)
+	// multiple runs should not panic
+	<-pool.Stop()
 	assert.Equal(t, tasks, n.n, "Expected %d got %d", tasks, n.n)
+}
+
+func TestStoppedError(t *testing.T) {
+	pool := New(context.Background(), workers)
+	pool.Stop()
+	// require error trying to add to stopped wpool
+	err := pool.Task(func() {
+		return
+	})
+	require.ErrorIs(t, err, ErrClosed, "Expected error '%v', got '%v'", ErrClosed, err)
 }
 
 // wpool is stopped by context not all tasks should be executed
 func TestContextStop(t *testing.T) {
-	logger.SetLevel("debug")
+	//logger.SetLevel("debug")
 	ctx, cancel := context.WithTimeout(context.Background(), tasks/workers/2*taskSleep)
 	defer cancel()
 	pool := New(ctx, workers)
-	n := counter{}
-	var err error
+	n := new(counter)
 
 	for i := 0; i < tasks; i++ {
-		err = pool.Task(n.incPayload)
-		if err != nil {
-			break
-		}
+		pool.Task(n.incPayload)
 	}
 
-	<-pool.Stopped
-	require.ErrorIs(t, err, ErrClosed, "Expected error '%v', got '%v'", ErrClosed, err)
-	assert.Greater(t, tasks, n.n, "Expected %d got %d", tasks, n.n)
-}
-
-// force stop should prevent all tasks executions
-func TestForceStop(t *testing.T) {
-	logger.SetLevel("debug")
-	ctx, cancel := context.WithTimeout(context.Background(), tasks/workers/2*taskSleep)
-	defer cancel()
-	pool := New(context.Background(), workers)
-	n := counter{}
-	go func() {
-		for i := 0; i < tasks; i++ {
-			if pool.Task(n.incPayload) != nil {
-				return
-			}
-		}
-	}()
-	<-ctx.Done()
-	// stop pool
-	pool.Stop(false)
-	<-pool.Stopped
+	<-pool.Stop()
 	assert.Greater(t, tasks, n.n, "Expected %d got %d", tasks, n.n)
 }

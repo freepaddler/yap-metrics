@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/pkg/wpool"
 )
 
 func Example() {
-	logger.SetLevel("debug")
 	// create and start new worker pool with two workers
 	pool := wpool.New(context.Background(), 3)
 
@@ -26,13 +24,8 @@ func Example() {
 			fmt.Println(err)
 		}
 	}
-	// wait for tasks to complete
-	pool.Stop(true)
-	// new tasks can't be added
-	err := pool.Task(func() { return })
-	if err != nil {
-		fmt.Println(err)
-	}
+	// stop pool and wait for tasks to complete
+	<-pool.Stop()
 
 	// Unordered output:
 	// task 0 completed
@@ -41,5 +34,4 @@ func Example() {
 	// task 3 completed
 	// task 4 completed
 	// task 5 completed
-	// wpool is stopped
 }
