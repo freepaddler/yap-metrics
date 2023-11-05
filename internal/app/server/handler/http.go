@@ -82,7 +82,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 //
 //	curl -i http://localhost:8080/value/counter/c1
 func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Debug().Msgf("GetMetricHandler: Request received  URL=%v", r.URL)
+	logger.Log().Debug().Msgf("GetMetricHandler: Request received  URL=%v", r.URL)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	t := chi.URLParam(r, "type") // metric type
 	n := chi.URLParam(r, "name") // metric name
@@ -100,7 +100,7 @@ func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) 
 		w.Write([]byte(strconv.FormatFloat(*m.FValue, 'f', -1, 64)))
 		return
 	default:
-		logger.Log.Debug().Msgf("GetMetricHandler: bad metric type %s", t)
+		logger.Log().Debug().Msgf("GetMetricHandler: bad metric type %s", t)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -119,9 +119,9 @@ func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) 
 //	curl -X POST -i http://localhost:8080/value -d '{"id":"g1","type":"gauge"}'
 func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var m models.Metrics
-	logger.Log.Debug().Msg("GetMetricJSONHandler: Request received: POST /value")
+	logger.Log().Debug().Msg("GetMetricJSONHandler: Request received: POST /value")
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		logger.Log.Warn().Err(err).Msg("GetMetricJSONHandler: unable to parse request JSON")
+		logger.Log().Warn().Err(err).Msg("GetMetricJSONHandler: unable to parse request JSON")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -129,7 +129,7 @@ func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Reque
 	if ok {
 		res, err := json.MarshalIndent(&m, "", "  ")
 		if err != nil {
-			logger.Log.Warn().Err(err).Msg("GetMetricJSONHandler: unable to marshal response JSON")
+			logger.Log().Warn().Err(err).Msg("GetMetricJSONHandler: unable to marshal response JSON")
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -141,17 +141,17 @@ func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Reque
 // getMetric is a helper, that contains similar logic for GetMetricHandler and GetMetricJSONHandler
 func (h *HTTPHandlers) getMetric(m *models.Metrics) (int, bool) {
 	if err := validateMetric(m); err != nil {
-		logger.Log.Warn().Err(err).Msg("getMetricHTTP: invalid request")
+		logger.Log().Warn().Err(err).Msg("getMetricHTTP: invalid request")
 		return http.StatusBadRequest, false
 	}
-	logger.Log.Debug().Msgf("getMetricHTTP: requested metric %+v", m)
+	logger.Log().Debug().Msgf("getMetricHTTP: requested metric %+v", m)
 	found, err := h.storage.GetMetric(m)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msgf("getMetricHTTP: unable to get metric '%s' of type '%s'", m.Name, m.Type)
+		logger.Log().Warn().Err(err).Msgf("getMetricHTTP: unable to get metric '%s' of type '%s'", m.Name, m.Type)
 		return http.StatusBadRequest, false
 	}
 	if !found {
-		logger.Log.Debug().Msgf("getMetricHTTP: no such metric '%s' of type '%s'", m.Name, m.Type)
+		logger.Log().Debug().Msgf("getMetricHTTP: no such metric '%s' of type '%s'", m.Name, m.Type)
 		return http.StatusNotFound, false
 	}
 	return http.StatusOK, true
@@ -168,7 +168,7 @@ func (h *HTTPHandlers) getMetric(m *models.Metrics) (int, bool) {
 //
 //	curl -X POST -i http://localhost:8080/update/gauge/g1/-1.75
 func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Debug().Msgf("UpdateMetricHandler: Request received  URL=%v", r.URL)
+	logger.Log().Debug().Msgf("UpdateMetricHandler: Request received  URL=%v", r.URL)
 	t := chi.URLParam(r, "type")  // metric type
 	n := chi.URLParam(r, "name")  // metric name
 	v := chi.URLParam(r, "value") // metric value
@@ -180,7 +180,7 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 	case models.Counter:
 		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong counter increment '%s'", v)
+			logger.Log().Debug().Msgf("UpdateMetricHandler: wrong counter increment '%s'", v)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -188,13 +188,13 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 	case models.Gauge:
 		g, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			logger.Log.Debug().Msgf("UpdateMetricHandler: wrong gauge value '%s'", v)
+			logger.Log().Debug().Msgf("UpdateMetricHandler: wrong gauge value '%s'", v)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		m.FValue = &g
 	default:
-		logger.Log.Debug().Msgf("UpdateMetricHandler: wrong metric type '%s'", t)
+		logger.Log().Debug().Msgf("UpdateMetricHandler: wrong metric type '%s'", t)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	code, _ := h.updateMetric(&m)
@@ -215,7 +215,7 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var m models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		logger.Log.Warn().Err(err).Msg("UpdateMetricJSONHandler: unable to parse request JSON")
+		logger.Log().Warn().Err(err).Msg("UpdateMetricJSONHandler: unable to parse request JSON")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -223,7 +223,7 @@ func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Re
 	if ok {
 		res, err := json.MarshalIndent(&m, "", "  ")
 		if err != nil {
-			logger.Log.Warn().Err(err).Msg("UpdateMetricJSONHandler: unable to marshal response JSON")
+			logger.Log().Warn().Err(err).Msg("UpdateMetricJSONHandler: unable to marshal response JSON")
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -244,14 +244,14 @@ func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Re
 //
 //	curl -X POST -i http://localhost:8080/update -d '[{"id":"c101","type":"counter","delta":1},{"id":"g101","type":"gauge","value":-0.2}]'
 func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Debug().Msg("UpdateMetricsBatchHandler: request received")
+	logger.Log().Debug().Msg("UpdateMetricsBatchHandler: request received")
 	metrics := make([]models.Metrics, 0)
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
-		logger.Log.Warn().Err(err).Msg("UpdateMetricsBatchHandler: unable to parse request JSON")
+		logger.Log().Warn().Err(err).Msg("UpdateMetricsBatchHandler: unable to parse request JSON")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	logger.Log.Debug().Msgf("Batch for update is: %v", metrics)
+	logger.Log().Debug().Msgf("Batch for update is: %v", metrics)
 	for i := 0; i < len(metrics); i++ {
 		err := validateMetric(&metrics[i])
 		if err != nil {
@@ -266,13 +266,13 @@ func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.
 // updateMetric is a helper, that contains similar logic for UpdateMetricHandler and UpdateMetricJSONHandler
 func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 	if err := validateMetric(m); err != nil {
-		logger.Log.Warn().Err(err).Msg("updateMetricHTTP: invalid request")
+		logger.Log().Warn().Err(err).Msg("updateMetricHTTP: invalid request")
 		return http.StatusBadRequest, false
 	}
-	logger.Log.Debug().Msgf("updateMetricHTTP: requested update of metric %+v", m)
+	logger.Log().Debug().Msgf("updateMetricHTTP: requested update of metric %+v", m)
 	if (m.Type == models.Gauge && m.FValue == nil) ||
 		(m.Type == models.Counter && m.IValue == nil) {
-		logger.Log.Warn().Msgf("updateMetricHTTP: missing value for metric '%s' of type '%s'", m.Name, m.Type)
+		logger.Log().Warn().Msgf("updateMetricHTTP: missing value for metric '%s' of type '%s'", m.Name, m.Type)
 		return http.StatusBadRequest, false
 	}
 	h.storage.UpdateMetrics([]models.Metrics{*m}, false)
@@ -285,15 +285,15 @@ func (h *HTTPHandlers) updateMetric(m *models.Metrics) (int, bool) {
 //   - 200/OK if persistent storage exists and accessible
 //   - 500/InternalServerError otherwise
 func (h *HTTPHandlers) PingHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Debug().Msgf("PingHandler: Request received  URL=%v", r.URL)
+	logger.Log().Debug().Msgf("PingHandler: Request received  URL=%v", r.URL)
 	if h.pStore == nil {
-		logger.Log.Debug().Msg("PingHandler: no persistent storage is setup")
+		logger.Log().Debug().Msg("PingHandler: no persistent storage is setup")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if err := h.pStore.Ping(); err != nil {
-		logger.Log.Warn().Err(err).Msg("PingHandler: persistent storage connection failed")
+		logger.Log().Warn().Err(err).Msg("PingHandler: persistent storage connection failed")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

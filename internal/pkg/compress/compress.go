@@ -23,12 +23,12 @@ func GunzipMiddleware(next http.Handler) http.Handler {
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			zrBody, err := gzip.NewReader(r.Body)
 			if err != nil {
-				logger.Log.Warn().Err(err).Msg("failed to create gzip reader")
+				logger.Log().Warn().Err(err).Msg("failed to create gzip reader")
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 			defer zrBody.Close()
-			logger.Log.Debug().Msgf("gzip-compressed request decompressed")
+			logger.Log().Debug().Msgf("gzip-compressed request decompressed")
 			r.Body = zrBody
 		}
 
@@ -47,11 +47,11 @@ func GzipBody(body *[]byte) (*bytes.Buffer, error) {
 	defer gzBuf.Close()
 	_, err := gzBuf.Write(*body)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("unable to compress body, sending uncompressed")
+		logger.Log().Error().Err(err).Msg("unable to compress body, sending uncompressed")
 		// return raw body
 		buf.Truncate(0)
 		buf.Write(*body)
 	}
-	logger.Log.Debug().Msg("response compressed")
+	logger.Log().Debug().Msg("response compressed")
 	return &buf, err
 }

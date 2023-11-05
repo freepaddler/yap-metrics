@@ -32,22 +32,22 @@ func NewHTTPReporter(s store.Storage, address string, timeout time.Duration, key
 }
 
 func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
-	logger.Log.Debug().Msg("reporting metrics")
+	logger.Log().Debug().Msg("reporting metrics")
 	// get storage snapshot
 	m := r.storage.Snapshot(true)
 	if len(m) == 0 {
-		logger.Log.Info().Msg("nothing to report, skipping")
+		logger.Log().Info().Msg("nothing to report, skipping")
 		return
 	}
 
 	err := retry.WithStrategy(ctx,
 		func(context.Context) error {
 			err := func() (err error) {
-				logger.Log.Debug().Msgf("sending %d metrics in batch", len(m))
+				logger.Log().Debug().Msgf("sending %d metrics in batch", len(m))
 				url := fmt.Sprintf("http://%s/updates/", r.address)
 				body, err := json.Marshal(m)
 				if err != nil {
-					logger.Log.Warn().Err(err).Msg("unable to marshal JSON batch")
+					logger.Log().Warn().Err(err).Msg("unable to marshal JSON batch")
 					return
 				}
 
@@ -62,7 +62,7 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 
 				req, err := http.NewRequest(http.MethodPost, url, reqBody)
 				if err != nil {
-					logger.Log.Error().Err(err).Msg("unable to create http request")
+					logger.Log().Error().Err(err).Msg("unable to create http request")
 					return
 				}
 				// set hash header
@@ -74,16 +74,16 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 				if compressErr == nil {
 					req.Header.Set("Content-Encoding", "gzip")
 				}
-				logger.Log.Debug().Msgf("sending metric %s", body)
+				logger.Log().Debug().Msgf("sending metric %s", body)
 				resp, err := r.client.Do(req)
 				if err != nil {
-					logger.Log.Warn().Err(err).Msgf("failed to send metric %s", body)
+					logger.Log().Warn().Err(err).Msgf("failed to send metric %s", body)
 					return
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
 					// request failed
-					logger.Log.Warn().Msgf("wrong http response status: %s", resp.Status)
+					logger.Log().Warn().Msgf("wrong http response status: %s", resp.Status)
 					return
 				}
 				return nil
@@ -94,6 +94,6 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 		1, 3, 5,
 	)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("report failed")
+		logger.Log().Warn().Err(err).Msg("report failed")
 	}
 }

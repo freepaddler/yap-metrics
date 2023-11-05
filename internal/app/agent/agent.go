@@ -35,7 +35,7 @@ func New(c *config.Config) *Agent {
 }
 
 func (agt *Agent) Run() {
-	logger.Log.Info().Msg("starting agent")
+	logger.Log().Info().Msg("starting agent")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -52,7 +52,7 @@ func (agt *Agent) Run() {
 
 		// shutdown routine
 		sig := <-shutdownSig
-		logger.Log.Info().Msgf("got '%v' signal. agent shutdown routine...", sig)
+		logger.Log().Info().Msgf("got '%v' signal. agent shutdown routine...", sig)
 		cancel()
 
 		// context for httpServer graceful shutdown
@@ -60,12 +60,12 @@ func (agt *Agent) Run() {
 		defer httpRelease()
 
 		// gracefully stop http server
-		logger.Log.Info().Msg("stopping pprof http server")
+		logger.Log().Info().Msg("stopping pprof http server")
 		if err := httpServer.Shutdown(httpCtx); err != nil {
-			logger.Log.Err(err).Msg("failed to stop pprof http server gracefully. force stop")
+			logger.Log().Err(err).Msg("failed to stop pprof http server gracefully. force stop")
 			_ = httpServer.Close()
 		}
-		logger.Log.Info().Msg("pprof http server stopped")
+		logger.Log().Info().Msg("pprof http server stopped")
 	}()
 
 	// start http server for profiling
@@ -73,11 +73,11 @@ func (agt *Agent) Run() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			logger.Log.Info().Msgf("starting pprof http server at 'http://%s/debug/pprof'", agt.conf.PprofAddress)
+			logger.Log().Info().Msgf("starting pprof http server at 'http://%s/debug/pprof'", agt.conf.PprofAddress)
 			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Log.Error().Msg("failed to start pprof http server")
+				logger.Log().Error().Msg("failed to start pprof http server")
 			}
-			logger.Log.Info().Msg("pprof http server stopped acquiring new connections")
+			logger.Log().Info().Msg("pprof http server stopped acquiring new connections")
 		}()
 	}
 
@@ -85,13 +85,13 @@ func (agt *Agent) Run() {
 	wg.Add(1)
 	go func(ctx context.Context) {
 		defer wg.Done()
-		logger.Log.Debug().Msgf("starting metrics polling every %d seconds", agt.conf.PollInterval)
+		logger.Log().Debug().Msgf("starting metrics polling every %d seconds", agt.conf.PollInterval)
 		for {
 			agt.collector.CollectMetrics()
 			select {
 			case <-time.After(time.Duration(agt.conf.PollInterval) * time.Second):
 			case <-ctx.Done():
-				logger.Log.Debug().Msg("metrics polling cancelled")
+				logger.Log().Debug().Msg("metrics polling cancelled")
 				return
 			}
 		}
@@ -99,13 +99,13 @@ func (agt *Agent) Run() {
 	wg.Add(1)
 	go func(ctx context.Context) {
 		defer wg.Done()
-		logger.Log.Debug().Msgf("starting gops metrics polling every %d seconds", agt.conf.PollInterval)
+		logger.Log().Debug().Msgf("starting gops metrics polling every %d seconds", agt.conf.PollInterval)
 		for {
 			agt.collector.CollectGOPSMetrics(ctx)
 			select {
 			case <-time.After(time.Duration(agt.conf.PollInterval) * time.Second):
 			case <-ctx.Done():
-				logger.Log.Debug().Msg("gops metrics polling cancelled")
+				logger.Log().Debug().Msg("gops metrics polling cancelled")
 				return
 			}
 		}
@@ -115,15 +115,15 @@ func (agt *Agent) Run() {
 	go func(ctx context.Context) {
 		defer wg.Done()
 		wp := wpool.New(ctx, agt.conf.ReportRateLimit)
-		logger.Log.Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
+		logger.Log().Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
 		for {
 			if err := wp.Task(func() { agt.reporter.ReportBatchJSON(ctx) }); err != nil {
-				logger.Log.Warn().Err(err).Msg("unable to add reporting task to wpool")
+				logger.Log().Warn().Err(err).Msg("unable to add reporting task to wpool")
 			}
 			select {
 			case <-time.After(time.Duration(agt.conf.ReportInterval) * time.Second):
 			case <-ctx.Done():
-				logger.Log.Debug().Msg("metrics reporting cancelled")
+				logger.Log().Debug().Msg("metrics reporting cancelled")
 				<-wp.Stop()
 				return
 			}
@@ -136,10 +136,10 @@ func (agt *Agent) Run() {
 	// shutdown tasks
 
 	// send all metrics to server
-	logger.Log.Info().Msg("sending all metrics to server on exit with 15 seconds timeout")
+	logger.Log().Info().Msg("sending all metrics to server on exit with 15 seconds timeout")
 	ctxRep, ctxRepCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer ctxRepCancel()
 	agt.reporter.ReportBatchJSON(ctxRep)
-	logger.Log.Info().Msg("agent stopped")
+	logger.Log().Info().Msg("agent stopped")
 
 }

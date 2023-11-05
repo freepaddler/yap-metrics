@@ -34,7 +34,7 @@ func NewMemStorage() *MemStorage {
 // SetGauge creates or updates gauge metric value in storage by its name
 func (ms *MemStorage) SetGauge(name string, fValue float64) {
 	ms.gauges[name] = fValue
-	logger.Log.Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
+	logger.Log().Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
 
 }
 
@@ -55,7 +55,7 @@ func (ms *MemStorage) DelGauge(name string) {
 // IncCounter creates new or increments counter metric value in storage by its name
 func (ms *MemStorage) IncCounter(name string, iValue int64) int64 {
 	ms.counters[name] += iValue
-	logger.Log.Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
+	logger.Log().Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
 	// pointer to map will not work
 	v := ms.counters[name]
 	return v
@@ -138,7 +138,7 @@ func (ms *MemStorage) UpdateMetrics(m []models.Metrics, overwrite bool) {
 				*m[i].IValue = ms.IncCounter(m[i].Name, *m[i].IValue)
 			}
 		default:
-			logger.Log.Warn().Msgf("UpdateMetrics: invalid metric '%s' type '%s', skipping", m[i].Name, m[i].Type)
+			logger.Log().Warn().Msgf("UpdateMetrics: invalid metric '%s' type '%s', skipping", m[i].Name, m[i].Type)
 		}
 	}
 	// call update persistent storage hooks

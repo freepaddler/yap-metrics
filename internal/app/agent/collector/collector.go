@@ -39,7 +39,7 @@ func (c *Collector) collectGauge(n string, v float64) {
 }
 
 func (c *Collector) CollectMetrics() {
-	logger.Log.Debug().Msg("start metrics collection routine")
+	logger.Log().Debug().Msg("start metrics collection routine")
 
 	// update PollCount metric
 	c.collectCounter("PollCount", 1)
@@ -78,15 +78,15 @@ func (c *Collector) CollectMetrics() {
 	c.collectGauge("Sys", float64(memStats.Sys))
 	c.collectGauge("TotalAlloc", float64(memStats.TotalAlloc))
 
-	logger.Log.Debug().Msg("done metrics collection routine")
+	logger.Log().Debug().Msg("done metrics collection routine")
 }
 
 func (c *Collector) CollectGOPSMetrics(ctx context.Context) {
-	logger.Log.Debug().Msg("start gops metrics collection routine")
+	logger.Log().Debug().Msg("start gops metrics collection routine")
 
 	vm, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil {
-		logger.Log.Warn().Msg("unable to get VirtualMemory metrics")
+		logger.Log().Warn().Msg("unable to get VirtualMemory metrics")
 	} else {
 		c.collectGauge("TotalMemory", float64(vm.Total))
 		c.collectGauge("FreeMemory", float64(vm.Free))
@@ -94,12 +94,12 @@ func (c *Collector) CollectGOPSMetrics(ctx context.Context) {
 
 	cpuP, err := cpu.PercentWithContext(ctx, 0, true)
 	if err != nil {
-		logger.Log.Warn().Msg("unable to get CPUutilization metrics")
+		logger.Log().Warn().Msg("unable to get CPUutilization metrics")
 	} else {
 		for i, v := range cpuP {
 			c.collectGauge(fmt.Sprintf("CPUutilization%d", i+1), v)
 		}
 	}
 
-	logger.Log.Debug().Msg("done gops metrics collection routine")
+	logger.Log().Debug().Msg("done gops metrics collection routine")
 }

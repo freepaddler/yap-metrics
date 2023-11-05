@@ -105,20 +105,20 @@ func NewConfig() *Config {
 
 	// env vars
 	if err := env.Parse(&c); err != nil {
-		logger.Log.Warn().Err(err).Msg("failed to parse ENV")
+		logger.Log().Warn().Err(err).Msg("failed to parse ENV")
 	}
 
 	if c.ReportInterval < c.PollInterval {
-		logger.Log.Fatal().Msgf("Report interval should be greater or equal to Poll interval")
+		logger.Log().Fatal().Msgf("Report interval should be greater or equal to Poll interval")
 	}
 
 	if c.ReportRateLimit < 1 {
-		logger.Log.Fatal().Msgf("Reporting rate limit should be greater than 0")
+		logger.Log().Fatal().Msgf("Reporting rate limit should be greater than 0")
 	}
 
 	// check
 	if c.HTTPTimeout.Seconds() < 0.5 || c.HTTPTimeout.Seconds() > 999 {
-		logger.Log.Warn().Msgf(
+		logger.Log().Warn().Msgf(
 			"invalid httpTimeout value %s. Using default %s",
 			c.HTTPTimeout.String(),
 			defaultHTTPTimeout.String(),

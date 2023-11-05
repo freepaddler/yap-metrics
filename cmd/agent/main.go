@@ -1,12 +1,30 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/freepaddler/yap-metrics/internal/app/agent"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
+var (
+	// go build -ldflags " \
+	// -X 'main.buildVersion=$(git describe --tag 2>/dev/null)' \
+	// -X 'main.buildDate=$(date)' \
+	// -X 'main.buildCommit=$(git rev-parse --short HEAD)' \
+	// "
+	buildVersion, buildDate, buildCommit = "N/A", "N/A", "N/A"
+)
+
 func main() {
+	fmt.Fprintf(
+		os.Stdout,
+		`Build version: %s
+Build date: %s
+Build commit %s
+`, buildVersion, buildDate, buildCommit)
 
 	// agent configuration
 	conf := config.NewConfig()
@@ -15,7 +33,7 @@ func main() {
 	logger.SetLevel(conf.LogLevel)
 
 	// print running config
-	logger.Log.Info().Interface("config", conf).Msg("done config")
+	logger.Log().Info().Interface("config", conf).Msg("done config")
 
 	// init and run agent
 	app := agent.New(conf)

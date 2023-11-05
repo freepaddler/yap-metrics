@@ -39,7 +39,7 @@ func NewRespWrapper(w http.ResponseWriter, k string) *RespWrapper {
 func (rw RespWrapper) Write(b []byte) (int, error) {
 	HashSHA256 := Get(b, rw.key)
 	rw.Header().Add("HashSHA256", HashSHA256)
-	logger.Log.Debug().Msg("hash calculated, header HashSHA256 added")
+	logger.Log().Debug().Msg("hash calculated, header HashSHA256 added")
 	return rw.ResponseWriter.Write(b)
 }
 
@@ -60,18 +60,18 @@ func Middleware(key string) func(next http.Handler) http.Handler {
 			// proceed request if key is set and exists in header
 			reqSign := r.Header.Get("HashSHA256")
 			if key != "" && reqSign != "" {
-				logger.Log.Debug().Msgf("sign: key '%s', HashSHA256 '%s'", key, reqSign)
+				logger.Log().Debug().Msgf("sign: key '%s', HashSHA256 '%s'", key, reqSign)
 				reqBody, err := io.ReadAll(r.Body)
 				if err != nil {
-					logger.Log.Warn().Err(err).Msg("failed to read request body")
+					logger.Log().Warn().Err(err).Msg("failed to read request body")
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 				defer r.Body.Close()
 				bodySign := Get(reqBody, key)
-				logger.Log.Debug().Msgf("signed body is '%s'", bodySign)
+				logger.Log().Debug().Msgf("signed body is '%s'", bodySign)
 				if reqSign != bodySign {
-					logger.Log.Warn().Err(err).Msg("invalid HashSHA256 signature")
+					logger.Log().Warn().Err(err).Msg("invalid HashSHA256 signature")
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
@@ -79,7 +79,7 @@ func Middleware(key string) func(next http.Handler) http.Handler {
 				r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 				// key is set, we need to work with response
 				ww = NewRespWrapper(w, key)
-				logger.Log.Debug().Msg("signature validated")
+				logger.Log().Debug().Msg("signature validated")
 			}
 
 			next.ServeHTTP(ww, r)
