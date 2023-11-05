@@ -30,6 +30,7 @@ func init() {
 	log = &l
 }
 
+// Log returns configured logger instance
 func Log() *zerolog.Logger {
 	return log
 }
