@@ -27,6 +27,16 @@ type Counter interface {
 	DelCounter(name string)
 }
 
+// MemoryStore is a realtime metrics storage
+// agent and server operate with this storage
+type MemoryStore interface {
+	Gauge
+	Counter
+	// Snapshot creates storage snapshot and returns it
+	// if flush is true, collected metrics are deleted
+	Snapshot(flush bool) []models.Metrics
+}
+
 // Storage represents realtime metrics storage
 // Actually agent and server operate with this storage
 type Storage interface {
