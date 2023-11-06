@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/go-chi/chi/v5 v5.0.8
+	github.com/golang/mock v1.6.0
 	github.com/gordonklaus/ineffassign v0.1.0
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jackc/pgx/v5 v5.4.1
@@ -20,13 +21,6 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/go-toolsmith/astcast v1.1.0 // indirect
-	github.com/go-toolsmith/astcopy v1.1.0 // indirect
-	github.com/go-toolsmith/astequal v1.1.0 // indirect
-	github.com/go-toolsmith/astfmt v1.1.0 // indirect
-	github.com/go-toolsmith/astp v1.1.0 // indirect
-	github.com/go-toolsmith/strparse v1.1.0 // indirect
-	github.com/go-toolsmith/typep v1.1.0 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -37,10 +31,6 @@ require (
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/quasilyte/go-ruleguard v0.4.0 // indirect
-	github.com/quasilyte/gogrep v0.5.0 // indirect
-	github.com/quasilyte/regex/syntax v0.0.0-20210819130434-b3f0c404a727 // indirect
-	github.com/quasilyte/stdinfo v0.0.0-20220114132959-f7386bf02567 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect

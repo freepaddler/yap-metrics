@@ -3,92 +3,64 @@ package collector
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"testing"
 
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/golang/mock/gomock"
 
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
+	"github.com/freepaddler/yap-metrics/mocks"
 )
 
-// check that value is random (differs between runs)
-func Test_CollectMetrics_RandomValue(t *testing.T) {
-	storage := memory.NewMemStorage()
-	c := New(storage)
+func TestCollector_CollectMetrics(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockAgentController(mockController)
+	c := New(m)
+	m.EXPECT().CollectCounter("PollCount", int64(1)).Times(2)
+	m.EXPECT().CollectGauge("RandomValue", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("Alloc", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("BuckHashSys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("Frees", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("GCCPUFraction", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("GCSys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("HeapAlloc", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("HeapIdle", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("HeapInuse", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("HeapObjects", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("HeapReleased", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("HeapSys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("LastGC", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("Lookups", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("MCacheInuse", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("MCacheSys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("MSpanInuse", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("MSpanSys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("Mallocs", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("NextGC", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("NumForcedGC", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("NumGC", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("OtherSys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("PauseTotalNs", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("StackInuse", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("StackSys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("Sys", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("TotalAlloc", gomock.Any()).Times(2)
 	c.CollectMetrics()
-	val1, ok := storage.GetGauge("RandomValue")
-	require.Equal(t, true, ok)
 	c.CollectMetrics()
-	val2, ok := storage.GetGauge("RandomValue")
-	require.Equal(t, true, ok)
-	assert.NotEqual(t, val1, val2)
 }
 
-// check that poll count increases every collection cycle
-func Test_CollectMetrics_PollCount(t *testing.T) {
-	storage := memory.NewMemStorage()
-	c := New(storage)
-	c.CollectMetrics()
-	val1, ok := storage.GetCounter("PollCount")
-	require.Equal(t, true, ok)
-	assert.NotEqual(t, int64(0), val1)
-	c.CollectMetrics()
-	val2, ok := storage.GetCounter("PollCount")
-	require.Equal(t, true, ok)
-	assert.Equal(t, int64(1), *val2-*val1)
-}
-
-// check existence of all stats metrics
-func Test_CollectMetrics_All_Metrics_Exist(t *testing.T) {
-	counters := []string{"PollCount"}
-	storage := memory.NewMemStorage()
-	c := New(storage)
-	c.CollectMetrics()
-	c.CollectGOPSMetrics(context.TODO())
-	gauges := []string{
-		"RandomValue",
-		"Alloc",
-		"BuckHashSys",
-		"Frees",
-		"GCCPUFraction",
-		"GCSys",
-		"HeapAlloc",
-		"HeapIdle",
-		"HeapInuse",
-		"HeapObjects",
-		"HeapReleased",
-		"HeapSys",
-		"LastGC",
-		"Lookups",
-		"MCacheInuse",
-		"MCacheSys",
-		"MSpanInuse",
-		"MSpanSys",
-		"Mallocs",
-		"NextGC",
-		"NumForcedGC",
-		"NumGC",
-		"OtherSys",
-		"PauseTotalNs",
-		"StackInuse",
-		"StackSys",
-		"Sys",
-		"TotalAlloc",
-		"TotalMemory",
-		"FreeMemory",
+func TestCollector_CollectGOPSMetrics(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockAgentController(mockController)
+	c := New(m)
+	m.EXPECT().CollectGauge("TotalMemory", gomock.Any()).Times(2)
+	m.EXPECT().CollectGauge("FreeMemory", gomock.Any()).Times(2)
+	for i := 0; i < runtime.NumCPU(); i++ {
+		j := i + 1
+		cpuMetric := fmt.Sprintf("CPUutilization%d", j)
+		m.EXPECT().CollectGauge(cpuMetric, gomock.Any()).Times(2)
 	}
-	cpus, _ := cpu.Counts(true)
-	for i := 0; i < cpus; i++ {
-		gauges = append(gauges, fmt.Sprintf("CPUutilization%d", i+1))
-	}
-	for _, v := range counters {
-		_, ok := storage.GetCounter(v)
-		require.Equalf(t, true, ok, "Missing counter %s", v)
-	}
-	for _, v := range gauges {
-		_, ok := storage.GetGauge(v)
-		require.Equalf(t, true, ok, "Missing gauge %s", v)
-	}
-
+	c.CollectGOPSMetrics(context.Background())
+	c.CollectGOPSMetrics(context.Background())
 }

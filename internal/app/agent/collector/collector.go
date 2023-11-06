@@ -9,74 +9,57 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 
+	"github.com/freepaddler/yap-metrics/internal/app/agent/controller"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
-	"github.com/freepaddler/yap-metrics/internal/pkg/models"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
 
 type Collector struct {
-	storage store.Storage
+	controller controller.AgentController
 }
 
-func New(s store.Storage) *Collector {
-	return &Collector{storage: s}
-}
-
-func (c *Collector) collectCounter(n string, v int64) {
-	c.storage.UpdateMetrics([]models.Metrics{{
-		Name:   n,
-		Type:   models.Counter,
-		IValue: &v,
-	}}, false)
-}
-
-func (c *Collector) collectGauge(n string, v float64) {
-	c.storage.UpdateMetrics([]models.Metrics{{
-		Name:   n,
-		Type:   models.Gauge,
-		FValue: &v,
-	}}, false)
+func New(ac controller.AgentController) *Collector {
+	return &Collector{controller: ac}
 }
 
 func (c *Collector) CollectMetrics() {
 	logger.Log().Debug().Msg("start metrics collection routine")
 
 	// update PollCount metric
-	c.collectCounter("PollCount", 1)
+	c.controller.CollectCounter("PollCount", 1)
 
 	// update RandomValue
-	c.collectGauge("RandomValue", rand.Float64())
+	c.controller.CollectGauge("RandomValue", rand.Float64())
 
 	// update memory stats
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	c.collectGauge("Alloc", float64(memStats.Alloc))
-	c.collectGauge("BuckHashSys", float64(memStats.BuckHashSys))
-	c.collectGauge("Frees", float64(memStats.Frees))
-	c.collectGauge("GCCPUFraction", memStats.GCCPUFraction)
-	c.collectGauge("GCSys", float64(memStats.GCSys))
-	c.collectGauge("HeapAlloc", float64(memStats.HeapAlloc))
-	c.collectGauge("HeapIdle", float64(memStats.HeapIdle))
-	c.collectGauge("HeapInuse", float64(memStats.HeapInuse))
-	c.collectGauge("HeapObjects", float64(memStats.HeapObjects))
-	c.collectGauge("HeapReleased", float64(memStats.HeapReleased))
-	c.collectGauge("HeapSys", float64(memStats.HeapSys))
-	c.collectGauge("LastGC", float64(memStats.LastGC))
-	c.collectGauge("Lookups", float64(memStats.Lookups))
-	c.collectGauge("MCacheInuse", float64(memStats.MCacheInuse))
-	c.collectGauge("MCacheSys", float64(memStats.MCacheSys))
-	c.collectGauge("MSpanInuse", float64(memStats.MSpanInuse))
-	c.collectGauge("MSpanSys", float64(memStats.MSpanSys))
-	c.collectGauge("Mallocs", float64(memStats.Mallocs))
-	c.collectGauge("NextGC", float64(memStats.NextGC))
-	c.collectGauge("NumForcedGC", float64(memStats.NumForcedGC))
-	c.collectGauge("NumGC", float64(memStats.NumGC))
-	c.collectGauge("OtherSys", float64(memStats.OtherSys))
-	c.collectGauge("PauseTotalNs", float64(memStats.PauseTotalNs))
-	c.collectGauge("StackInuse", float64(memStats.StackInuse))
-	c.collectGauge("StackSys", float64(memStats.StackSys))
-	c.collectGauge("Sys", float64(memStats.Sys))
-	c.collectGauge("TotalAlloc", float64(memStats.TotalAlloc))
+	c.controller.CollectGauge("Alloc", float64(memStats.Alloc))
+	c.controller.CollectGauge("BuckHashSys", float64(memStats.BuckHashSys))
+	c.controller.CollectGauge("Frees", float64(memStats.Frees))
+	c.controller.CollectGauge("GCCPUFraction", memStats.GCCPUFraction)
+	c.controller.CollectGauge("GCSys", float64(memStats.GCSys))
+	c.controller.CollectGauge("HeapAlloc", float64(memStats.HeapAlloc))
+	c.controller.CollectGauge("HeapIdle", float64(memStats.HeapIdle))
+	c.controller.CollectGauge("HeapInuse", float64(memStats.HeapInuse))
+	c.controller.CollectGauge("HeapObjects", float64(memStats.HeapObjects))
+	c.controller.CollectGauge("HeapReleased", float64(memStats.HeapReleased))
+	c.controller.CollectGauge("HeapSys", float64(memStats.HeapSys))
+	c.controller.CollectGauge("LastGC", float64(memStats.LastGC))
+	c.controller.CollectGauge("Lookups", float64(memStats.Lookups))
+	c.controller.CollectGauge("MCacheInuse", float64(memStats.MCacheInuse))
+	c.controller.CollectGauge("MCacheSys", float64(memStats.MCacheSys))
+	c.controller.CollectGauge("MSpanInuse", float64(memStats.MSpanInuse))
+	c.controller.CollectGauge("MSpanSys", float64(memStats.MSpanSys))
+	c.controller.CollectGauge("Mallocs", float64(memStats.Mallocs))
+	c.controller.CollectGauge("NextGC", float64(memStats.NextGC))
+	c.controller.CollectGauge("NumForcedGC", float64(memStats.NumForcedGC))
+	c.controller.CollectGauge("NumGC", float64(memStats.NumGC))
+	c.controller.CollectGauge("OtherSys", float64(memStats.OtherSys))
+	c.controller.CollectGauge("PauseTotalNs", float64(memStats.PauseTotalNs))
+	c.controller.CollectGauge("StackInuse", float64(memStats.StackInuse))
+	c.controller.CollectGauge("StackSys", float64(memStats.StackSys))
+	c.controller.CollectGauge("Sys", float64(memStats.Sys))
+	c.controller.CollectGauge("TotalAlloc", float64(memStats.TotalAlloc))
 
 	logger.Log().Debug().Msg("done metrics collection routine")
 }
@@ -88,8 +71,8 @@ func (c *Collector) CollectGOPSMetrics(ctx context.Context) {
 	if err != nil {
 		logger.Log().Warn().Msg("unable to get VirtualMemory metrics")
 	} else {
-		c.collectGauge("TotalMemory", float64(vm.Total))
-		c.collectGauge("FreeMemory", float64(vm.Free))
+		c.controller.CollectGauge("TotalMemory", float64(vm.Total))
+		c.controller.CollectGauge("FreeMemory", float64(vm.Free))
 	}
 
 	cpuP, err := cpu.PercentWithContext(ctx, 0, true)
@@ -97,7 +80,7 @@ func (c *Collector) CollectGOPSMetrics(ctx context.Context) {
 		logger.Log().Warn().Msg("unable to get CPUutilization metrics")
 	} else {
 		for i, v := range cpuP {
-			c.collectGauge(fmt.Sprintf("CPUutilization%d", i+1), v)
+			c.controller.CollectGauge(fmt.Sprintf("CPUutilization%d", i+1), v)
 		}
 	}
 

@@ -154,7 +154,7 @@ func Test_GetCounter(t *testing.T) {
 			v, ok := s.GetCounter(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
-				assert.Equal(t, tt.wantValue, *v)
+				assert.Equal(t, tt.wantValue, v)
 			}
 
 		})
@@ -208,7 +208,7 @@ func Test_SetGauge(t *testing.T) {
 			s.SetGauge(tt.mName, tt.fValue)
 			v, ok := s.GetGauge(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
-			assert.Equal(t, tt.wantValue, *v)
+			assert.Equal(t, tt.wantValue, v)
 		})
 	}
 }
@@ -238,7 +238,7 @@ func Test_GetGauge(t *testing.T) {
 			v, ok := s.GetGauge(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
-				assert.Equal(t, tt.wantValue, *v)
+				assert.Equal(t, tt.wantValue, v)
 			}
 
 		})
