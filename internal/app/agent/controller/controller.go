@@ -6,17 +6,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
 
+// MetricsController implements agent business logic layer
 type MetricsController struct {
-	store      store.MemoryStore
-	mu         sync.RWMutex
-	countersTs map[string]time.Time // timestamps of counters updates
-	gaugesTs   map[string]time.Time // timestamps of gauges updates
+	store    store.MemoryStore
+	mu       sync.RWMutex
+	gaugesTs map[string]time.Time // timestamps of gauges updates
 }
 
+// New is a MetricsController constructor
 func New(storage store.MemoryStore) *MetricsController {
 	return &MetricsController{
 		store:    storage,
@@ -46,6 +48,7 @@ func (mc *MetricsController) ReportAll() ([]models.Metrics, time.Time) {
 
 // RestoreReport gets all metrics from store and flushes it
 func (mc *MetricsController) RestoreReport(metrics []models.Metrics, ts time.Time) {
+	logger.Log().Debug().Msg("restoring report back to store")
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	for _, v := range metrics {
@@ -55,6 +58,8 @@ func (mc *MetricsController) RestoreReport(metrics []models.Metrics, ts time.Tim
 			if ts.After(mc.gaugesTs[v.Name]) {
 				mc.store.SetGauge(v.Name, *v.FValue)
 				mc.gaugesTs[v.Name] = ts
+			} else {
+				logger.Log().Debug().Msgf("skip gauge '%s' restore, have newer value", v.Name)
 			}
 		case models.Counter:
 			// counter always increments

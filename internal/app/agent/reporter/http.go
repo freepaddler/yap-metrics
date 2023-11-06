@@ -7,34 +7,33 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/freepaddler/yap-metrics/internal/app/agent/controller"
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/pkg/retry"
 )
 
 // HTTPReporter reports metrics to server over HTTP
 type HTTPReporter struct {
-	storage store.Storage
-	address string
-	client  http.Client
-	key     string
+	controller controller.Reporter
+	address    string
+	client     http.Client
+	key        string
 }
 
-func NewHTTPReporter(s store.Storage, address string, timeout time.Duration, key string) *HTTPReporter {
+func NewHTTPReporter(ac controller.Reporter, address string, timeout time.Duration, key string) *HTTPReporter {
 	return &HTTPReporter{
-		storage: s,
-		address: address,
-		client:  http.Client{Timeout: timeout},
-		key:     key,
+		controller: ac,
+		address:    address,
+		client:     http.Client{Timeout: timeout},
+		key:        key,
 	}
 }
 
 func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 	logger.Log().Debug().Msg("reporting metrics")
-	// get storage snapshot
-	m := r.storage.Snapshot(true)
+	m, ts := r.controller.ReportAll()
 	if len(m) == 0 {
 		logger.Log().Info().Msg("nothing to report, skipping")
 		return
@@ -84,6 +83,7 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 				if resp.StatusCode != http.StatusOK {
 					// request failed
 					logger.Log().Warn().Msgf("wrong http response status: %s", resp.Status)
+					r.controller.RestoreReport(m, ts)
 					return
 				}
 				return nil
@@ -95,5 +95,6 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 	)
 	if err != nil {
 		logger.Log().Warn().Err(err).Msg("report failed")
+		r.controller.RestoreReport(m, ts)
 	}
 }

@@ -14,10 +14,10 @@ import (
 )
 
 type Collector struct {
-	controller controller.AgentController
+	controller controller.Collector
 }
 
-func New(ac controller.AgentController) *Collector {
+func New(ac controller.Collector) *Collector {
 	return &Collector{controller: ac}
 }
 

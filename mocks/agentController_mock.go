@@ -12,55 +12,31 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockAgentController is a mock of AgentController interface.
-type MockAgentController struct {
+// MockReporter is a mock of Reporter interface.
+type MockReporter struct {
 	ctrl     *gomock.Controller
-	recorder *MockAgentControllerMockRecorder
+	recorder *MockReporterMockRecorder
 }
 
-// MockAgentControllerMockRecorder is the mock recorder for MockAgentController.
-type MockAgentControllerMockRecorder struct {
-	mock *MockAgentController
+// MockReporterMockRecorder is the mock recorder for MockReporter.
+type MockReporterMockRecorder struct {
+	mock *MockReporter
 }
 
-// NewMockAgentController creates a new mock instance.
-func NewMockAgentController(ctrl *gomock.Controller) *MockAgentController {
-	mock := &MockAgentController{ctrl: ctrl}
-	mock.recorder = &MockAgentControllerMockRecorder{mock}
+// NewMockReporter creates a new mock instance.
+func NewMockReporter(ctrl *gomock.Controller) *MockReporter {
+	mock := &MockReporter{ctrl: ctrl}
+	mock.recorder = &MockReporterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockAgentController) EXPECT() *MockAgentControllerMockRecorder {
+func (m *MockReporter) EXPECT() *MockReporterMockRecorder {
 	return m.recorder
 }
 
-// CollectCounter mocks base method.
-func (m *MockAgentController) CollectCounter(name string, val int64) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CollectCounter", name, val)
-}
-
-// CollectCounter indicates an expected call of CollectCounter.
-func (mr *MockAgentControllerMockRecorder) CollectCounter(name, val interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectCounter", reflect.TypeOf((*MockAgentController)(nil).CollectCounter), name, val)
-}
-
-// CollectGauge mocks base method.
-func (m *MockAgentController) CollectGauge(name string, val float64) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CollectGauge", name, val)
-}
-
-// CollectGauge indicates an expected call of CollectGauge.
-func (mr *MockAgentControllerMockRecorder) CollectGauge(name, val interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectGauge", reflect.TypeOf((*MockAgentController)(nil).CollectGauge), name, val)
-}
-
 // ReportAll mocks base method.
-func (m *MockAgentController) ReportAll() ([]models.Metrics, time.Time) {
+func (m *MockReporter) ReportAll() ([]models.Metrics, time.Time) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReportAll")
 	ret0, _ := ret[0].([]models.Metrics)
@@ -69,19 +45,66 @@ func (m *MockAgentController) ReportAll() ([]models.Metrics, time.Time) {
 }
 
 // ReportAll indicates an expected call of ReportAll.
-func (mr *MockAgentControllerMockRecorder) ReportAll() *gomock.Call {
+func (mr *MockReporterMockRecorder) ReportAll() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportAll", reflect.TypeOf((*MockAgentController)(nil).ReportAll))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportAll", reflect.TypeOf((*MockReporter)(nil).ReportAll))
 }
 
 // RestoreReport mocks base method.
-func (m *MockAgentController) RestoreReport(metrics []models.Metrics, ts time.Time) {
+func (m *MockReporter) RestoreReport(metrics []models.Metrics, ts time.Time) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RestoreReport", metrics, ts)
 }
 
 // RestoreReport indicates an expected call of RestoreReport.
-func (mr *MockAgentControllerMockRecorder) RestoreReport(metrics, ts interface{}) *gomock.Call {
+func (mr *MockReporterMockRecorder) RestoreReport(metrics, ts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestoreReport", reflect.TypeOf((*MockAgentController)(nil).RestoreReport), metrics, ts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestoreReport", reflect.TypeOf((*MockReporter)(nil).RestoreReport), metrics, ts)
+}
+
+// MockCollector is a mock of Collector interface.
+type MockCollector struct {
+	ctrl     *gomock.Controller
+	recorder *MockCollectorMockRecorder
+}
+
+// MockCollectorMockRecorder is the mock recorder for MockCollector.
+type MockCollectorMockRecorder struct {
+	mock *MockCollector
+}
+
+// NewMockCollector creates a new mock instance.
+func NewMockCollector(ctrl *gomock.Controller) *MockCollector {
+	mock := &MockCollector{ctrl: ctrl}
+	mock.recorder = &MockCollectorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCollector) EXPECT() *MockCollectorMockRecorder {
+	return m.recorder
+}
+
+// CollectCounter mocks base method.
+func (m *MockCollector) CollectCounter(name string, val int64) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CollectCounter", name, val)
+}
+
+// CollectCounter indicates an expected call of CollectCounter.
+func (mr *MockCollectorMockRecorder) CollectCounter(name, val interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectCounter", reflect.TypeOf((*MockCollector)(nil).CollectCounter), name, val)
+}
+
+// CollectGauge mocks base method.
+func (m *MockCollector) CollectGauge(name string, val float64) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CollectGauge", name, val)
+}
+
+// CollectGauge indicates an expected call of CollectGauge.
+func (mr *MockCollectorMockRecorder) CollectGauge(name, val interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectGauge", reflect.TypeOf((*MockCollector)(nil).CollectGauge), name, val)
 }

@@ -14,7 +14,7 @@ import (
 func TestCollector_CollectMetrics(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockAgentController(mockController)
+	m := mocks.NewMockCollector(mockController)
 	c := New(m)
 	m.EXPECT().CollectCounter("PollCount", int64(1)).Times(2)
 	m.EXPECT().CollectGauge("RandomValue", gomock.Any()).Times(2)
@@ -52,7 +52,7 @@ func TestCollector_CollectMetrics(t *testing.T) {
 func TestCollector_CollectGOPSMetrics(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockAgentController(mockController)
+	m := mocks.NewMockCollector(mockController)
 	c := New(m)
 	m.EXPECT().CollectGauge("TotalMemory", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("FreeMemory", gomock.Any()).Times(2)
