@@ -26,12 +26,14 @@ func New(storage store.MemoryStore) *MetricsController {
 	}
 }
 
+// CollectCounter creates or updates counter value in store
 func (mc *MetricsController) CollectCounter(name string, val int64) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	mc.store.IncCounter(name, val)
 }
 
+// CollectGauge creates or updates gauge value in store
 func (mc *MetricsController) CollectGauge(name string, val float64) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -39,14 +41,17 @@ func (mc *MetricsController) CollectGauge(name string, val float64) {
 	mc.gaugesTS[name] = time.Now()
 }
 
-// ReportAll gets all metrics from store and flushes it
+// ReportAll returns all metrics from store and flushes them.
+// Returns time when report was created to be able to restore metrics in case of unsuccessful send.
 func (mc *MetricsController) ReportAll() ([]models.Metrics, time.Time) {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
 	return mc.store.Snapshot(true), time.Now()
 }
 
-// RestoreReport gets all metrics from store and flushes it
+// RestoreReport restores metrics in case of reporting failed.
+// Counter values are always incremented, not to lose data.
+// Gauges values are restored if there was no update. Gauge should always have the latest value.
 func (mc *MetricsController) RestoreReport(metrics []models.Metrics, ts time.Time) {
 	logger.Log().Debug().Msg("restoring report back to store")
 	mc.mu.Lock()
