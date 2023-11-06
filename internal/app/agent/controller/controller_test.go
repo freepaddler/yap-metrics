@@ -2,6 +2,7 @@ package controller
 
 import (
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -10,51 +11,100 @@ import (
 	"github.com/freepaddler/yap-metrics/mocks"
 )
 
-func TestMetricsController_getMetric(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestMetricsController_CollectCounter(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockMemoryStore(mockController)
 
-	m := mocks.NewMockMemoryStore(ctrl)
+	name := "counter1"
+	value := int64(-12)
 
-	mc := New(m)
+	c := New(m)
 
-	metrics := models.Metrics{
-		Name: "g1",
-		Type: models.Gauge,
+	m.EXPECT().IncCounter(name, value).Times(1)
+	c.CollectCounter(name, value)
+}
+
+func TestMetricsController_CollectGauge(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockMemoryStore(mockController)
+
+	name := "gauge1"
+	value := -0.117
+
+	c := New(m)
+
+	m.EXPECT().SetGauge(name, value).Times(2)
+	tStart := time.Now()
+	c.CollectGauge(name, value)
+	require.WithinRange(t, c.gaugesTs[name], tStart, time.Now(), "Invalid timestamp in map")
+	tStart = time.Now()
+	c.CollectGauge(name, value)
+	require.WithinRange(t, c.gaugesTs[name], tStart, time.Now(), "Invalid timestamp in map")
+}
+
+func TestMetricsController_ReportAll(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockMemoryStore(mockController)
+
+	c := New(m)
+
+	m.EXPECT().Snapshot(true).Times(1)
+	tStart := time.Now()
+	_, ts := c.ReportAll()
+	require.WithinRange(t, ts, tStart, time.Now(), "Unexpected report timestamp")
+}
+
+func TestMetricsController_RestoreReport(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockMemoryStore(mockController)
+
+	// counter in report
+	cVal := int64(12)
+	counter := models.Metrics{
+		Name:   "c1",
+		Type:   models.Counter,
+		IValue: &cVal,
 	}
-	m.EXPECT().GetGauge(metrics.Name).Return(-1.1, true).Times(1)
-	err := mc.getMetric(&metrics)
-	require.NoError(t, err)
-	require.Equal(t, *metrics.FValue, -1.1)
+	// gauge in report
+	gVal := 1.119
+	gauge := models.Metrics{
+		Name:   "g1",
+		Type:   models.Gauge,
+		FValue: &gVal,
+	}
+	// report
+	report := []models.Metrics{counter, gauge}
 
-	//type fields struct {
-	//	store      store.MemoryStore
-	//	mu         sync.RWMutex
-	//	countersTs map[string]time.Time
-	//	gaugesTs   map[string]time.Time
-	//}
-	//type args struct {
-	//	metric *models.Metrics
-	//}
-	//tests := []struct {
-	//	name    string
-	//	fields  fields
-	//	args    args
-	//	wantErr bool
-	//}{
-	//	// TODO: Add test cases.
-	//}
-	//for _, tt := range tests {
-	//	t.Run(tt.name, func(t *testing.T) {
-	//		mc := &MetricsController{
-	//			store:      tt.fields.store,
-	//			mu:         tt.fields.mu,
-	//			countersTs: tt.fields.countersTs,
-	//			gaugesTs:   tt.fields.gaugesTs,
-	//		}
-	//		if err := mc.getMetric(tt.args.metric); (err != nil) != tt.wantErr {
-	//			t.Errorf("getMetric() error = %v, wantErr %v", err, tt.wantErr)
-	//		}
-	//	})
-	//}
+	t.Run("Restore to empty store", func(t *testing.T) {
+		c := New(m)
+		ts := time.Now().Add(-1 * time.Second)
+		// both metrics should be updated
+		m.EXPECT().IncCounter(counter.Name, *counter.IValue).Times(1)
+		m.EXPECT().SetGauge(gauge.Name, *gauge.FValue).Times(1)
+		c.RestoreReport(report, ts)
+		require.Equal(t, ts, c.gaugesTs[gauge.Name], "Expect '%t' in gaugesTs map, got '%t'", ts, c.gaugesTs[gauge.Name])
+	})
+
+	t.Run("Restore to updated store", func(t *testing.T) {
+		c := New(m)
+
+		m.EXPECT().Snapshot(true).Return(report).Times(1)
+		r, reportTs := c.ReportAll()
+
+		m.EXPECT().IncCounter(gomock.Any(), gomock.Any())
+		m.EXPECT().SetGauge(gomock.Any(), gomock.Any())
+		c.CollectGauge("g1", 1)
+		c.CollectCounter("c1", 1)
+
+		// only counter should be updated
+		m.EXPECT().IncCounter(counter.Name, *counter.IValue).Times(1)
+		c.RestoreReport(r, reportTs)
+
+		// gauge timestamp should not be changed
+		require.True(t, c.gaugesTs[gauge.Name].After(reportTs), "Expect time in gaugesTs map later than report time")
+	})
 }
