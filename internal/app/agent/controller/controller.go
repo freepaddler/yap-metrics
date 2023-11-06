@@ -15,14 +15,14 @@ import (
 type MetricsController struct {
 	store    store.MemoryStore
 	mu       sync.RWMutex
-	gaugesTs map[string]time.Time // timestamps of gauges updates
+	gaugesTS map[string]time.Time // timestamps of gauges updates
 }
 
 // New is a MetricsController constructor
 func New(storage store.MemoryStore) *MetricsController {
 	return &MetricsController{
 		store:    storage,
-		gaugesTs: make(map[string]time.Time),
+		gaugesTS: make(map[string]time.Time),
 	}
 }
 
@@ -36,7 +36,7 @@ func (mc *MetricsController) CollectGauge(name string, val float64) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	mc.store.SetGauge(name, val)
-	mc.gaugesTs[name] = time.Now()
+	mc.gaugesTS[name] = time.Now()
 }
 
 // ReportAll gets all metrics from store and flushes it
@@ -55,9 +55,9 @@ func (mc *MetricsController) RestoreReport(metrics []models.Metrics, ts time.Tim
 		switch v.Type {
 		case models.Gauge:
 			// gauge value should always be latest
-			if ts.After(mc.gaugesTs[v.Name]) {
+			if ts.After(mc.gaugesTS[v.Name]) {
 				mc.store.SetGauge(v.Name, *v.FValue)
-				mc.gaugesTs[v.Name] = ts
+				mc.gaugesTS[v.Name] = ts
 			} else {
 				logger.Log().Debug().Msgf("skip gauge '%s' restore, have newer value", v.Name)
 			}

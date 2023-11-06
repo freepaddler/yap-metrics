@@ -19,3 +19,9 @@ type Collector interface {
 	CollectCounter(name string, val int64)
 	CollectGauge(name string, val float64)
 }
+
+// AgentController implements all agent app methods
+type AgentController interface {
+	Reporter
+	Collector
+}

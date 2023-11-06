@@ -38,10 +38,10 @@ func TestMetricsController_CollectGauge(t *testing.T) {
 	m.EXPECT().SetGauge(name, value).Times(2)
 	tStart := time.Now()
 	c.CollectGauge(name, value)
-	require.WithinRange(t, c.gaugesTs[name], tStart, time.Now(), "Invalid timestamp in map")
+	require.WithinRange(t, c.gaugesTS[name], tStart, time.Now(), "Invalid timestamp in map")
 	tStart = time.Now()
 	c.CollectGauge(name, value)
-	require.WithinRange(t, c.gaugesTs[name], tStart, time.Now(), "Invalid timestamp in map")
+	require.WithinRange(t, c.gaugesTS[name], tStart, time.Now(), "Invalid timestamp in map")
 }
 
 func TestMetricsController_ReportAll(t *testing.T) {
@@ -86,14 +86,14 @@ func TestMetricsController_RestoreReport(t *testing.T) {
 		m.EXPECT().IncCounter(counter.Name, *counter.IValue).Times(1)
 		m.EXPECT().SetGauge(gauge.Name, *gauge.FValue).Times(1)
 		c.RestoreReport(report, ts)
-		require.Equal(t, ts, c.gaugesTs[gauge.Name], "Expect '%t' in gaugesTs map, got '%t'", ts, c.gaugesTs[gauge.Name])
+		require.Equal(t, ts, c.gaugesTS[gauge.Name], "Expect '%t' in gaugesTs map, got '%t'", ts, c.gaugesTS[gauge.Name])
 	})
 
 	t.Run("Restore to updated store", func(t *testing.T) {
 		c := New(m)
 
 		m.EXPECT().Snapshot(true).Return(report).Times(1)
-		r, reportTs := c.ReportAll()
+		r, reportTS := c.ReportAll()
 
 		m.EXPECT().IncCounter(gomock.Any(), gomock.Any())
 		m.EXPECT().SetGauge(gomock.Any(), gomock.Any())
@@ -102,9 +102,9 @@ func TestMetricsController_RestoreReport(t *testing.T) {
 
 		// only counter should be updated
 		m.EXPECT().IncCounter(counter.Name, *counter.IValue).Times(1)
-		c.RestoreReport(r, reportTs)
+		c.RestoreReport(r, reportTS)
 
 		// gauge timestamp should not be changed
-		require.True(t, c.gaugesTs[gauge.Name].After(reportTs), "Expect time in gaugesTs map later than report time")
+		require.True(t, c.gaugesTS[gauge.Name].After(reportTS), "Expect time in gaugesTs map later than report time")
 	})
 }

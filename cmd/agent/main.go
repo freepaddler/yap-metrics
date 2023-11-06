@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/freepaddler/yap-metrics/internal/app/agent"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
@@ -35,8 +38,11 @@ Build commit %s
 	// print running config
 	logger.Log().Info().Interface("config", conf).Msg("done config")
 
+	// notify context
+	nCtx, nStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	defer nStop()
+
 	// init and run agent
 	app := agent.New(conf)
-	app.Run()
-
+	app.Run(nCtx)
 }

@@ -107,9 +107,9 @@ func TestHTTPReporter_ReportBatchJSON(t *testing.T) {
 			defer server.Close()
 			address := "240.0.0.0:65535"
 			if tt.serverReachable {
-				serverUrl, err := url.Parse(server.URL)
+				serverURL, err := url.Parse(server.URL)
 				require.NoError(t, err, "Failed to parse test httpserver address")
-				address = serverUrl.Host
+				address = serverURL.Host
 			}
 
 			h := NewHTTPReporter(m, address, time.Second, tt.key)

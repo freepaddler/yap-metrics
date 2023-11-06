@@ -5,68 +5,43 @@ import (
 	"errors"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/app/agent/collector"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
+	"github.com/freepaddler/yap-metrics/internal/app/agent/controller"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/inmemory"
 	"github.com/freepaddler/yap-metrics/pkg/wpool"
 )
 
 type Agent struct {
-	conf      *config.Config
-	storage   *memory.MemStorage
-	reporter  *reporter.HTTPReporter
-	collector *collector.Collector
+	conf       *config.Config
+	controller controller.AgentController
+	reporter   *reporter.HTTPReporter
+	collector  *collector.Collector
 }
 
 func New(c *config.Config) *Agent {
 	agt := Agent{conf: c}
-	agt.storage = memory.NewMemStorage()
-	agt.reporter = reporter.NewHTTPReporter(agt.storage, agt.conf.ServerAddress, agt.conf.HTTPTimeout, agt.conf.Key)
-	agt.collector = collector.New(agt.storage)
+	agt.controller = controller.New(inmemory.New())
+	agt.reporter = reporter.NewHTTPReporter(agt.controller, agt.conf.ServerAddress, agt.conf.HTTPTimeout, agt.conf.Key)
+	agt.collector = collector.New(agt.controller)
 	return &agt
 }
 
-func (agt *Agent) Run() {
+func (agt *Agent) Run(ctx context.Context) {
+	checkCtxCancel(ctx)
 	logger.Log().Info().Msg("starting agent")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	var wg sync.WaitGroup
 
+	// pprof http server
 	httpServer := &http.Server{
 		Addr: "127.0.0.1:8091",
 	}
-
-	// trap os signals
-	go func() {
-		shutdownSig := make(chan os.Signal, 1)
-		signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-		// shutdown routine
-		sig := <-shutdownSig
-		logger.Log().Info().Msgf("got '%v' signal. agent shutdown routine...", sig)
-		cancel()
-
-		// context for httpServer graceful shutdown
-		httpCtx, httpRelease := context.WithTimeout(context.Background(), 10*time.Second)
-		defer httpRelease()
-
-		// gracefully stop http server
-		logger.Log().Info().Msg("stopping pprof http server")
-		if err := httpServer.Shutdown(httpCtx); err != nil {
-			logger.Log().Err(err).Msg("failed to stop pprof http server gracefully. force stop")
-			_ = httpServer.Close()
-		}
-		logger.Log().Info().Msg("pprof http server stopped")
-	}()
 
 	// start http server for profiling
 	if agt.conf.PprofAddress != "" {
@@ -130,8 +105,28 @@ func (agt *Agent) Run() {
 		}
 	}(ctx)
 
+	time.Sleep(500 * time.Millisecond)
+	logger.Log().Info().Msg("agent started")
+
+	// waiting for main context to be cancelled
+	<-ctx.Done()
+	logger.Log().Info().Msg("got stop request. stopping agent")
+
+	// context for httpServer graceful shutdown
+	httpCtx, httpRelease := context.WithTimeout(context.Background(), 10*time.Second)
+	defer httpRelease()
+
+	// gracefully stop pprof http server
+	logger.Log().Info().Msg("stopping pprof http server")
+	if err := httpServer.Shutdown(httpCtx); err != nil {
+		logger.Log().Err(err).Msg("failed to stop  pprof http server gracefully. force stop")
+		_ = httpServer.Close()
+	}
+	logger.Log().Info().Msg("pprof http server stopped")
+
 	// wait until tasks stopped
 	wg.Wait()
+	logger.Log().Info().Msg("agent stopped. running shutdown routines")
 
 	// shutdown tasks
 
@@ -140,6 +135,13 @@ func (agt *Agent) Run() {
 	ctxRep, ctxRepCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer ctxRepCancel()
 	agt.reporter.ReportBatchJSON(ctxRep)
-	logger.Log().Info().Msg("agent stopped")
+	logger.Log().Info().Msg("shutdown routines done")
 
+}
+
+// checkCtxCancel validates context is not cancelled, exit fatal if it is
+func checkCtxCancel(ctx context.Context) {
+	if err := ctx.Err(); err != nil {
+		logger.Log().Fatal().Err(err).Msg("application terminated")
+	}
 }
