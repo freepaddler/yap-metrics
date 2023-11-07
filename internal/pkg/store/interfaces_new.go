@@ -33,6 +33,6 @@ type MemoryStore interface {
 	Gauge1
 	Counter1
 	// Snapshot creates storage snapshot and returns it
-	// if flush is true, collected metrics are deleted
+	// if flush is true, stored metrics are deleted
 	Snapshot(flush bool) []models.Metrics
 }

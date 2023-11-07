@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,6 +16,25 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
+
+const indexTmpl = `
+<html><head><title>Metrics Index</title></head>
+<body>
+	<h2>Metrics Index</h2>
+	<table border=1>
+	<tr><th>Name</th><th>Type</th><th>Value</th></tr>
+	{{ range . }}
+	<tr>
+		<td>{{ .Name }}</td>
+		<td>{{ .Type }}</td>
+		<td>{{ value . }}</td>
+	</tr>
+	{{ end }}
+	</table>
+	<p><i>Updated at {{ now }}</i></p>
+</body>
+</html>
+`
 
 type HTTPHandlers struct {
 	storage store.Storage           // memory storage
@@ -34,41 +54,36 @@ func (h *HTTPHandlers) SetPStorage(ps store.PersistentStorage) {
 	h.pStore = ps
 }
 
-// indexMetricHeader is html header of index page
-const indexMetricHeader = `
-	<html><head><title>Metrics Index</title></head>
-	<body>
-		<h2>Metrics Index</h2>
-		<table border=1>
-		<tr><th>Name</th><th>Type</th><th>Value</th></tr>
-	`
-
 // IndexMetricHandler returns webpage with all metrics
 //
 //	curl -i http://localhost:8080/
 func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// TODO: use html templates
-	w.Write([]byte(indexMetricHeader))
-	for _, m := range h.storage.Snapshot(false) {
-		var val string
-		switch m.Type {
-		case models.Counter:
-			val = strconv.FormatInt(*m.IValue, 10)
-		case models.Gauge:
-			val = strconv.FormatFloat(*m.FValue, 'f', -1, 64)
-		default:
-			continue
-		}
-		w.Write([]byte(fmt.Sprintf("<tr><td>%s</td><td>%s</td><td>%s</td></tr>", m.Name, m.Type, val)))
+	funcMap := template.FuncMap{
+		"value": func(m models.Metrics) (s string) {
+			switch m.Type {
+			case models.Counter:
+				return strconv.FormatInt(*m.IValue, 10)
+			case models.Gauge:
+				return strconv.FormatFloat(*m.FValue, 'f', -1, 64)
+			default:
+				return
+			}
+		},
+		"now": func() string { return time.Now().Format(time.UnixDate) },
 	}
-	footer := fmt.Sprintf(`
-		</table>
-		<p><i>Updated at %s</i></p>
-	</body>
-	</html>
-	`, time.Now().Format(time.UnixDate))
-	w.Write([]byte(footer))
+	tmpl, err := template.New("index").Funcs(funcMap).Parse(indexTmpl)
+	if err != nil {
+		logger.Log().Err(err).Msg("unable to parse index template")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err = tmpl.Execute(w, h.storage.Snapshot(false))
+	if err != nil {
+		logger.Log().Err(err).Msg("unable to exec index template")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetMetricHandler returns requested metric value in plain text.
