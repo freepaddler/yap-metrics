@@ -3,8 +3,6 @@
 package inmemory
 
 import (
-	"sort"
-
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
@@ -92,9 +90,5 @@ func (ms *Store) Snapshot(flush bool) []models.Metrics {
 			delete(ms.gauges, name)
 		}
 	}
-	// TODO: move to where it is necessary
-	sort.Slice(set, func(i, j int) bool {
-		return set[i].Name < set[j].Name
-	})
 	return set
 }

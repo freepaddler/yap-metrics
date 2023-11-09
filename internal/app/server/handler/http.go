@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -78,7 +79,11 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	err = tmpl.Execute(w, h.storage.Snapshot(false))
+	set := h.storage.Snapshot(false)
+	sort.Slice(set, func(i, j int) bool {
+		return set[i].Name < set[j].Name
+	})
+	err = tmpl.Execute(w, set)
 	if err != nil {
 		logger.Log().Err(err).Msg("unable to exec index template")
 		w.WriteHeader(http.StatusInternalServerError)
