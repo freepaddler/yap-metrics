@@ -27,7 +27,13 @@ type Agent struct {
 func New(c *config.Config) *Agent {
 	agt := Agent{conf: c}
 	agt.controller = controller.New(inmemory.New())
-	agt.reporter = reporter.NewHTTPReporter(agt.controller, agt.conf.ServerAddress, agt.conf.HTTPTimeout, agt.conf.Key)
+	agt.reporter = reporter.NewHTTPReporter(
+		agt.controller,
+		agt.conf.ServerAddress,
+		agt.conf.HTTPTimeout,
+		agt.conf.Key,
+		agt.conf.PublicKey,
+	)
 	agt.collector = collector.New(agt.controller)
 	return &agt
 }

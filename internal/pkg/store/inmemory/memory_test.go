@@ -270,7 +270,7 @@ func Test_Snapshot(t *testing.T) {
 		}
 		m2 := s.Snapshot(false)
 		// flush false, so slices must be equal
-		require.Equal(t, m, m2)
+		require.ElementsMatch(t, m, m2, "snapshots without flush should match")
 	})
 	t.Run("With flush and empty", func(t *testing.T) {
 		// storage snapshot without flush
@@ -278,7 +278,7 @@ func Test_Snapshot(t *testing.T) {
 		// storage snapshot with flush
 		m1 := s.Snapshot(true)
 		// should return same
-		require.Equal(t, m, m1, "snapshots with and without flush should match")
+		require.ElementsMatch(t, m, m1, "snapshots with and without flush should match")
 		// storage snapshot after flush should be empty
 		m2 := s.Snapshot(false)
 		require.Equal(t, 0, len(m2), "no metrics should be returned")

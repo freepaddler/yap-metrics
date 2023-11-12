@@ -1,20 +1,24 @@
 package router
 
 import (
+	"crypto/rsa"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
+	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 )
 
-func NewHTTPRouter(h *handler.HTTPHandlers, key string) *chi.Mux {
+func NewHTTPRouter(h *handler.HTTPHandlers, key string, privateKey *rsa.PrivateKey) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(logger.LogRequestResponse)
 	r.Use(compress.GunzipMiddleware)
 	r.Use(middleware.Compress(4, "application/json", "text/html"))
+	r.Use(crypt.DecryptMiddleware(privateKey))
 	r.Use(sign.Middleware(key))
 	r.Mount("/debug/", middleware.Profiler())
 	r.Get("/", h.IndexMetricHandler)

@@ -112,7 +112,7 @@ func TestHTTPReporter_ReportBatchJSON(t *testing.T) {
 				address = serverURL.Host
 			}
 
-			h := NewHTTPReporter(m, address, time.Second, tt.key)
+			h := NewHTTPReporter(m, address, time.Second, tt.key, nil)
 			tt.mocks()
 			h.ReportBatchJSON(context.Background())
 			//require.NotPanics(t, func() { h.ReportBatchJSON(context.Background()) })

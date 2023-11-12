@@ -1,13 +1,16 @@
 package config
 
 import (
+	"crypto/rsa"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 
 	"github.com/caarlos0/env/v8"
 	flag "github.com/spf13/pflag"
 
+	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
@@ -32,6 +35,8 @@ type Config struct {
 	DBURL           string `env:"DATABASE_DSN"`
 	UseDB           bool
 	Key             string `env:"KEY"`
+	PrivateKeyFile  string `env:"CRYPTO_KEY"`
+	PrivateKey      *rsa.PrivateKey
 }
 
 func NewConfig() *Config {
@@ -51,6 +56,13 @@ func NewConfig() *Config {
 	flag.BoolVarP(&c.Restore, "restore", "r", defaultRestore, "restore metrcis after server start: `true/false`")
 	flag.StringVarP(&c.DBURL, "dbUri", "d", defaultDBURL, "database `uri` i.e. postgres://user:password@host:port/db")
 	flag.StringVarP(&c.Key, "key", "k", defaultKey, "key for integrity hash calculation `secretkey`")
+	flag.StringVarP(
+		&c.PrivateKeyFile,
+		"-crypto-key",
+		"c",
+		"",
+		"`path` to private key file in PEM format",
+	)
 	flag.Parse()
 
 	// env vars
@@ -69,6 +81,24 @@ func NewConfig() *Config {
 		c.UseDB = true
 	case c.FileStoragePath != "":
 		c.UseFileStorage = true
+	}
+
+	// print running config
+	logger.Log().Info().Interface("config", c).Msg("done config")
+
+	// after config printing to avoid private key in logs
+	// try to load private key
+	if c.PrivateKeyFile != "" {
+		pFile, err := os.Open(c.PrivateKeyFile)
+		if err != nil {
+			fmt.Printf("unable to open private key file: %s\n", err)
+			os.Exit(1)
+		}
+		c.PrivateKey, err = crypt.ReadPrivateKey(pFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
 
 	return &c

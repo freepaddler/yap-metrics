@@ -35,9 +35,6 @@ Build commit %s
 	// set log level
 	logger.SetLevel(conf.LogLevel)
 
-	// print running config
-	logger.Log().Info().Interface("config", conf).Msg("done config")
-
 	// notify context
 	nCtx, nStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 	defer nStop()

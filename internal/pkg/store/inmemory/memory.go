@@ -75,7 +75,7 @@ func (ms *Store) Snapshot(flush bool) []models.Metrics {
 	// arrays of snapshot values (not pointers)
 	counterV := make([]int64, len(ms.counters))
 	gaugesV := make([]float64, len(ms.gauges))
-	set := make([]models.Metrics, len(ms.counters)+len(ms.gauges))
+	set := make([]models.Metrics, 0, len(ms.counters)+len(ms.gauges))
 	for name, value := range ms.counters {
 		counterV = append(counterV, value)
 		set = append(set, models.Metrics{Type: models.Counter, Name: name, IValue: &counterV[len(counterV)-1]})

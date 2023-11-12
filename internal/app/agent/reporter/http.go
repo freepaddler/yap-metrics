@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/app/agent/controller"
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
+	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 	"github.com/freepaddler/yap-metrics/pkg/retry"
@@ -20,14 +22,22 @@ type HTTPReporter struct {
 	address    string
 	client     http.Client
 	key        string
+	publicKey  *rsa.PublicKey
 }
 
-func NewHTTPReporter(ac controller.Reporter, address string, timeout time.Duration, key string) *HTTPReporter {
+func NewHTTPReporter(
+	ac controller.Reporter,
+	address string,
+	timeout time.Duration,
+	key string,
+	publicKey *rsa.PublicKey,
+) *HTTPReporter {
 	return &HTTPReporter{
 		controller: ac,
 		address:    address,
 		client:     http.Client{Timeout: timeout},
 		key:        key,
+		publicKey:  publicKey,
 	}
 }
 
@@ -56,8 +66,17 @@ func (r HTTPReporter) ReportBatchJSON(ctx context.Context) {
 					HashSHA256 = sign.Get(body, r.key)
 				}
 
+				// encrypt body
+				encBody := body
+				if r.publicKey != nil {
+					encBody, err = crypt.EncryptBody(&body, r.publicKey)
+					if err != nil {
+						logger.Log().Error().Err(err).Msg("unable to encrypt http request")
+					}
+				}
+
 				// compress body
-				reqBody, compressErr := compress.GzipBody(&body)
+				reqBody, compressErr := compress.GzipBody(&encBody)
 
 				req, err := http.NewRequest(http.MethodPost, url, reqBody)
 				if err != nil {

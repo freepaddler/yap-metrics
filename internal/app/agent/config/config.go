@@ -1,7 +1,9 @@
 package config
 
 import (
+	"crypto/rsa"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/caarlos0/env/v8"
 	flag "github.com/spf13/pflag"
 
+	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
@@ -32,6 +35,8 @@ type Config struct {
 	Key             string        `env:"KEY"`
 	ReportRateLimit int           `env:"RATE_LIMIT"`
 	PprofAddress    string        `env:"PPROF_ADDRESS"`
+	PublicKeyFile   string        `env:"CRYPTO_KEY"`
+	PublicKey       *rsa.PublicKey
 }
 
 func NewConfig() *Config {
@@ -100,6 +105,13 @@ func NewConfig() *Config {
 		"",
 		"enable an run pprof http server on `host:port`",
 	)
+	flag.StringVarP(
+		&c.PublicKeyFile,
+		"-crypto-key",
+		"c",
+		"",
+		"`path` to public key file in PEM format",
+	)
 
 	flag.Parse()
 
@@ -116,7 +128,7 @@ func NewConfig() *Config {
 		logger.Log().Fatal().Msgf("Reporting rate limit should be greater than 0")
 	}
 
-	// check
+	// check timeout
 	if c.HTTPTimeout.Seconds() < 0.5 || c.HTTPTimeout.Seconds() > 999 {
 		logger.Log().Warn().Msgf(
 			"invalid httpTimeout value %s. Using default %s",
@@ -124,6 +136,24 @@ func NewConfig() *Config {
 			defaultHTTPTimeout.String(),
 		)
 		c.HTTPTimeout = defaultHTTPTimeout
+	}
+
+	// print config
+	logger.Log().Info().Interface("config", c).Msg("done config")
+
+	// after print to avoid printing key in config
+	// try to load public key
+	if c.PublicKeyFile != "" {
+		pFile, err := os.Open(c.PublicKeyFile)
+		if err != nil {
+			fmt.Printf("unable to open public key file: %s\n", err)
+			os.Exit(1)
+		}
+		c.PublicKey, err = crypt.ReadPublicKey(pFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
 
 	return &c
