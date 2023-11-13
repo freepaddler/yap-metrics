@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/freepaddler/yap-metrics/internal/app/server"
 	"github.com/freepaddler/yap-metrics/internal/app/server/config"
@@ -33,7 +36,11 @@ Build commit %s
 	// set log level
 	logger.SetLevel(conf.LogLevel)
 
+	// notify context
+	nCtx, nStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer nStop()
+
 	// init and run server
 	app := server.New(conf)
-	app.Run()
+	app.Run(nCtx)
 }

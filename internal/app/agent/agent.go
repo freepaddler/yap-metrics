@@ -56,7 +56,7 @@ func (agt *Agent) Run(ctx context.Context) {
 			defer wg.Done()
 			logger.Log().Info().Msgf("starting pprof http server at 'http://%s/debug/pprof'", agt.conf.PprofAddress)
 			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Log().Error().Msg("failed to start pprof http server")
+				logger.Log().Error().Err(err).Msg("failed to start pprof http server")
 			}
 			logger.Log().Info().Msg("pprof http server stopped acquiring new connections")
 		}()

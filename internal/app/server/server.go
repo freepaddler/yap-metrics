@@ -2,13 +2,10 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -72,11 +69,8 @@ func New(conf *config.Config) *Server {
 }
 
 // Run starts server instance
-func (srv *Server) Run() {
+func (srv *Server) Run(ctx context.Context) {
 	logger.Log().Info().Msg("starting metrics server")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// persistent storage setup
 	var pStore store.PersistentStorage
@@ -105,39 +99,35 @@ func (srv *Server) Run() {
 		defer pStore.Close()
 	}
 
-	// trap os signals
-	go func() {
-		shutdownSig := make(chan os.Signal, 1)
-		signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-		// shutdown routine
-		sig := <-shutdownSig
-		logger.Log().Info().Msgf("got '%v' signal. server shutdown routine...", sig)
-		cancel()
-
-		// context for httpServer graceful shutdown
-		httpCtx, httpRelease := context.WithTimeout(ctx, 5*time.Second)
-		defer httpRelease()
-
-		// gracefully stop http server
-		logger.Log().Info().Msg("stopping http server")
-		if err := srv.httpServer.Shutdown(httpCtx); err != nil {
-			log.Fatalf("failed to stop http server: %v", err)
-		}
-
-	}()
-
 	// start http server
 	wgRun.Add(1)
 	go func() {
 		defer wgRun.Done()
 		logger.Log().Info().Msgf("starting http server at %s", srv.conf.Address)
-		if err := srv.httpServer.ListenAndServe(); err != http.ErrServerClosed {
+		if err := srv.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Log().Fatal().Err(err).Msg("unable to start http server")
 		}
+		logger.Log().Info().Msg("http server stopped acquiring new connections")
 	}()
 
+	time.Sleep(500 * time.Millisecond)
 	logger.Log().Info().Msg("server started")
+
+	// waiting for main context to be cancelled
+	<-ctx.Done()
+	logger.Log().Info().Msg("got stop request. stopping server")
+
+	// context for httpServer graceful shutdown
+	httpCtx, httpRelease := context.WithTimeout(context.Background(), 10*time.Second)
+	defer httpRelease()
+
+	// gracefully stop http server
+	logger.Log().Info().Msg("stopping http server")
+	if err := srv.httpServer.Shutdown(httpCtx); err != nil {
+		logger.Log().Err(err).Msg("failed to stop http server gracefully. force stop")
+		_ = srv.httpServer.Close()
+	}
+	logger.Log().Info().Msg("http server stopped")
 
 	// wait until tasks stopped
 	wgRun.Wait()
@@ -150,7 +140,6 @@ func (srv *Server) Run() {
 		pStore.SaveStorage(srv.store)
 	}
 	logger.Log().Info().Msg("server stopped")
-
 }
 
 // initFileStorage sets up file storage
