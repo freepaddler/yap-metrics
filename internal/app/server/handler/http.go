@@ -50,10 +50,11 @@ func NewHTTPHandlers(s store.Storage) *HTTPHandlers {
 	}
 }
 
-// SetPStorage updates persistent storage for HTTPHandlers
-func (h *HTTPHandlers) SetPStorage(ps store.PersistentStorage) {
-	h.pStore = ps
-}
+// TODO: delete
+//// SetPStorage updates persistent storage for HTTPHandlers
+//func (h *HTTPHandlers) SetPStorage(ps store.PersistentStorage) {
+//	h.pStore = ps
+//}
 
 // IndexMetricHandler returns webpage with all metrics
 //

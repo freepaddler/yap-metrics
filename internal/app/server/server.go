@@ -95,7 +95,7 @@ func (srv *Server) Run(ctx context.Context) {
 		}
 	}
 	if pStore != nil {
-		srv.httpHandlers.SetPStorage(pStore)
+		//srv.httpHandlers.SetPStorage(pStore)
 		defer pStore.Close()
 	}
 

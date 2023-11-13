@@ -25,10 +25,10 @@ type Metrics struct {
 	IValue *int64   `json:"delta,omitempty"`
 }
 
-// New is a helper to create metric from string values.
+// NewMetric is a helper to create metric from string values.
 // May be used in handlers to validate unstructured requests.
 // Allows empty (zero length string) values (v).
-func New(n, t, v string) (m Metrics, err error) {
+func NewMetric(n, t, v string) (m Metrics, err error) {
 	if n == "" {
 		err = fmt.Errorf("noname: %w", ErrBadMetric)
 		return

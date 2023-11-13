@@ -197,7 +197,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotM, err := New(tt.n, tt.t, tt.v)
+			gotM, err := NewMetric(tt.n, tt.t, tt.v)
 			if tt.wantErr != nil {
 				assert.Truef(t, errors.Is(err, tt.wantErr), "Expect error '%v', got '%v'", tt.wantErr, err)
 			} else {
