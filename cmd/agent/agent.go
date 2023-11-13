@@ -36,7 +36,7 @@ Build commit %s
 	logger.SetLevel(conf.LogLevel)
 
 	// notify context
-	nCtx, nStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	nCtx, nStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer nStop()
 
 	// init and run agent
