@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -27,16 +28,71 @@ const (
 
 // Config implements agent configuration
 type Config struct {
-	PollInterval    uint32        `env:"POLL_INTERVAL"`
-	ReportInterval  uint32        `env:"REPORT_INTERVAL"`
-	ServerAddress   string        `env:"ADDRESS"`
-	HTTPTimeout     time.Duration `env:"HTTP_TIMEOUT"`
-	LogLevel        string        `env:"LOG_LEVEL"`
-	Key             string        `env:"KEY"`
-	ReportRateLimit int           `env:"RATE_LIMIT"`
-	PprofAddress    string        `env:"PPROF_ADDRESS"`
-	PublicKeyFile   string        `env:"CRYPTO_KEY"`
-	PublicKey       *rsa.PublicKey
+	PollInterval    uint32         `env:"POLL_INTERVAL"`
+	ReportInterval  uint32         `env:"REPORT_INTERVAL"`
+	ServerAddress   string         `env:"ADDRESS" json:"address"`
+	HTTPTimeout     time.Duration  `env:"HTTP_TIMEOUT"`
+	LogLevel        string         `env:"LOG_LEVEL"`
+	Key             string         `env:"KEY"`
+	ReportRateLimit int            `env:"RATE_LIMIT"`
+	PprofAddress    string         `env:"PPROF_ADDRESS"`
+	PublicKeyFile   string         `env:"CRYPTO_KEY" json:"crypto_key"`
+	PublicKey       *rsa.PublicKey `json:"-"`
+	ConfigFile      string         `env:"CONFIG"`
+}
+
+// UnmarshalJSON to convert duration from config to uint32
+func (c *Config) UnmarshalJSON(data []byte) error {
+	type _conf Config
+	_c := &struct {
+		*_conf
+		PollInterval   string `json:"poll_interval"`
+		ReportInterval string `json:"report_interval"`
+	}{
+		_conf: (*_conf)(c),
+	}
+	if err := json.Unmarshal(data, _c); err != nil {
+		return err
+	}
+	pi, err := time.ParseDuration(_c.PollInterval)
+	if err != nil {
+		return err
+	}
+	c.PollInterval = uint32(pi.Seconds())
+	ri, err := time.ParseDuration(_c.ReportInterval)
+	if err != nil {
+		return err
+	}
+	c.ReportInterval = uint32(ri.Seconds())
+	return nil
+}
+
+func parseConfigFile(c *Config) error {
+	if c.ConfigFile != "" {
+		f, err := os.Open(c.ConfigFile)
+		if err != nil {
+			return err
+		}
+		data, err := io.ReadAll(f)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(data, c)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printConfig(c Config) {
+	fmt.Println("Startup configuration:")
+	data, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		logger.Log().Error().Err(err).Msg("unable to parse config")
+		return
+	}
+	fmt.Printf("%s\n", data)
 }
 
 func NewConfig() *Config {
@@ -108,16 +164,35 @@ func NewConfig() *Config {
 	flag.StringVarP(
 		&c.PublicKeyFile,
 		"-crypto-key",
-		"c",
+		"",
 		"",
 		"`path` to public key file in PEM format",
 	)
+	flag.StringVarP(
+		&c.ConfigFile,
+		"config",
+		"c",
+		"",
+		"`path` to configuration file in JSON format",
+	)
 
+	// parse Flags
 	flag.Parse()
 
-	// env vars
+	// parse env vars
 	if err := env.Parse(&c); err != nil {
 		logger.Log().Warn().Err(err).Msg("failed to parse ENV")
+	}
+
+	// get settings from configuration file
+	if c.ConfigFile != "" {
+		if err := parseConfigFile(&c); err == nil {
+			// re-read flags and env vars
+			flag.Parse()
+			env.Parse(&c)
+		} else {
+			logger.Log().Warn().Err(err).Msg("failed to parse config file")
+		}
 	}
 
 	if c.ReportInterval < c.PollInterval {
@@ -138,23 +213,22 @@ func NewConfig() *Config {
 		c.HTTPTimeout = defaultHTTPTimeout
 	}
 
-	// print config
-	logger.Log().Info().Interface("config", c).Msg("done config")
-
-	// after print to avoid printing key in config
 	// try to load public key
 	if c.PublicKeyFile != "" {
 		pFile, err := os.Open(c.PublicKeyFile)
 		if err != nil {
-			fmt.Printf("unable to open public key file: %s\n", err)
+			logger.Log().Error().Err(err).Msgf("unable to open public key file: %s", c.PublicKeyFile)
 			os.Exit(1)
 		}
 		c.PublicKey, err = crypt.ReadPublicKey(pFile)
 		if err != nil {
-			fmt.Println(err)
+			logger.Log().Error().Err(err).Msgf("unable to read public key from file: %s", c.PublicKeyFile)
 			os.Exit(1)
 		}
 	}
+
+	// print config
+	printConfig(c)
 
 	return &c
 }
