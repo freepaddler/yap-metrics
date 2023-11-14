@@ -75,11 +75,21 @@ POST http://localhost:8080/updates/
 > assert_400_BadRequest.js
 
 ### POST /updates invalid type
-# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"counter","delta":-1.3},]'
+# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"countergauge","delta":-1.3},]'
 POST http://localhost:8080/updates/
 
 [
 {"id":"g101","type":"countergauge","delta":-1.3},
+]
+
+> assert_400_BadRequest.js
+
+### POST /updates missing value
+# curl -X POST -i http://localhost:8080/updates/ -d '[{"id":"c101","type":"counter"},]'
+POST http://localhost:8080/updates/
+
+[
+{"id":"g101","type":"counter"},
 ]
 
 > assert_400_BadRequest.js

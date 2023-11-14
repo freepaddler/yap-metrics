@@ -1,4 +1,4 @@
-// Package models defines metrics models and validation functions
+// Package models defines metrics models and validation functions.
 package models
 
 import (
@@ -14,10 +14,55 @@ const (
 )
 
 var (
-	ErrBadMetric = errors.New("invalid metric format")
+	ErrInvalidMetric = errors.New("invalid metric format")
+	ErrInvalidName   = fmt.Errorf("%w: missing metric name", ErrInvalidMetric)
+	ErrInvalidType   = fmt.Errorf("%w: invalid metric type", ErrInvalidMetric)
+	ErrInvalidValue  = fmt.Errorf("%w: invalid metric value", ErrInvalidMetric)
 )
 
-// Metrics model
+// MetricRequest is a struct for metrics requests
+type MetricRequest struct {
+	Name string `json:"id"`
+	Type string `json:"type"`
+}
+
+// NewMetricRequest is used to create MetricRequest struct from string values
+func NewMetricRequest(n, t string) (m MetricRequest, err error) {
+	if n == "" {
+		err = ErrInvalidName
+		return
+	}
+	m.Name = n
+	switch t {
+	case Counter:
+		m.Type = Counter
+	case Gauge:
+		m.Type = Gauge
+	default:
+		err = ErrInvalidType
+	}
+	return
+}
+
+// UnmarshalJSON validates MetricRequest data
+func (m *MetricRequest) UnmarshalJSON(b []byte) error {
+	type _mr MetricRequest
+	_m := &struct {
+		*_mr
+	}{
+		_mr: (*_mr)(m),
+	}
+	if err := json.Unmarshal(b, _m); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidMetric, err)
+	}
+	if _, err := NewMetricRequest(m.Name, m.Type); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Metrics is universal struct for all supported metric types.
+// Should be used in updates and responses.
 type Metrics struct {
 	Name   string   `json:"id"`
 	Type   string   `json:"type"`
@@ -25,41 +70,34 @@ type Metrics struct {
 	IValue *int64   `json:"delta,omitempty"`
 }
 
-// NewMetric is a helper to create metric from string values.
-// May be used in handlers to validate unstructured requests.
-// Allows empty (zero length string) values (v).
+// NewMetric is used to create Metrics struct from string values. Should be used in update requests.
+// Correct value is required.
 func NewMetric(n, t, v string) (m Metrics, err error) {
-	if n == "" {
-		err = fmt.Errorf("noname: %w", ErrBadMetric)
-		return
+	if _, err := NewMetricRequest(n, t); err != nil {
+		return m, err
 	}
 	m.Name = n
-	switch t {
+	m.Type = t
+	switch m.Type {
 	case Counter:
-		m.Type = Counter
-		if v != "" {
-			if i, err := strconv.ParseInt(v, 10, 64); err != nil {
-				return m, fmt.Errorf("%w (%w)", ErrBadMetric, err)
-			} else {
-				m.IValue = &i
-			}
+		if i, err := strconv.ParseInt(v, 10, 64); err != nil {
+			return m, fmt.Errorf("%w: %w", ErrInvalidValue, err)
+		} else {
+			m.IValue = &i
 		}
 	case Gauge:
-		m.Type = Gauge
-		if v != "" {
-			if f, err := strconv.ParseFloat(v, 64); err != nil {
-				return m, fmt.Errorf("%w (%w)", ErrBadMetric, err)
-			} else {
-				m.FValue = &f
-			}
+		if f, err := strconv.ParseFloat(v, 64); err != nil {
+			return m, fmt.Errorf("%w: %w", ErrInvalidValue, err)
+		} else {
+			m.FValue = &f
 		}
 	default:
-		err = fmt.Errorf("%w (invalid metric type)", ErrBadMetric)
+		err = ErrInvalidType
 	}
 	return
 }
 
-// StringVal returns metric value as a string
+// StringVal returns metric value as a string.
 func (m *Metrics) StringVal() string {
 	switch m.Type {
 	case Counter:
@@ -74,7 +112,7 @@ func (m *Metrics) StringVal() string {
 	return ""
 }
 
-// UnmarshalJSON also validates metric type and value
+// UnmarshalJSON validates Metrics update request data.
 func (m *Metrics) UnmarshalJSON(b []byte) error {
 	type _metrics Metrics
 	_m := &struct {
@@ -82,23 +120,23 @@ func (m *Metrics) UnmarshalJSON(b []byte) error {
 	}{
 		_metrics: (*_metrics)(m),
 	}
-	if err := json.Unmarshal(b, &_m); err != nil {
-		return err
+	if err := json.Unmarshal(b, _m); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidMetric, err)
 	}
-	if m.Name == "" {
-		return ErrBadMetric
+	if _, err := NewMetricRequest(m.Name, m.Type); err != nil {
+		return err
 	}
 	switch m.Type {
 	case Counter:
-		if m.FValue != nil {
-			return ErrBadMetric
+		if m.IValue == nil || m.FValue != nil {
+			return ErrInvalidMetric
 		}
 	case Gauge:
-		if m.IValue != nil {
-			return ErrBadMetric
+		if m.FValue == nil || m.IValue != nil {
+			return ErrInvalidMetric
 		}
 	default:
-		return ErrBadMetric
+		return ErrInvalidType
 	}
 	return nil
 }

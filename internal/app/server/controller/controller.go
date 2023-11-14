@@ -36,28 +36,34 @@ func (mc *MetricsController) GetAll() []models.Metrics {
 }
 
 // GetOne gets metric value from store and updates requested metric with it
-func (mc *MetricsController) GetOne(metric *models.Metrics) error {
-	switch metric.Type {
+func (mc *MetricsController) GetOne(request models.MetricRequest) (m models.Metrics, err error) {
+	switch request.Type {
 	case models.Counter:
 		mc.mu.RLock()
 		defer mc.mu.RUnlock()
-		v, ok := mc.store.GetCounter(metric.Name)
+		v, ok := mc.store.GetCounter(request.Name)
 		if !ok {
-			return ErrMetricNotFound
+			err = ErrMetricNotFound
+			return
 		}
-		metric.IValue = &v
+		m.IValue = &v
 	case models.Gauge:
 		mc.mu.RLock()
 		defer mc.mu.RUnlock()
-		v, ok := mc.store.GetGauge(metric.Name)
+		v, ok := mc.store.GetGauge(request.Name)
 		if !ok {
-			return ErrMetricNotFound
+			err = ErrMetricNotFound
+			return
 		}
-		metric.FValue = &v
+		m.FValue = &v
 	default:
-		return models.ErrBadMetric
+		err = models.ErrInvalidMetric
 	}
-	return nil
+	if err == nil {
+		m.Name = request.Name
+		m.Type = request.Type
+	}
+	return
 }
 
 // updateMetric creates or updates metric in store, set new value to requested metric.
@@ -65,17 +71,25 @@ func (mc *MetricsController) GetOne(metric *models.Metrics) error {
 func (mc *MetricsController) updateMetric(metric *models.Metrics) error {
 	switch metric.Type {
 	case models.Counter:
+		if metric.IValue == nil {
+			return models.ErrInvalidMetric
+		}
 		v := mc.store.IncCounter(metric.Name, *metric.IValue)
 		metric.IValue = &v
 	case models.Gauge:
+		if metric.FValue == nil {
+			return models.ErrInvalidMetric
+		}
 		v := mc.store.SetGauge(metric.Name, *metric.FValue)
 		mc.gaugesTS[metric.Name] = time.Now()
 		metric.FValue = &v
 	default:
-		return models.ErrBadMetric
+		return models.ErrInvalidMetric
 	}
 	return nil
 }
+
+// TODO: question why not to use func with variadic args update(metrics ...*models.Metrics)?
 
 // UpdateOne updates one metric in store, set new value to requested metric.
 func (mc *MetricsController) UpdateOne(metric *models.Metrics) error {

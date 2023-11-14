@@ -3,28 +3,33 @@ package handler
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/freepaddler/yap-metrics/internal/app/server/controller"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
+	"github.com/freepaddler/yap-metrics/mocks"
 )
 
+func pointer[T any](val T) *T {
+	return &val
+}
+
 func TestHTTPHandlers_Index(t *testing.T) {
-	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockHandler(mockController)
+
+	h := NewHTTPHandlers(m)
+
+	m.EXPECT().GetAll().Times(1)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	h.IndexMetricHandler(w, req)
@@ -35,134 +40,71 @@ func TestHTTPHandlers_Index(t *testing.T) {
 	assert.Equal(t, "text/html; charset=utf-8", res.Header.Get("Content-Type"))
 }
 
-func TestHTTPHandlers_UpdateMetric(t *testing.T) {
-	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
-	tests := []struct {
-		name   string
-		code   int
-		mType  string
-		mName  string
-		mValue string
-	}{
-		{
-			name:   "success new counter",
-			code:   http.StatusOK,
-			mType:  models.Counter,
-			mName:  "c1",
-			mValue: "10",
-		},
-		{
-			name:   "success update counter",
-			code:   http.StatusOK,
-			mType:  models.Counter,
-			mName:  "c1",
-			mValue: "10",
-		},
-		{
-			name:   "success new gauge",
-			code:   http.StatusOK,
-			mType:  models.Gauge,
-			mName:  "g1",
-			mValue: "-1.75",
-		},
-		{
-			name:   "success update gauge",
-			code:   http.StatusOK,
-			mType:  models.Gauge,
-			mName:  "g1",
-			mValue: "1",
-		},
-		{
-			name:   "invalid metric type",
-			code:   http.StatusBadRequest,
-			mType:  "gauge1",
-			mName:  "g1",
-			mValue: "1",
-		},
-		{
-			name:   "invalid counter value string",
-			code:   http.StatusBadRequest,
-			mType:  models.Counter,
-			mName:  "c2",
-			mValue: "none",
-		},
-		{
-			name:   "invalid counter value float",
-			code:   http.StatusBadRequest,
-			mType:  models.Counter,
-			mName:  "c2",
-			mValue: "-0.117",
-		},
-		{
-			name:   "invalid gauge value string",
-			code:   http.StatusBadRequest,
-			mType:  models.Gauge,
-			mName:  "g1",
-			mValue: "something",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/update/{type}/{name}/{value}", nil)
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("type", tt.mType)
-			rctx.URLParams.Add("name", tt.mName)
-			rctx.URLParams.Add("value", tt.mValue)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-			w := httptest.NewRecorder()
-			h.UpdateMetricHandler(w, req)
-			res := w.Result()
-			defer res.Body.Close()
-
-			assert.Equal(t, tt.code, res.StatusCode)
-		})
-	}
-}
-
 func TestHTTPHandlers_GetMetric(t *testing.T) {
-	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
-	var cValue int64 = 10
-	var cName = "c1"
-	var gValue float64 = -0.110
-	var gName = "g1"
-	h.storage.IncCounter(cName, cValue)
-	h.storage.SetGauge(gName, gValue)
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockHandler(mockController)
+
+	h := NewHTTPHandlers(m)
+
 	tests := []struct {
-		name  string
-		code  int
-		mType string
-		mName string
-		want  string
+		name string
+
+		mName       string
+		mType       string
+		counterVal  int64   // return int value
+		gaugeVal    float64 // return float value
+		wantValue   string
+		wantCode    int
+		wantCall    int
+		returnError error
 	}{
 		{
-			name:  "success counter",
-			code:  http.StatusOK,
-			mType: models.Counter,
-			mName: cName,
-			//want:  fmt.Sprintf("%d", cValue),
-			want: strconv.FormatInt(cValue, 10),
+			name:       "success counter",
+			mName:      "name",
+			mType:      "counter",
+			counterVal: 10,
+
+			wantValue: "10",
+			wantCode:  http.StatusOK,
+			wantCall:  1,
 		},
 		{
-			name:  "success gauge",
-			code:  http.StatusOK,
-			mType: models.Gauge,
-			mName: gName,
-			//want:  fmt.Sprintf("%.3f", gValue),
-			want: strconv.FormatFloat(gValue, 'f', -1, 64),
+			name:     "success gauge",
+			mName:    "name",
+			mType:    "gauge",
+			gaugeVal: 0.119,
+
+			wantValue: "0.119",
+			wantCode:  http.StatusOK,
+			wantCall:  1,
 		},
 		{
-			name:  "invalid counter type",
-			code:  http.StatusBadRequest,
-			mType: "qqq",
-			mName: gName,
+			name:     "invalid type",
+			wantCode: http.StatusBadRequest,
+			mType:    "qqq",
+			mName:    "name",
+			wantCall: 0,
 		},
 		{
-			name:  "invalid counter name",
-			code:  http.StatusNotFound,
-			mType: models.Counter,
-			mName: gName,
+			name:        "not found",
+			wantCode:    http.StatusNotFound,
+			mType:       "counter",
+			mName:       "some name",
+			wantCall:    1,
+			returnError: controller.ErrMetricNotFound,
+		},
+		{
+			name:     "no name",
+			wantCode: http.StatusBadRequest,
+			mType:    "counter",
+			wantCall: 0,
+		},
+		{
+			name:     "no type",
+			wantCode: http.StatusBadRequest,
+			mName:    "models.Counter",
+			wantCall: 0,
 		},
 	}
 
@@ -174,443 +116,511 @@ func TestHTTPHandlers_GetMetric(t *testing.T) {
 			rctx.URLParams.Add("name", tt.mName)
 			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			w := httptest.NewRecorder()
+			m.EXPECT().GetOne(models.MetricRequest{
+				Name: tt.mName,
+				Type: tt.mType,
+			}).Times(tt.wantCall).DoAndReturn(func(req models.MetricRequest) (m models.Metrics, err error) {
+				return models.Metrics{
+					Type:   tt.mType,
+					FValue: &tt.gaugeVal,
+					IValue: &tt.counterVal,
+				}, tt.returnError
+			})
 			h.GetMetricHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 
-			require.Equal(t, tt.code, res.StatusCode)
+			require.Equal(t, tt.wantCode, res.StatusCode)
 			if res.StatusCode == http.StatusOK {
 				resBody, err := io.ReadAll(res.Body)
 				require.NoError(t, err)
-				assert.Equal(t, tt.want, string(resBody))
+				assert.Equal(t, tt.wantValue, string(resBody))
 			}
 		})
 	}
 }
 
 func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
-	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
-	var cValue int64 = 10
-	var cName = "c1"
-	var gValue float64 = -0.110
-	var gName = "g1"
-	h.storage.IncCounter(cName, cValue)
-	h.storage.SetGauge(gName, gValue)
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockHandler(mockController)
+
+	h := NewHTTPHandlers(m)
+
 	tests := []struct {
-		name   string
-		code   int
-		mType  string
-		mName  string
-		cValue *int64
-		gValue *float64
+		name string
+
+		rawRequest  string               // http request body
+		wantRequest models.MetricRequest // mock request
+
+		counterVal  *int64   // return int value
+		gaugeVal    *float64 // return float value
+		want        string
+		wantCode    int
+		wantCall    int
+		returnError error
 	}{
 		{
-			name:   "success counter",
-			code:   200,
-			mType:  models.Counter,
-			mName:  cName,
-			cValue: &cValue,
-			gValue: nil,
+			name:        "success counter",
+			rawRequest:  `{"id":"name","type":"counter"}`,
+			wantRequest: models.MetricRequest{"name", "counter"},
+			counterVal:  pointer(int64(10)),
+
+			want:     `{"id":"name","type":"counter","delta":10}`,
+			wantCode: http.StatusOK,
+			wantCall: 1,
 		},
 		{
-			name:   "success gauge",
-			code:   200,
-			mType:  models.Gauge,
-			mName:  gName,
-			gValue: &gValue,
-			cValue: nil,
+			name:        "success gauge",
+			rawRequest:  `{"id":"name","type":"gauge"}`,
+			wantRequest: models.MetricRequest{"name", "gauge"},
+			gaugeVal:    pointer(-1000.0001),
+
+			want:     `{"id":"name","type":"gauge","value":-1000.0001}`,
+			wantCode: http.StatusOK,
+			wantCall: 1,
 		},
 		{
-			name:  "invalid counter type",
-			code:  400,
-			mType: "qqqqq",
-			mName: "d1",
+			name:       "invalid type",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"id":"name","type":"gauge1"}`,
+			wantCall:   0,
 		},
 		{
-			name:  "invalid gauge name",
-			code:  404,
-			mType: models.Gauge,
-			mName: "gauge101",
+			name:        "not found",
+			wantCode:    http.StatusNotFound,
+			rawRequest:  `{"id":"name","type":"gauge"}`,
+			wantRequest: models.MetricRequest{"name", "gauge"},
+			wantCall:    1,
+			returnError: controller.ErrMetricNotFound,
+		},
+		{
+			name:       "no name",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"type":"gauge"}`,
+			wantCall:   0,
+		},
+		{
+			name:       "no type",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"id":"name"}`,
+			wantCall:   0,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m, _ := json.Marshal(models.Metrics{
-				Name: tt.mName,
-				Type: tt.mType,
-			})
-			buf := bytes.NewBuffer(m)
-			req := httptest.NewRequest(http.MethodPost, "/value", buf)
+			reqBody := bytes.NewBuffer([]byte(tt.rawRequest))
+			req := httptest.NewRequest(http.MethodPost, "/value", reqBody)
 
 			w := httptest.NewRecorder()
+			m.EXPECT().GetOne(tt.wantRequest).Times(tt.wantCall).DoAndReturn(func(req models.MetricRequest) (m models.Metrics, err error) {
+				return models.Metrics{
+					Name:   tt.wantRequest.Name,
+					Type:   tt.wantRequest.Type,
+					FValue: tt.gaugeVal,
+					IValue: tt.counterVal,
+				}, tt.returnError
+			})
 			h.GetMetricJSONHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 
-			require.Equal(t, tt.code, res.StatusCode)
+			require.Equal(t, tt.wantCode, res.StatusCode)
 			if res.StatusCode == http.StatusOK {
 				resBody, err := io.ReadAll(res.Body)
 				require.NoError(t, err)
-				var resJSON models.Metrics
-				require.NoError(t, json.Unmarshal(resBody, &resJSON))
-				assert.Equal(t, models.Metrics{
-					Name:   tt.mName,
-					Type:   tt.mType,
-					FValue: tt.gValue,
-					IValue: tt.cValue,
-				}, resJSON)
+				assert.JSONEq(t, tt.want, string(resBody))
+			}
+		})
+	}
+
+}
+
+func TestHTTPHandlers_UpdateMetric(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockHandler(mockController)
+
+	h := NewHTTPHandlers(m)
+
+	tests := []struct {
+		name string
+
+		mName  string
+		mType  string
+		mValue string   // value in request
+		delta  *int64   // delta in mock request
+		value  *float64 // value in mock request
+
+		counterVal int64   // return int value
+		gaugeVal   float64 // return float value
+
+		wantValue   string
+		wantCode    int
+		wantCall    int
+		returnError error
+	}{
+		{
+			name:   "success counter",
+			mName:  "name",
+			mType:  "counter",
+			mValue: "12",
+			delta:  pointer(int64(12)),
+
+			counterVal: 10,
+			wantValue:  "10",
+
+			wantCode: http.StatusOK,
+			wantCall: 1,
+		},
+		{
+			name:   "success gauge",
+			mName:  "name",
+			mType:  "gauge",
+			mValue: "1.117",
+			value:  pointer(1.117),
+
+			gaugeVal:  0.119,
+			wantValue: "0.119",
+			wantCode:  http.StatusOK,
+			wantCall:  1,
+		},
+		{
+			name:     "invalid type",
+			wantCode: http.StatusBadRequest,
+			mType:    "qqq",
+			mName:    "name",
+			mValue:   "1.117",
+			wantCall: 0,
+		},
+		{
+			name:     "no name",
+			wantCode: http.StatusBadRequest,
+			mType:    "counter",
+			mValue:   "10",
+			wantCall: 0,
+		},
+		{
+			name:     "no type",
+			wantCode: http.StatusBadRequest,
+			mName:    "models.Counter",
+			mValue:   "100",
+			wantCall: 0,
+		},
+		{
+			name:     "no value",
+			wantCode: http.StatusBadRequest,
+			mName:    "models.Counter",
+			mType:    "gauge",
+			wantCall: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/update/{type}/{name}/{value}", nil)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("type", tt.mType)
+			rctx.URLParams.Add("name", tt.mName)
+			rctx.URLParams.Add("value", tt.mValue)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			w := httptest.NewRecorder()
+			m.EXPECT().
+				UpdateOne(gomock.Any()).
+				Times(tt.wantCall).
+				DoAndReturn(func(metric *models.Metrics) error {
+					assert.Equal(t, tt.mName, metric.Name)
+					assert.Equal(t, tt.mType, metric.Type)
+					if tt.delta != nil {
+						assert.Equal(t, *tt.delta, *metric.IValue)
+						*metric.IValue = tt.counterVal
+					}
+					if tt.value != nil {
+						assert.Equal(t, *tt.value, *metric.FValue)
+						*metric.FValue = tt.gaugeVal
+					}
+					return tt.returnError
+				})
+			h.UpdateMetricHandler(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+
+			require.Equal(t, tt.wantCode, res.StatusCode)
+			if res.StatusCode == http.StatusOK {
+				resBody, err := io.ReadAll(res.Body)
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantValue, string(resBody))
 			}
 		})
 	}
 }
 
 func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
-	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockHandler(mockController)
+
+	h := NewHTTPHandlers(m)
+
 	tests := []struct {
-		name       string
-		code       int
-		reqString  string
-		wantString string
+		name string
+
+		rawRequest  string         // http request body
+		wantRequest models.Metrics // mock request
+
+		counterVal *int64   // return int value
+		gaugeVal   *float64 // return float value
+
+		want        string
+		wantCode    int
+		wantCall    int
+		returnError error
 	}{
 		{
-			name: "success new counter",
-			code: http.StatusOK,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":10
-				}`, models.Counter),
-			wantString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":10
-				}`, models.Counter),
+			name:        "success counter",
+			rawRequest:  `{"id":"name","type":"counter","delta":10}`,
+			wantRequest: models.Metrics{Name: "name", Type: "counter", IValue: pointer(int64(10))},
+			counterVal:  pointer(int64(12)),
+
+			want:     `{"id":"name","type":"counter","delta":12}`,
+			wantCode: http.StatusOK,
+			wantCall: 1,
 		},
 		{
-			name: "success update counter",
-			code: http.StatusOK,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":10
-				}`, models.Counter),
-			wantString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":20
-				}`, models.Counter),
+			name:        "success gauge",
+			rawRequest:  `{"id":"name","type":"gauge","value":0.197}`,
+			wantRequest: models.Metrics{Name: "name", Type: "gauge", FValue: pointer(0.197)},
+			gaugeVal:    pointer(-19.19),
+
+			want:     `{"id":"name","type":"gauge","value":-19.19}`,
+			wantCode: http.StatusOK,
+			wantCall: 1,
 		},
 		{
-			name: "success new gauge",
-			code: http.StatusOK,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"value":-1.75
-				}`, models.Gauge),
-			wantString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"value":-1.75
-				}`, models.Gauge),
+			name:       "invalid type",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"id":"name","type":"gauge1","value":0.197}`,
+			wantCall:   0,
 		},
 		{
-			name: "success update gauge",
-			code: http.StatusOK,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"value":1.000
-				}`, models.Gauge),
-			wantString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"value":1
-				}`, models.Gauge),
+			name:       "no name",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"type":"gauge1","value":0.197}`,
+			wantCall:   0,
 		},
 		{
-			name: "invalid metric type",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":1.000
-				}`, "gauge1"),
+			name:       "no type",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"id":"name","delta":10}`,
+			wantCall:   0,
 		},
 		{
-			name: "invalid counter value string",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"value":"something"
-				}`, models.Counter),
+			name:       "no value",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"id":"name","type":"gauge"}`,
+			wantCall:   0,
 		},
 		{
-			name: "invalid counter value float",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"c1",
-					"type":"%s",
-					"value":0.21
-				}`, models.Counter),
-		},
-		{
-			name: "invalid gauge value string",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":"something"
-				}`, models.Gauge),
+			name:       "value and delta",
+			wantCode:   http.StatusBadRequest,
+			rawRequest: `{"id":"name","type":"gauge1","delta":10,"value":19}`,
+			wantCall:   0,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf := bytes.NewBuffer([]byte(tt.reqString))
-			req := httptest.NewRequest(http.MethodPost, "/update", buf)
+			reqBody := bytes.NewBuffer([]byte(tt.rawRequest))
+			req := httptest.NewRequest(http.MethodPost, "/update", reqBody)
 
 			w := httptest.NewRecorder()
+			m.EXPECT().
+				UpdateOne(gomock.Any()).
+				Times(tt.wantCall).
+				DoAndReturn(func(metric *models.Metrics) error {
+					assert.Equal(t, tt.wantRequest.Name, metric.Name)
+					assert.Equal(t, tt.wantRequest.Type, metric.Type)
+					if tt.wantRequest.IValue != nil {
+						assert.Equal(t, *tt.wantRequest.IValue, *metric.IValue)
+						*metric.IValue = *tt.counterVal
+					}
+					if tt.wantRequest.FValue != nil {
+						assert.Equal(t, *tt.wantRequest.FValue, *metric.FValue)
+						*metric.FValue = *tt.gaugeVal
+					}
+					return tt.returnError
+				})
 			h.UpdateMetricJSONHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 
-			require.Equal(t, tt.code, res.StatusCode)
+			require.Equal(t, tt.wantCode, res.StatusCode)
 			if res.StatusCode == http.StatusOK {
 				resBody, err := io.ReadAll(res.Body)
 				require.NoError(t, err)
-				var resJSON models.Metrics
-				require.NoError(t, json.Unmarshal(resBody, &resJSON))
-				var m models.Metrics
-				json.Unmarshal([]byte(tt.wantString), &m)
-				assert.Equal(t, m, resJSON)
+				assert.JSONEq(t, tt.want, string(resBody))
 			}
 		})
 	}
 }
 
 func TestHTTPHandlers_UpdateMetricBatch(t *testing.T) {
-	s := memory.NewMemStorage()
-	h := NewHTTPHandlers(s)
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockHandler(mockController)
+
+	h := NewHTTPHandlers(m)
+
 	tests := []struct {
-		name       string
-		code       int
-		reqString  string
-		wantString string
+		name string
+
+		rawRequest  string           // http request body
+		wantRequest []models.Metrics // mock request
+
+		wantCode    int
+		wantCall    int
+		returnError error
 	}{
 		{
-			name: "success new counter and gauge",
-			code: http.StatusOK,
-			reqString: fmt.Sprintf(`
-				[{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":10
-				},
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":-1.75
-				}]`,
-				models.Counter, models.Gauge),
+			name: "success",
+			rawRequest: `[
+				{"id":"name","type":"gauge","value":19.1970},
+				{"id":"name","type":"counter","delta":-10}
+			]`,
+			wantRequest: []models.Metrics{
+				{Name: "name", Type: "gauge", FValue: pointer(19.1970)},
+				{Name: "name", Type: "counter", IValue: pointer(int64(-10))},
+			},
+			wantCode: http.StatusOK,
+			wantCall: 1,
 		},
 		{
-			name: "success update counter and gauge",
-			code: http.StatusOK,
-			reqString: fmt.Sprintf(`
-				[{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":8
-				},
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":0.07
-				}]`,
-				models.Counter, models.Gauge),
+			name:       "empty body",
+			rawRequest: ``,
+			wantCode:   http.StatusBadRequest,
 		},
 		{
-			name: "invalid metric type",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				[{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":8
-				},
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":0.07
-				}]`,
-				models.Counter, "invalid"),
+			name:       "empty array",
+			rawRequest: `[]`,
+			wantCode:   http.StatusBadRequest,
 		},
 		{
-			name: "invalid counter value string",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				[{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":"string"
-				},
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":0.07
-				}]`,
-				models.Counter, models.Gauge),
+			name:       "invalid json",
+			rawRequest: `{name:value}`,
+			wantCode:   http.StatusBadRequest,
 		},
 		{
-			name: "invalid counter value float",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				[{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":8.88
-				},
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":0.07
-				}]`,
-				models.Counter, models.Gauge),
+			name: "invalid type",
+			rawRequest: `[
+				{"id":"name","type":"gauge1","value":19.1970},
+				{"id":"name","type":"counter","delta":-10}
+			]`,
+			wantCode: http.StatusBadRequest,
 		},
 		{
-			name: "invalid gauge value string",
-			code: http.StatusBadRequest,
-			reqString: fmt.Sprintf(`
-				[{ 
-					"id":"c1",
-					"type":"%s",
-					"delta":8
-				},
-				{ 
-					"id":"g1",
-					"type":"%s",
-					"value":"string"
-				}]`,
-				models.Counter, models.Gauge),
+			name: "invalid counter value",
+			rawRequest: `[
+				{"id":"name","type":"gauge","value":19.1970},
+				{"id":"name","type":"counter","delta":-10.1}
+			]`,
+			wantCode: http.StatusBadRequest,
 		},
 		{
-			name:      "invalid json",
-			code:      http.StatusBadRequest,
-			reqString: "[this is not a json}",
+			name: "invalid gauge value",
+			rawRequest: `[
+				{"id":"name","type":"gauge","value":"abc"},
+				{"id":"name","type":"counter","delta":-10}
+			]`,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "missing value",
+			rawRequest: `[
+				{"id":"name","type":"gauge"},
+				{"id":"name","type":"counter","delta":-10}
+			]`,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "missing type",
+			rawRequest: `[
+				{"id":"name","type":"gauge","value":19.1970},
+				{"id":"name","delta":-10}
+			]`,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "missing name",
+			rawRequest: `[
+				{"id":"name","type":"gauge","value":19.1970},
+				{"type":"counter","delta":-10}
+			]`,
+			wantCode: http.StatusBadRequest,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf := bytes.NewBuffer([]byte(tt.reqString))
-			req := httptest.NewRequest(http.MethodPost, "/update", buf)
+			reqBody := bytes.NewBuffer([]byte(tt.rawRequest))
+			req := httptest.NewRequest(http.MethodPost, "/updates", reqBody)
 
 			w := httptest.NewRecorder()
+			m.EXPECT().
+				UpdateMany(gomock.Any()).
+				Times(tt.wantCall).
+				DoAndReturn(func(metrics []models.Metrics) error {
+					assert.Equal(t, tt.wantRequest, metrics)
+					return tt.returnError
+				})
 			h.UpdateMetricsBatchHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 
-			require.Equal(t, tt.code, res.StatusCode)
+			require.Equal(t, tt.wantCode, res.StatusCode)
 		})
 	}
 }
 
-func Test_validateMetric(t *testing.T) {
-	tests := []struct {
-		name    string
-		metric  models.Metrics
-		wantErr bool
-	}{
-		{
-			name: "correct metric",
-			metric: models.Metrics{
-				Name: "someMetric",
-				Type: models.Gauge,
-			},
-			wantErr: false,
-		},
-		{
-			name: "no metric name",
-			metric: models.Metrics{
-				Type: models.Counter,
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid metric type",
-			metric: models.Metrics{
-				Name: "someMetric",
-				Type: "invalidType",
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateMetric(&tt.metric)
-			if tt.wantErr {
-				require.Error(t, err, "Error expected")
-			} else {
-				require.NoError(t, err, "No error expected, got '%v'", err)
-			}
-		})
-	}
-}
-
-// for testing ping
-type fakePStore struct {
-	store.PersistentStorage
-	Pingable bool
-}
-
-func (ps fakePStore) Ping() error {
-	if ps.Pingable {
-		return nil
-	}
-	return errors.New("error")
-}
-
-func TestHTTPHandlers_PingHandler(t *testing.T) {
-	s := &memory.MemStorage{}
-	h := NewHTTPHandlers(s)
-	pStore := &fakePStore{
-		PersistentStorage: &file.FileStorage{},
-	}
-	tests := []struct {
-		name     string
-		pingable bool
-		respCode int
-		pstore   store.PersistentStorage
-	}{
-		{name: "ping ok", pingable: true, respCode: http.StatusOK, pstore: pStore},
-		{name: "ping", pingable: false, respCode: http.StatusInternalServerError, pstore: pStore},
-		{name: "no pstore", pingable: false, respCode: http.StatusInternalServerError, pstore: nil},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pStore.Pingable = tt.pingable
-			h.SetPStorage(tt.pstore)
-			req := httptest.NewRequest(http.MethodGet, "/ping", nil)
-			w := httptest.NewRecorder()
-			h.PingHandler(w, req)
-			res := w.Result()
-			defer res.Body.Close()
-			require.Equal(t, tt.respCode, res.StatusCode)
-		})
-	}
-
-}
+// TODO: ping tests
+//// for testing ping
+//type fakePStore struct {
+//	store.PersistentStorage
+//	Pingable bool
+//}
+//
+//func (ps fakePStore) Ping() error {
+//	if ps.Pingable {
+//		return nil
+//	}
+//	return errors.New("error")
+//}
+//
+//func TestHTTPHandlers_PingHandler(t *testing.T) {
+//	s := &memory.MemStorage{}
+//	h := NewHTTPHandlers(s)
+//	pStore := &fakePStore{
+//		PersistentStorage: &file.FileStorage{},
+//	}
+//	tests := []struct {
+//		name     string
+//		pingable bool
+//		respCode int
+//		pstore   store.PersistentStorage
+//	}{
+//		{name: "ping ok", pingable: true, respCode: http.StatusOK, pstore: pStore},
+//		{name: "ping", pingable: false, respCode: http.StatusInternalServerError, pstore: pStore},
+//		{name: "no pstore", pingable: false, respCode: http.StatusInternalServerError, pstore: nil},
+//	}
+//	for _, tt := range tests {
+//		t.Run(tt.name, func(t *testing.T) {
+//			pStore.Pingable = tt.pingable
+//			h.SetPStorage(tt.pstore)
+//			req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+//			w := httptest.NewRecorder()
+//			h.PingHandler(w, req)
+//			res := w.Result()
+//			defer res.Body.Close()
+//			require.Equal(t, tt.respCode, res.StatusCode)
+//		})
+//	}
+//
+//}

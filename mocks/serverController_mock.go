@@ -49,17 +49,18 @@ func (mr *MockHandlerMockRecorder) GetAll() *gomock.Call {
 }
 
 // GetOne mocks base method.
-func (m *MockHandler) GetOne(metric *models.Metrics) error {
+func (m *MockHandler) GetOne(request models.MetricRequest) (models.Metrics, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOne", metric)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "GetOne", request)
+	ret0, _ := ret[0].(models.Metrics)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetOne indicates an expected call of GetOne.
-func (mr *MockHandlerMockRecorder) GetOne(metric interface{}) *gomock.Call {
+func (mr *MockHandlerMockRecorder) GetOne(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOne", reflect.TypeOf((*MockHandler)(nil).GetOne), metric)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOne", reflect.TypeOf((*MockHandler)(nil).GetOne), request)
 }
 
 // UpdateMany mocks base method.
@@ -88,4 +89,84 @@ func (m *MockHandler) UpdateOne(metric *models.Metrics) error {
 func (mr *MockHandlerMockRecorder) UpdateOne(metric interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOne", reflect.TypeOf((*MockHandler)(nil).UpdateOne), metric)
+}
+
+// MockServerController is a mock of ServerController interface.
+type MockServerController struct {
+	ctrl     *gomock.Controller
+	recorder *MockServerControllerMockRecorder
+}
+
+// MockServerControllerMockRecorder is the mock recorder for MockServerController.
+type MockServerControllerMockRecorder struct {
+	mock *MockServerController
+}
+
+// NewMockServerController creates a new mock instance.
+func NewMockServerController(ctrl *gomock.Controller) *MockServerController {
+	mock := &MockServerController{ctrl: ctrl}
+	mock.recorder = &MockServerControllerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockServerController) EXPECT() *MockServerControllerMockRecorder {
+	return m.recorder
+}
+
+// GetAll mocks base method.
+func (m *MockServerController) GetAll() []models.Metrics {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAll")
+	ret0, _ := ret[0].([]models.Metrics)
+	return ret0
+}
+
+// GetAll indicates an expected call of GetAll.
+func (mr *MockServerControllerMockRecorder) GetAll() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockServerController)(nil).GetAll))
+}
+
+// GetOne mocks base method.
+func (m *MockServerController) GetOne(request models.MetricRequest) (models.Metrics, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOne", request)
+	ret0, _ := ret[0].(models.Metrics)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOne indicates an expected call of GetOne.
+func (mr *MockServerControllerMockRecorder) GetOne(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOne", reflect.TypeOf((*MockServerController)(nil).GetOne), request)
+}
+
+// UpdateMany mocks base method.
+func (m *MockServerController) UpdateMany(metrics []models.Metrics) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateMany", metrics)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateMany indicates an expected call of UpdateMany.
+func (mr *MockServerControllerMockRecorder) UpdateMany(metrics interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMany", reflect.TypeOf((*MockServerController)(nil).UpdateMany), metrics)
+}
+
+// UpdateOne mocks base method.
+func (m *MockServerController) UpdateOne(metric *models.Metrics) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateOne", metric)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateOne indicates an expected call of UpdateOne.
+func (mr *MockServerControllerMockRecorder) UpdateOne(metric interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOne", reflect.TypeOf((*MockServerController)(nil).UpdateOne), metric)
 }

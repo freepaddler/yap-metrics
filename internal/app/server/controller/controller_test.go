@@ -32,70 +32,81 @@ func Test_GetOne(t *testing.T) {
 	c := New(m)
 
 	tests := []struct {
-		name        string
-		mName       string
-		mType       string
-		wantErr     error
-		wantInt     int64
-		wantFloat   float64
-		wantOK      bool
-		wantCounter int
-		wantGauge   int
+		name            string
+		req             models.MetricRequest
+		wantErr         error
+		wantInt         int64
+		wantFloat       float64
+		wantFound       bool
+		wantCounterCall int
+		wantGaugeCall   int
 	}{
 		{
-			name:        "counter found",
-			mName:       "c1",
-			mType:       models.Counter,
-			wantInt:     int64(23),
-			wantOK:      true,
-			wantCounter: 1,
+			name: "counter found",
+			req: models.MetricRequest{
+				Name: "c1",
+				Type: "counter",
+			},
+			wantInt:         int64(23),
+			wantFound:       true,
+			wantCounterCall: 1,
 		},
 		{
-			name:        "counter not found",
-			mName:       "c1",
-			mType:       models.Counter,
-			wantOK:      false,
-			wantErr:     ErrMetricNotFound,
-			wantCounter: 1,
+			name: "counter not found",
+			req: models.MetricRequest{
+				Name: "c1",
+				Type: "counter",
+			},
+			wantFound:       false,
+			wantCounterCall: 1,
+			wantErr:         ErrMetricNotFound,
 		},
 		{
-			name:      "gauge found",
-			mName:     "g1",
-			mType:     models.Gauge,
-			wantFloat: -117.119,
-			wantOK:    true,
-			wantGauge: 1,
+			name: "gauge found",
+			req: models.MetricRequest{
+				Name: "g1",
+				Type: "gauge",
+			},
+			wantFloat:     -117.3,
+			wantFound:     true,
+			wantGaugeCall: 1,
+		},
+
+		{
+			name: "gauge not found",
+			req: models.MetricRequest{
+				Name: "g1",
+				Type: "gauge",
+			},
+			wantFound:     false,
+			wantGaugeCall: 1,
+			wantErr:       ErrMetricNotFound,
 		},
 		{
-			name:      "gauge not found",
-			mName:     "g1",
-			mType:     models.Gauge,
-			wantOK:    false,
-			wantErr:   ErrMetricNotFound,
-			wantGauge: 1,
-		},
-		{
-			name:    "invalid type",
-			mName:   "c1",
-			mType:   "some other",
-			wantErr: models.ErrBadMetric,
+			name: "invalid type",
+			req: models.MetricRequest{
+				Name: "g1",
+				Type: "gauge1",
+			},
+			wantErr: models.ErrInvalidMetric,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metric := models.Metrics{Name: tt.mName, Type: tt.mType}
-			m.EXPECT().GetCounter(tt.mName).Times(tt.wantCounter).Return(tt.wantInt, tt.wantOK)
-			m.EXPECT().GetGauge(tt.mName).Times(tt.wantGauge).Return(tt.wantFloat, tt.wantOK)
-			err := c.GetOne(&metric)
+			m.EXPECT().GetCounter(tt.req.Name).Times(tt.wantCounterCall).Return(tt.wantInt, tt.wantFound)
+			m.EXPECT().GetGauge(tt.req.Name).Times(tt.wantGaugeCall).Return(tt.wantFloat, tt.wantFound)
+			got, err := c.GetOne(tt.req)
 			if tt.wantErr != nil {
 				require.True(t, errors.Is(err, tt.wantErr))
 			} else {
 				require.NoError(t, err)
-				if tt.wantCounter > 0 {
-					assert.Equal(t, tt.wantInt, *metric.IValue)
+				assert.Equal(t, tt.req.Name, got.Name)
+				assert.Equal(t, tt.req.Type, got.Type)
+				if tt.wantCounterCall > 0 {
+					assert.Equal(t, tt.wantInt, *got.IValue)
 				}
-				if tt.wantGauge > 0 {
-					assert.Equal(t, tt.wantFloat, *metric.FValue)
+				if tt.wantGaugeCall > 0 {
+					assert.Equal(t, tt.wantFloat, *got.FValue)
 				}
 			}
 		})
@@ -139,7 +150,7 @@ func Test_UpdateOne(t *testing.T) {
 			name:    "invalid type",
 			mName:   "g1",
 			mType:   "fakemetric",
-			wantErr: models.ErrBadMetric,
+			wantErr: models.ErrInvalidMetric,
 		},
 	}
 	for _, tt := range tests {

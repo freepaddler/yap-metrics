@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/freepaddler/yap-metrics/internal/app/server/config"
+	"github.com/freepaddler/yap-metrics/internal/app/server/controller"
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
@@ -18,6 +19,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/db"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/inmemory"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
@@ -39,10 +41,12 @@ import (
 // Server represents server application
 type Server struct {
 	conf         *config.Config
-	store        *memory.MemStorage
+	store1       *memory.MemStorage
 	httpHandlers *handler.HTTPHandlers
 	httpRouter   *chi.Mux
 	httpServer   *http.Server
+	store        store.MemoryStore
+	controller   controller.ServerController
 }
 
 var (
@@ -53,11 +57,17 @@ var (
 func New(conf *config.Config) *Server {
 	srv := &Server{conf: conf}
 
+	// TODO: remove
 	// init new memory storage
-	srv.store = memory.NewMemStorage()
+	srv.store1 = memory.NewMemStorage()
+
+	// FIXED
+
+	srv.store = inmemory.New()
+	srv.controller = controller.New(srv.store)
 
 	// create http handlers instance
-	srv.httpHandlers = handler.NewHTTPHandlers(srv.store)
+	srv.httpHandlers = handler.NewHTTPHandlers(srv.controller)
 
 	// create http router
 	srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers, conf.Key, conf.PrivateKey)
@@ -137,7 +147,7 @@ func (srv *Server) Run(ctx context.Context) {
 	// save all metrics to persistent storage
 	if pStore != nil {
 		logger.Log().Info().Msg("saving all metrics to persistent storage on exit")
-		pStore.SaveStorage(srv.store)
+		pStore.SaveStorage(srv.store1)
 	}
 	logger.Log().Info().Msg("server stopped")
 }
@@ -152,12 +162,12 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 
 	// restore storage from file
 	if srv.conf.Restore {
-		fStore.RestoreStorage(srv.store)
+		fStore.RestoreStorage(srv.store1)
 	}
 
 	// register update hook for sync write to persistent storage
 	if srv.conf.StoreInterval == 0 {
-		srv.store.RegisterHooks(
+		srv.store1.RegisterHooks(
 			func(m []models.Metrics) {
 				go func() {
 					fStore.SaveMetrics(ctx, m)
@@ -167,7 +177,7 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 		wgRun.Add(1)
 		go func() {
 			defer wgRun.Done()
-			fStore.SaveLoop(ctx, srv.store, srv.conf.StoreInterval)
+			fStore.SaveLoop(ctx, srv.store1, srv.conf.StoreInterval)
 		}()
 	} else {
 		err = fmt.Errorf("invalid storeInterval=%d, should be 0 or greater", srv.conf.StoreInterval)
@@ -186,11 +196,11 @@ func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
 
 	// restore storage from file
 	if srv.conf.Restore {
-		dbStore.RestoreStorage(srv.store)
+		dbStore.RestoreStorage(srv.store1)
 	}
 
 	// register update hook for sync write to persistent storage
-	srv.store.RegisterHooks(
+	srv.store1.RegisterHooks(
 		func(m []models.Metrics) {
 			go func() {
 				dbStore.SaveMetrics(ctx, m)
