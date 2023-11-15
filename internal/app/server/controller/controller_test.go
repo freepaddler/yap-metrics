@@ -3,7 +3,6 @@ package controller
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -158,9 +157,7 @@ func Test_UpdateOne(t *testing.T) {
 			metric := models.Metrics{Name: tt.mName, Type: tt.mType, IValue: &tt.sendInt, FValue: &tt.wantFloat}
 			m.EXPECT().IncCounter(tt.mName, tt.sendInt).Times(tt.wantCounter).Return(tt.wantInt)
 			m.EXPECT().SetGauge(tt.mName, tt.wantFloat).Times(tt.wantGauge).Return(tt.wantFloat)
-			tStart := time.Now()
 			err := c.UpdateOne(&metric)
-			tEnd := time.Now()
 			if tt.wantErr != nil {
 				require.True(t, errors.Is(err, tt.wantErr))
 			} else {
@@ -170,7 +167,6 @@ func Test_UpdateOne(t *testing.T) {
 				}
 				if tt.wantGauge > 0 {
 					assert.Equal(t, tt.wantFloat, *metric.FValue)
-					require.WithinRange(t, c.gaugesTS[tt.mName], tStart, tEnd)
 				}
 			}
 		})

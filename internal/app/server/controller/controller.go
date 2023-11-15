@@ -3,7 +3,6 @@ package controller
 import (
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
@@ -15,16 +14,14 @@ var (
 
 // MetricsController implements server business logic layer
 type MetricsController struct {
-	store    store.MemoryStore
-	mu       sync.RWMutex
-	gaugesTS map[string]time.Time // timestamps of gauges updates
+	store store.MemoryStore
+	mu    sync.RWMutex
 }
 
 // New is a MetricsController constructor
 func New(storage store.MemoryStore) *MetricsController {
 	return &MetricsController{
-		store:    storage,
-		gaugesTS: make(map[string]time.Time),
+		store: storage,
 	}
 }
 
@@ -81,7 +78,6 @@ func (mc *MetricsController) updateMetric(metric *models.Metrics) error {
 			return models.ErrInvalidMetric
 		}
 		v := mc.store.SetGauge(metric.Name, *metric.FValue)
-		mc.gaugesTS[metric.Name] = time.Now()
 		metric.FValue = &v
 	default:
 		return models.ErrInvalidMetric
