@@ -38,6 +38,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				} else {
 					mainFunc = false
 				}
+			case *ast.DeferStmt:
+				return false
 			case *ast.CallExpr:
 				if sel, ok := x.Fun.(*ast.SelectorExpr); ok {
 					if pfx, ok := sel.X.(*ast.Ident); ok {
