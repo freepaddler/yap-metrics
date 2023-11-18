@@ -14,6 +14,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -21,6 +22,10 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/pkg/retry"
 	"github.com/freepaddler/yap-metrics/pkg/wpool"
+)
+
+var (
+	ErrPostShutdown = errors.New("post-shutdown routine failed")
 )
 
 //go:generate mockgen -source $GOFILE -package=mocks -destination ../../../mocks/AgentCollector_mock.go
@@ -45,15 +50,15 @@ type Reporter interface {
 	Send([]models.Metrics) error
 }
 
-// Store interface for agent App
-type Store interface {
+// AgentStore interface for agent App
+type AgentStore interface {
 	StoreCollector
 	StoreReporter
 }
 
 // Agent is agent application config
 type Agent struct {
-	store          Store
+	store          AgentStore
 	collectors     []CollectorFunc
 	pollInterval   time.Duration
 	reporter       Reporter
@@ -77,7 +82,7 @@ func New(options ...func(*Agent)) *Agent {
 }
 
 // WithStore defines app storage
-func WithStore(s Store) func(*Agent) {
+func WithStore(s AgentStore) func(*Agent) {
 	return func(agt *Agent) {
 		agt.store = s
 	}
@@ -220,7 +225,7 @@ func (agt *Agent) Run(ctx context.Context) error {
 	report, _ := agt.store.ReportAll()
 	err := agt.reporter.Send(report)
 	if err != nil {
-		return errors.New("post-shutdown routine failed")
+		return fmt.Errorf("%w: %w", ErrPostShutdown, err)
 	}
 	logger.Log().Info().Msg("post-shutdown routines done")
 	return nil
