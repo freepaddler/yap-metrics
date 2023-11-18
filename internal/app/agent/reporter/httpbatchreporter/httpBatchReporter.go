@@ -1,4 +1,4 @@
-package httpBatchReporter
+package httpbatchreporter
 
 import (
 	"crypto/rsa"

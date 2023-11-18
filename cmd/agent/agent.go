@@ -2,16 +2,22 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
+	"errors"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/app/agent"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/collector"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/controller"
-	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter/httpBatchReporter"
+	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter/httpbatchreporter"
+	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/inmemory"
 )
@@ -42,16 +48,62 @@ Build commit %s
 	// set log level
 	logger.SetLevel(conf.LogLevel)
 
+	// try to load public key
+	var pubKey *rsa.PublicKey
+
+	if conf.PublicKeyFile != "" {
+		pFile, err := os.Open(conf.PublicKeyFile)
+		if err != nil {
+			logger.Log().Error().Err(err).Msgf("unable to open public key file: %s", conf.PublicKeyFile)
+			exitCode = 1
+			return
+		}
+		pubKey, err = crypt.ReadPublicKey(pFile)
+		if err != nil {
+			logger.Log().Error().Err(err).Msgf("unable to read public key from file: %s", conf.PublicKeyFile)
+			exitCode = 1
+			return
+		}
+	}
+
 	// notify context
 	nCtx, nStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer nStop()
 
+	// start pprof webserver
+	if conf.PprofAddress != "" {
+		// pprof http server
+		httpServer := &http.Server{
+			Addr: conf.PprofAddress,
+		}
+		go func() {
+			logger.Log().Info().Msgf("starting pprof http server at 'http://%s/debug/pprof'", httpServer.Addr)
+			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Log().Error().Msg("failed to start pprof http server")
+			}
+			logger.Log().Info().Msg("pprof http server stopped acquiring new connections")
+		}()
+		defer func() {
+			// context for httpServer graceful shutdown
+			httpCtx, httpRelease := context.WithTimeout(context.Background(), 30*time.Second)
+			defer httpRelease()
+
+			// gracefully stop pprof http server
+			logger.Log().Info().Msg("stopping pprof http server")
+			if err := httpServer.Shutdown(httpCtx); err != nil {
+				logger.Log().Err(err).Msg("failed to stop  pprof http server gracefully. force stop")
+				_ = httpServer.Close()
+			}
+			logger.Log().Info().Msg("pprof http server stopped")
+		}()
+	}
+
 	// setup reporter
-	reporter := httpBatchReporter.New(
-		httpBatchReporter.WithAddress(conf.ServerAddress),
-		httpBatchReporter.WithHTTPTimeout(conf.HTTPTimeout),
-		httpBatchReporter.WithSignKey(conf.Key),
-		httpBatchReporter.WithPublicKey(conf.PublicKey),
+	reporter := httpbatchreporter.New(
+		httpbatchreporter.WithAddress(conf.ServerAddress),
+		httpbatchreporter.WithHTTPTimeout(conf.HTTPTimeout),
+		httpbatchreporter.WithSignKey(conf.Key),
+		httpbatchreporter.WithPublicKey(pubKey),
 	)
 
 	// init and run agent
@@ -68,6 +120,8 @@ Build commit %s
 	)
 	err := app.Run(nCtx)
 	if err != nil {
+		logger.Log().Error().Err(err).Msg("unclean exit")
 		exitCode = 2
 	}
+	logger.Log().Info().Msg("agent stopped")
 }

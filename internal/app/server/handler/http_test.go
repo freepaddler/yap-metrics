@@ -163,7 +163,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 		{
 			name:        "success counter",
 			rawRequest:  `{"id":"name","type":"counter"}`,
-			wantRequest: models.MetricRequest{"name", "counter"},
+			wantRequest: models.MetricRequest{Name: "name", Type: "counter"},
 			counterVal:  pointer(int64(10)),
 
 			want:     `{"id":"name","type":"counter","delta":10}`,
@@ -173,7 +173,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 		{
 			name:        "success gauge",
 			rawRequest:  `{"id":"name","type":"gauge"}`,
-			wantRequest: models.MetricRequest{"name", "gauge"},
+			wantRequest: models.MetricRequest{Name: "name", Type: "gauge"},
 			gaugeVal:    pointer(-1000.0001),
 
 			want:     `{"id":"name","type":"gauge","value":-1000.0001}`,
@@ -190,7 +190,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 			name:        "not found",
 			wantCode:    http.StatusNotFound,
 			rawRequest:  `{"id":"name","type":"gauge"}`,
-			wantRequest: models.MetricRequest{"name", "gauge"},
+			wantRequest: models.MetricRequest{Name: "name", Type: "gauge"},
 			wantCall:    1,
 			returnError: controller.ErrMetricNotFound,
 		},
