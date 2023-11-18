@@ -54,7 +54,7 @@ there
 func Test_EncryptDecrypt(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	require.NoError(t, err)
-	payload := make([]byte, 3000)
+	payload := make([]byte, 3000000)
 	rand.Read(payload)
 	encrypted, err := EncryptOAEP(&key.PublicKey, payload)
 	require.NoError(t, err, "No encryption errors expected")

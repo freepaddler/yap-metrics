@@ -1,108 +1,200 @@
+// Package agent implements agent's business logic.
+//
+// Runs collectors every pollInterval.
+//
+// Sends reports every reportInterval.
+// In case of failed send restores unreported values back to store.
+//
+// Sending reports supports retries with predefined intervals.
+//
+// rateLimit limits the maximum number of simultaneous report processes.
+
 package agent
 
 import (
 	"context"
 	"errors"
-	"net/http"
-	_ "net/http/pprof"
 	"sync"
 	"time"
 
-	"github.com/freepaddler/yap-metrics/internal/app/agent/collector"
-	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
-	"github.com/freepaddler/yap-metrics/internal/app/agent/controller"
-	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/inmemory"
+	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/pkg/retry"
 	"github.com/freepaddler/yap-metrics/pkg/wpool"
 )
 
+//go:generate mockgen -source $GOFILE -package=mocks -destination ../../../mocks/AgentCollector_mock.go
+
+// StoreCollector allows collectors to access store with required methods
+type StoreCollector interface {
+	CollectCounter(name string, val int64)
+	CollectGauge(name string, val float64)
+}
+
+// CollectorFunc defines function type for collectors
+type CollectorFunc func(context.Context, StoreCollector)
+
+// StoreReporter defines methods required for metrics reporting
+type StoreReporter interface {
+	ReportAll() ([]models.Metrics, time.Time)
+	RestoreReport(metrics []models.Metrics, ts time.Time)
+}
+
+// Reporter is used to report metrics
+type Reporter interface {
+	Send([]models.Metrics) error
+}
+
+// Store interface for agent App
+type Store interface {
+	StoreCollector
+	StoreReporter
+}
+
+// Agent is agent application config
 type Agent struct {
-	conf       *config.Config
-	controller controller.AgentController
-	reporter   *reporter.HTTPReporter
-	collector  *collector.Collector
+	store          Store
+	collectors     []CollectorFunc
+	pollInterval   time.Duration
+	reporter       Reporter
+	reportInterval time.Duration
+	wg             sync.WaitGroup
+	retries        []int
+	rateLimit      int
 }
 
-func New(c *config.Config) *Agent {
-	agt := Agent{conf: c}
-	agt.controller = controller.New(inmemory.New())
-	agt.reporter = reporter.NewHTTPReporter(
-		agt.controller,
-		agt.conf.ServerAddress,
-		agt.conf.HTTPTimeout,
-		agt.conf.Key,
-		agt.conf.PublicKey,
-	)
-	agt.collector = collector.New(agt.controller)
-	return &agt
+// New is an Agent constructor
+func New(options ...func(*Agent)) *Agent {
+	agent := &Agent{
+		pollInterval:   10 * time.Second,
+		reportInterval: 10 * time.Second,
+		rateLimit:      1,
+	}
+	for _, opt := range options {
+		opt(agent)
+	}
+	return agent
 }
 
-func (agt *Agent) Run(ctx context.Context) {
+// WithStore defines app storage
+func WithStore(s Store) func(*Agent) {
+	return func(agt *Agent) {
+		agt.store = s
+	}
+}
+
+// WithCollectorFunc adds collector to the agent
+func WithCollectorFunc(c CollectorFunc) func(*Agent) {
+	return func(agt *Agent) {
+		agt.collectors = append(agt.collectors, c)
+	}
+}
+
+// WithPollInterval sets collecting interval
+func WithPollInterval(interval uint32) func(*Agent) {
+	return func(agt *Agent) {
+		agt.pollInterval = time.Duration(interval) * time.Second
+	}
+}
+
+// WithReporter adds Reporter to the agent
+func WithReporter(r Reporter) func(*Agent) {
+	return func(agt *Agent) {
+		agt.reporter = r
+	}
+}
+
+// WithReportInterval sets reporting interval
+func WithReportInterval(interval uint32) func(*Agent) {
+	return func(agt *Agent) {
+		agt.reportInterval = time.Duration(interval) * time.Second
+	}
+}
+
+// WithRetries sets report retries count
+func WithRetries(r ...int) func(*Agent) {
+	return func(agt *Agent) {
+		agt.retries = append(agt.retries, r...)
+	}
+}
+
+// WithRateLimit sets parallel sending processes count
+func WithRateLimit(rl int) func(*Agent) {
+	return func(agt *Agent) {
+		if rl > 0 {
+			agt.rateLimit = rl
+			return
+		}
+		logger.Log().Warn().Msgf("Invalid rate limit '%d', use default %d", rl, agt.rateLimit)
+	}
+}
+
+// checkCtxCancel validates context is not cancelled, exit fatal if it is
+func checkCtxCancel(ctx context.Context) {
+	if err := ctx.Err(); err != nil {
+		logger.Log().Fatal().Err(err).Msg("application terminated")
+	}
+}
+
+func (agt *Agent) Run(ctx context.Context) error {
 	checkCtxCancel(ctx)
 	logger.Log().Info().Msg("starting agent")
 
-	var wg sync.WaitGroup
-
-	// pprof http server
-	httpServer := &http.Server{
-		Addr: "127.0.0.1:8091",
-	}
-
-	// start http server for profiling
-	if agt.conf.PprofAddress != "" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			logger.Log().Info().Msgf("starting pprof http server at 'http://%s/debug/pprof'", agt.conf.PprofAddress)
-			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Log().Error().Err(err).Msg("failed to start pprof http server")
-			}
-			logger.Log().Info().Msg("pprof http server stopped acquiring new connections")
-		}()
-	}
-
 	// start collection loop
-	wg.Add(1)
+	agt.wg.Add(1)
 	go func(ctx context.Context) {
-		defer wg.Done()
-		logger.Log().Debug().Msgf("starting metrics polling every %d seconds", agt.conf.PollInterval)
+		defer agt.wg.Done()
+		logger.Log().Info().Msgf("starting metrics polling every %.f seconds", agt.pollInterval.Seconds())
 		for {
-			agt.collector.CollectMetrics()
+			logger.Log().Info().Msg("new collect cycle")
+			var wgCollector sync.WaitGroup
+			wgCollector.Add(len(agt.collectors))
+			for _, c := range agt.collectors {
+				c := c
+				go func() {
+					defer wgCollector.Done()
+					c(ctx, agt.store)
+				}()
+			}
+			wgCollector.Wait()
 			select {
-			case <-time.After(time.Duration(agt.conf.PollInterval) * time.Second):
+			case <-time.After(agt.pollInterval):
 			case <-ctx.Done():
-				logger.Log().Debug().Msg("metrics polling cancelled")
+				logger.Log().Info().Msg("metrics polling terminated")
 				return
 			}
 		}
 	}(ctx)
-	wg.Add(1)
-	go func(ctx context.Context) {
-		defer wg.Done()
-		logger.Log().Debug().Msgf("starting gops metrics polling every %d seconds", agt.conf.PollInterval)
-		for {
-			agt.collector.CollectGOPSMetrics(ctx)
-			select {
-			case <-time.After(time.Duration(agt.conf.PollInterval) * time.Second):
-			case <-ctx.Done():
-				logger.Log().Debug().Msg("gops metrics polling cancelled")
-				return
-			}
-		}
-	}(ctx)
-	wg.Add(1)
+
 	// start reporting loop
+	agt.wg.Add(1)
 	go func(ctx context.Context) {
-		defer wg.Done()
-		wp := wpool.New(ctx, agt.conf.ReportRateLimit)
-		logger.Log().Debug().Msgf("starting metrics reporting every %d seconds", agt.conf.ReportInterval)
+		defer agt.wg.Done()
+		logger.Log().Info().Msgf("starting metrics reporting every %.f seconds", agt.pollInterval.Seconds())
+		wp := wpool.New(ctx, agt.rateLimit)
 		for {
-			if err := wp.Task(func() { agt.reporter.ReportBatchJSON(ctx) }); err != nil {
+			logger.Log().Info().Msg("new report cycle")
+
+			if err := wp.Task(func() {
+				report, ts := agt.store.ReportAll()
+
+				err := retry.WithStrategy(ctx, func(context.Context) error {
+					err := func() (err error) {
+						return agt.reporter.Send(report)
+					}()
+					return err
+				}, retry.IsNetErr, agt.retries...)
+
+				if err != nil {
+					logger.Log().Info().Msg("restore unsent report to store")
+					agt.store.RestoreReport(report, ts)
+				}
+			}); err != nil {
 				logger.Log().Warn().Err(err).Msg("unable to add reporting task to wpool")
 			}
+
 			select {
-			case <-time.After(time.Duration(agt.conf.ReportInterval) * time.Second):
+			case <-time.After(agt.reportInterval):
 			case <-ctx.Done():
 				logger.Log().Debug().Msg("metrics reporting cancelled")
 				<-wp.Stop()
@@ -111,43 +203,27 @@ func (agt *Agent) Run(ctx context.Context) {
 		}
 	}(ctx)
 
-	time.Sleep(500 * time.Millisecond)
 	logger.Log().Info().Msg("agent started")
 
 	// waiting for main context to be cancelled
 	<-ctx.Done()
 	logger.Log().Info().Msg("got stop request. stopping agent")
 
-	// context for httpServer graceful shutdown
-	httpCtx, httpRelease := context.WithTimeout(context.Background(), 10*time.Second)
-	defer httpRelease()
+	//wait until tasks stopped
+	agt.wg.Wait()
+	logger.Log().Info().Msg("agent stopped. running post-shutdown routines")
 
-	// gracefully stop pprof http server
-	logger.Log().Info().Msg("stopping pprof http server")
-	if err := httpServer.Shutdown(httpCtx); err != nil {
-		logger.Log().Err(err).Msg("failed to stop  pprof http server gracefully. force stop")
-		_ = httpServer.Close()
+	// post-shutdown tasks
+
+	// report all metrics to server
+	logger.Log().Info().Msg("report metrics to server")
+	report, ts := agt.store.ReportAll()
+	err := agt.reporter.Send(report)
+	if err != nil {
+		logger.Log().Debug().Msg("restore failed report to store")
+		agt.store.RestoreReport(report, ts)
+		return errors.New("post-shutdown routine failed")
 	}
-	logger.Log().Info().Msg("pprof http server stopped")
-
-	// wait until tasks stopped
-	wg.Wait()
-	logger.Log().Info().Msg("agent stopped. running shutdown routines")
-
-	// shutdown tasks
-
-	// send all metrics to server
-	logger.Log().Info().Msg("sending all metrics to server on exit with 15 seconds timeout")
-	ctxRep, ctxRepCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer ctxRepCancel()
-	agt.reporter.ReportBatchJSON(ctxRep)
-	logger.Log().Info().Msg("shutdown routines done")
-
-}
-
-// checkCtxCancel validates context is not cancelled, exit fatal if it is
-func checkCtxCancel(ctx context.Context) {
-	if err := ctx.Err(); err != nil {
-		logger.Log().Fatal().Err(err).Msg("application terminated")
-	}
+	logger.Log().Info().Msg("post-shutdown routines done")
+	return nil
 }

@@ -17,28 +17,31 @@ import (
 )
 
 const (
-	defaultPollInterval   = 2
-	defaultReportInterval = 10
 	defaultServerAddress  = "127.0.0.1:8080"
-	defaultHTTPTimeout    = 5 * time.Second
-	defaultLogLevel       = "info"
-	defaultKey            = ""
-	defaultRateLimit      = 1
+	defaultReportInterval = 10
+	defaultPollInterval   = 2
+
+	defaultHTTPTimeout = 5 * time.Second
+	defaultLogLevel    = "info"
+	defaultKey         = ""
+	defaultRateLimit   = 1
 )
 
 // Config implements agent configuration
 type Config struct {
-	PollInterval    uint32         `env:"POLL_INTERVAL"`
-	ReportInterval  uint32         `env:"REPORT_INTERVAL"`
-	ServerAddress   string         `env:"ADDRESS" json:"address"`
-	HTTPTimeout     time.Duration  `env:"HTTP_TIMEOUT"`
-	LogLevel        string         `env:"LOG_LEVEL"`
-	Key             string         `env:"KEY"`
-	ReportRateLimit int            `env:"RATE_LIMIT"`
-	PprofAddress    string         `env:"PPROF_ADDRESS"`
-	PublicKeyFile   string         `env:"CRYPTO_KEY" json:"crypto_key"`
-	PublicKey       *rsa.PublicKey `json:"-"`
-	ConfigFile      string         `env:"CONFIG"`
+	ServerAddress  string `env:"ADDRESS" json:"address"`
+	ReportInterval uint32 `env:"REPORT_INTERVAL"`
+	PollInterval   uint32 `env:"POLL_INTERVAL"`
+	PublicKeyFile  string `env:"CRYPTO_KEY" json:"crypto_key"`
+
+	HTTPTimeout     time.Duration `env:"HTTP_TIMEOUT"`
+	LogLevel        string        `env:"LOG_LEVEL"`
+	Key             string        `env:"KEY"`
+	ReportRateLimit int           `env:"RATE_LIMIT"`
+	PprofAddress    string        `env:"PPROF_ADDRESS"`
+
+	PublicKey  *rsa.PublicKey `json:"-"`
+	ConfigFile string         `env:"CONFIG"`
 }
 
 // UnmarshalJSON to convert duration from config to uint32

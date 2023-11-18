@@ -87,7 +87,8 @@ func ReadPrivateKey(in io.Reader) (*rsa.PrivateKey, error) {
 func EncryptOAEP(pub *rsa.PublicKey, msg []byte) ([]byte, error) {
 	msgSize := len(msg)
 	blockSize := pub.Size() - 2*useHash.Size() - 2
-	var encryptedBytes []byte
+	// new message will be not more than block count * public key size
+	encryptedBytes := make([]byte, 0, (len(msg)/blockSize+1)*pub.Size())
 	for startIdx := 0; startIdx < msgSize; startIdx += blockSize {
 		endIdx := startIdx + blockSize
 		if endIdx > msgSize {

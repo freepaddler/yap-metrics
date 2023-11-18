@@ -1,4 +1,5 @@
 // Package models defines metrics models and validation functions.
+// Metrics are core entities in the app.
 package models
 
 import (
@@ -9,8 +10,10 @@ import (
 )
 
 const (
+	// Counter metric type is an accumulator that increases every update on received delta value
 	Counter = "counter"
-	Gauge   = "gauge"
+	// Gauge metric type is an indicator that stores the last received value
+	Gauge = "gauge"
 )
 
 var (
@@ -66,8 +69,8 @@ func (m *MetricRequest) UnmarshalJSON(b []byte) error {
 type Metrics struct {
 	Name   string   `json:"id"`
 	Type   string   `json:"type"`
-	FValue *float64 `json:"value,omitempty"`
-	IValue *int64   `json:"delta,omitempty"`
+	FValue *float64 `json:"value,omitempty"` // stores Gauge value
+	IValue *int64   `json:"delta,omitempty"` // stores Counter value
 }
 
 // NewMetric is used to create Metrics struct from string values. Should be used in update requests.

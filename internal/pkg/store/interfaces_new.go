@@ -36,3 +36,9 @@ type MemoryStore interface {
 	// if flush is true, stored metrics are deleted
 	Snapshot(flush bool) []models.Metrics
 }
+
+// Dumper is a persistent storage to dump and restore Store
+type Dumper interface {
+	Dump(metrics []models.Metrics)
+	Restore() []models.Metrics
+}

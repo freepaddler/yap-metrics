@@ -257,3 +257,52 @@ func (mr *MockMemoryStoreMockRecorder) Snapshot(flush interface{}) *gomock.Call 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockMemoryStore)(nil).Snapshot), flush)
 }
+
+// MockDumper is a mock of Dumper interface.
+type MockDumper struct {
+	ctrl     *gomock.Controller
+	recorder *MockDumperMockRecorder
+}
+
+// MockDumperMockRecorder is the mock recorder for MockDumper.
+type MockDumperMockRecorder struct {
+	mock *MockDumper
+}
+
+// NewMockDumper creates a new mock instance.
+func NewMockDumper(ctrl *gomock.Controller) *MockDumper {
+	mock := &MockDumper{ctrl: ctrl}
+	mock.recorder = &MockDumperMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDumper) EXPECT() *MockDumperMockRecorder {
+	return m.recorder
+}
+
+// Dump mocks base method.
+func (m *MockDumper) Dump(metrics []models.Metrics) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Dump", metrics)
+}
+
+// Dump indicates an expected call of Dump.
+func (mr *MockDumperMockRecorder) Dump(metrics interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dump", reflect.TypeOf((*MockDumper)(nil).Dump), metrics)
+}
+
+// Restore mocks base method.
+func (m *MockDumper) Restore() []models.Metrics {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Restore")
+	ret0, _ := ret[0].([]models.Metrics)
+	return ret0
+}
+
+// Restore indicates an expected call of Restore.
+func (mr *MockDumperMockRecorder) Restore() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockDumper)(nil).Restore))
+}

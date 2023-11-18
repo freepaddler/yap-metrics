@@ -11,13 +11,20 @@ import (
 	"github.com/freepaddler/yap-metrics/mocks"
 )
 
-func TestCollector_CollectMetrics(t *testing.T) {
+func TestSimple(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockCollector(mockController)
-	c := New(m)
+	m := mocks.NewMockStoreCollector(mockController)
 	m.EXPECT().CollectCounter("PollCount", int64(1)).Times(2)
 	m.EXPECT().CollectGauge("RandomValue", gomock.Any()).Times(2)
+	Simple(context.Background(), m)
+	Simple(context.Background(), m)
+}
+
+func TestMemStats(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockStoreCollector(mockController)
 	m.EXPECT().CollectGauge("Alloc", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("BuckHashSys", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("Frees", gomock.Any()).Times(2)
@@ -45,15 +52,14 @@ func TestCollector_CollectMetrics(t *testing.T) {
 	m.EXPECT().CollectGauge("StackSys", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("Sys", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("TotalAlloc", gomock.Any()).Times(2)
-	c.CollectMetrics()
-	c.CollectMetrics()
+	MemStats(context.Background(), m)
+	MemStats(context.Background(), m)
 }
 
-func TestCollector_CollectGOPSMetrics(t *testing.T) {
+func TestGoPS(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockCollector(mockController)
-	c := New(m)
+	m := mocks.NewMockStoreCollector(mockController)
 	m.EXPECT().CollectGauge("TotalMemory", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("FreeMemory", gomock.Any()).Times(2)
 	for i := 0; i < runtime.NumCPU(); i++ {
@@ -61,6 +67,6 @@ func TestCollector_CollectGOPSMetrics(t *testing.T) {
 		cpuMetric := fmt.Sprintf("CPUutilization%d", j)
 		m.EXPECT().CollectGauge(cpuMetric, gomock.Any()).Times(2)
 	}
-	c.CollectGOPSMetrics(context.Background())
-	c.CollectGOPSMetrics(context.Background())
+	GoPS(context.Background(), m)
+	GoPS(context.Background(), m)
 }
