@@ -3,6 +3,8 @@
 package inmemory
 
 import (
+	"sync"
+
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
@@ -10,13 +12,14 @@ import (
 
 // Store is in-memory metric store structure
 type Store struct {
+	mu       sync.RWMutex
 	counters map[string]int64   // metrics of type counter
 	gauges   map[string]float64 // metrics of type gauge
 }
 
 // New is a constructor for Store
 func New() *Store {
-	ms := &Store{}
+	ms := new(Store)
 	ms.counters = make(map[string]int64)
 	ms.gauges = make(map[string]float64)
 	return ms
@@ -27,6 +30,8 @@ var _ store.Gauge1 = (*Store)(nil)
 
 // SetGauge creates or updates gauge metric value in storage by its name
 func (ms *Store) SetGauge(name string, fValue float64) float64 {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	ms.gauges[name] = fValue
 	logger.Log().Debug().Msgf("SetGauge: store value %f for gauge %s", fValue, name)
 	return fValue
@@ -35,12 +40,16 @@ func (ms *Store) SetGauge(name string, fValue float64) float64 {
 
 // GetGauge returns gauge metric value and existence flag by its name
 func (ms *Store) GetGauge(name string) (float64, bool) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	v, ok := ms.gauges[name]
 	return v, ok
 }
 
 // DelGauge removes gauge metric from storage by its name
 func (ms *Store) DelGauge(name string) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	delete(ms.gauges, name)
 }
 
@@ -49,6 +58,8 @@ var _ store.Counter1 = (*Store)(nil)
 
 // IncCounter creates new or increments counter metric value in storage by its name
 func (ms *Store) IncCounter(name string, iValue int64) int64 {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	ms.counters[name] += iValue
 	logger.Log().Debug().Msgf("IncCounter: add increment %d for counter %s", iValue, name)
 	// pointer to map will not work
@@ -58,12 +69,16 @@ func (ms *Store) IncCounter(name string, iValue int64) int64 {
 
 // GetCounter returns counter metric value and existence flag by its name
 func (ms *Store) GetCounter(name string) (int64, bool) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	v, ok := ms.counters[name]
 	return v, ok
 }
 
 // DelCounter removes gauge metric from storage by its name
 func (ms *Store) DelCounter(name string) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	delete(ms.counters, name)
 }
 
