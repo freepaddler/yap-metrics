@@ -1,7 +1,6 @@
 package config
 
 import (
-	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"github.com/caarlos0/env/v8"
 	flag "github.com/spf13/pflag"
 
-	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
@@ -40,8 +38,7 @@ type Config struct {
 	ReportRateLimit int           `env:"RATE_LIMIT"`
 	PprofAddress    string        `env:"PPROF_ADDRESS"`
 
-	PublicKey  *rsa.PublicKey `json:"-"`
-	ConfigFile string         `env:"CONFIG"`
+	ConfigFile string `env:"CONFIG"`
 }
 
 // UnmarshalJSON to convert duration from config to uint32
@@ -214,20 +211,6 @@ func NewConfig() *Config {
 			defaultHTTPTimeout.String(),
 		)
 		c.HTTPTimeout = defaultHTTPTimeout
-	}
-
-	// try to load public key
-	if c.PublicKeyFile != "" {
-		pFile, err := os.Open(c.PublicKeyFile)
-		if err != nil {
-			logger.Log().Error().Err(err).Msgf("unable to open public key file: %s", c.PublicKeyFile)
-			os.Exit(1)
-		}
-		c.PublicKey, err = crypt.ReadPublicKey(pFile)
-		if err != nil {
-			logger.Log().Error().Err(err).Msgf("unable to read public key from file: %s", c.PublicKeyFile)
-			os.Exit(1)
-		}
 	}
 
 	// print config
