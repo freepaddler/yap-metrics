@@ -217,11 +217,9 @@ func (agt *Agent) Run(ctx context.Context) error {
 
 	// report all metrics to server
 	logger.Log().Info().Msg("report metrics to server")
-	report, ts := agt.store.ReportAll()
+	report, _ := agt.store.ReportAll()
 	err := agt.reporter.Send(report)
 	if err != nil {
-		logger.Log().Debug().Msg("restore failed report to store")
-		agt.store.RestoreReport(report, ts)
 		return errors.New("post-shutdown routine failed")
 	}
 	logger.Log().Info().Msg("post-shutdown routines done")
