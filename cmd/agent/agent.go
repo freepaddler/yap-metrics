@@ -15,11 +15,11 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/agent"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/collector"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
-	"github.com/freepaddler/yap-metrics/internal/app/agent/controller"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter/httpbatchreporter"
 	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/inmemory"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
 var (
@@ -107,8 +107,8 @@ Build commit %s
 	)
 
 	// init and run agent
-	app := agent.New(
-		agent.WithStore(controller.New(inmemory.New())),
+	app := agent.NewAgent(
+		agent.WithStore(store.NewStorageController(memory.New())),
 		agent.WithCollectorFunc(collector.Simple),
 		agent.WithCollectorFunc(collector.MemStats),
 		agent.WithCollectorFunc(collector.GoPS),

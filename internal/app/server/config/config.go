@@ -1,7 +1,6 @@
 package config
 
 import (
-	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"github.com/caarlos0/env/v8"
 	flag "github.com/spf13/pflag"
 
-	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
@@ -28,18 +26,17 @@ const (
 
 // Config implements server configuration
 type Config struct {
-	Address         string          `env:"ADDRESS"`
-	LogLevel        string          `env:"LOG_LEVEL"`
-	StoreInterval   int             `env:"STORE_INTERVAL" json:"store_interval"`
-	FileStoragePath string          `env:"FILE_STORAGE_PATH" json:"store_file"`
-	Restore         bool            `env:"RESTORE"`
-	UseFileStorage  bool            `json:"-"`
-	DBURL           string          `env:"DATABASE_DSN" json:"database_dsn"`
-	UseDB           bool            `json:"-"`
-	Key             string          `env:"KEY"`
-	PrivateKeyFile  string          `env:"CRYPTO_KEY" json:"crypto_key"`
-	PrivateKey      *rsa.PrivateKey `json:"-"`
-	ConfigFile      string          `env:"CONFIG"`
+	Address         string `env:"ADDRESS"`
+	LogLevel        string `env:"LOG_LEVEL"`
+	StoreInterval   int    `env:"STORE_INTERVAL" json:"store_interval"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH" json:"store_file"`
+	Restore         bool   `env:"RESTORE"`
+	UseFileStorage  bool   `json:"-"`
+	DBURL           string `env:"DATABASE_DSN" json:"database_dsn"`
+	UseDB           bool   `json:"-"`
+	Key             string `env:"KEY"`
+	PrivateKeyFile  string `env:"CRYPTO_KEY" json:"crypto_key"`
+	ConfigFile      string `env:"CONFIG"`
 }
 
 // UnmarshalJSON to convert duration from config to uint32
@@ -130,28 +127,6 @@ func NewConfig() *Config {
 	fsp, ok := os.LookupEnv("FILE_STORAGE_PATH")
 	if ok {
 		c.FileStoragePath = fsp
-	}
-
-	// choose persistent storage
-	switch {
-	case c.DBURL != "":
-		c.UseDB = true
-	case c.FileStoragePath != "":
-		c.UseFileStorage = true
-	}
-
-	// try to load private key
-	if c.PrivateKeyFile != "" {
-		pFile, err := os.Open(c.PrivateKeyFile)
-		if err != nil {
-			fmt.Printf("unable to open private key file: %s\n", err)
-			os.Exit(1)
-		}
-		c.PrivateKey, err = crypt.ReadPrivateKey(pFile)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 	}
 
 	// print config

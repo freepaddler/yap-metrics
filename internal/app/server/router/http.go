@@ -1,38 +1,115 @@
 package router
 
 import (
-	"crypto/rsa"
+	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-
-	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
-	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
-	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
-	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
-	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 )
 
-func NewHTTPRouter(h *handler.HTTPHandlers, key string, privateKey *rsa.PrivateKey) *chi.Mux {
+type MetricsHTTPHandler interface {
+	IndexMetricHandler(w http.ResponseWriter, _ *http.Request)
+	GetMetricHandler(w http.ResponseWriter, r *http.Request)
+	GetMetricJSONHandler(w http.ResponseWriter, r *http.Request)
+	UpdateMetricHandler(w http.ResponseWriter, r *http.Request)
+	UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Request)
+	UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.Request)
+	PingHandler(w http.ResponseWriter, r *http.Request)
+}
+
+type Middleware func(http.Handler) http.Handler
+
+type Router struct {
+	handler      MetricsHTTPHandler
+	gzip         Middleware
+	gunzip       Middleware
+	log          Middleware
+	crypt        Middleware
+	sign         Middleware
+	profilerPath string
+}
+
+func WithHandler(h MetricsHTTPHandler) func(router *Router) {
+	return func(router *Router) {
+		router.handler = h
+	}
+}
+
+func WithGzip(mw Middleware) func(router *Router) {
+	return func(router *Router) {
+		router.gzip = mw
+	}
+}
+
+func WithGunzip(mw Middleware) func(router *Router) {
+	return func(router *Router) {
+		router.gunzip = mw
+	}
+}
+
+func WithLog(mw Middleware) func(router *Router) {
+	return func(router *Router) {
+		router.log = mw
+	}
+}
+
+func WithSign(mw Middleware) func(router *Router) {
+	return func(router *Router) {
+		router.sign = mw
+	}
+}
+
+func WithCrypt(mw Middleware) func(router *Router) {
+	return func(router *Router) {
+		router.crypt = mw
+	}
+}
+
+func WithProfilerAt(path string) func(router *Router) {
+	return func(router *Router) {
+		router.profilerPath = path
+	}
+}
+
+func New(opts ...func(router *Router)) http.Handler {
+	router := new(Router)
+	for _, o := range opts {
+		o(router)
+	}
+	return router.create()
+}
+
+func (router Router) create() http.Handler {
 	r := chi.NewRouter()
-	r.Use(logger.LogRequestResponse)
-	r.Use(compress.GunzipMiddleware)
-	r.Use(middleware.Compress(4, "application/json", "text/html"))
-	r.Use(crypt.DecryptMiddleware(privateKey))
-	r.Use(sign.Middleware(key))
-	r.Mount("/debug/", middleware.Profiler())
-	r.Get("/", h.IndexMetricHandler)
+	// adds middleware if not nil
+	mw := func(m Middleware) {
+		if m != nil {
+			r.Use(m)
+		}
+	}
+	// middleware order is important
+	mw(router.log)
+	mw(router.gunzip)
+	mw(router.gzip)
+	mw(router.crypt)
+	mw(router.sign)
+
+	if router.profilerPath != "" {
+		r.Mount(router.profilerPath, middleware.Profiler())
+	}
+
+	r.Get("/", router.handler.IndexMetricHandler)
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", h.UpdateMetricJSONHandler)
-		r.Post("/{type}/{name}/{value}", h.UpdateMetricHandler)
+		r.Post("/", router.handler.UpdateMetricJSONHandler)
+		r.Post("/{type}/{name}/{value}", router.handler.UpdateMetricHandler)
 	})
 	r.Route("/value", func(r chi.Router) {
-		r.Post("/", h.GetMetricJSONHandler)
-		r.Get("/{type}/{name}", h.GetMetricHandler)
+		r.Post("/", router.handler.GetMetricJSONHandler)
+		r.Get("/{type}/{name}", router.handler.GetMetricHandler)
 	})
-	r.Get("/ping", h.PingHandler)
+	r.Get("/ping", router.handler.PingHandler)
 	r.Route("/updates", func(r chi.Router) {
-		r.Post("/", h.UpdateMetricsBatchHandler)
+		r.Post("/", router.handler.UpdateMetricsBatchHandler)
 	})
 
 	return r

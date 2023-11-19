@@ -28,21 +28,21 @@ var (
 	ErrPostShutdown = errors.New("post-shutdown routine failed")
 )
 
-//go:generate mockgen -source $GOFILE -package=mocks -destination ../../../mocks/AgentCollector_mock.go
+//go:generate mockgen -source $GOFILE -package=mocks -destination ../../../mocks/AgentStorage_mock.go
 
-// StoreCollector allows collectors to access store with required methods
-type StoreCollector interface {
+// CollectorStorage allows collectors to access store with required methods
+type CollectorStorage interface {
 	CollectCounter(name string, val int64)
 	CollectGauge(name string, val float64)
 }
 
 // CollectorFunc defines function type for collectors
-type CollectorFunc func(context.Context, StoreCollector)
+type CollectorFunc func(context.Context, CollectorStorage)
 
-// StoreReporter defines methods required for metrics reporting
-type StoreReporter interface {
+// ReporterStorage defines methods required for metrics reporting
+type ReporterStorage interface {
 	ReportAll() ([]models.Metrics, time.Time)
-	RestoreReport(metrics []models.Metrics, ts time.Time)
+	RestoreLatest(metrics []models.Metrics, ts time.Time)
 }
 
 // Reporter is used to report metrics
@@ -50,15 +50,15 @@ type Reporter interface {
 	Send([]models.Metrics) error
 }
 
-// AgentStore interface for agent App
-type AgentStore interface {
-	StoreCollector
-	StoreReporter
+// AgentStorage interface for agent App
+type AgentStorage interface {
+	CollectorStorage
+	ReporterStorage
 }
 
 // Agent is agent application config
 type Agent struct {
-	store          AgentStore
+	storage        AgentStorage
 	collectors     []CollectorFunc
 	pollInterval   time.Duration
 	reporter       Reporter
@@ -68,8 +68,8 @@ type Agent struct {
 	rateLimit      int
 }
 
-// New is an Agent constructor
-func New(options ...func(*Agent)) *Agent {
+// NewAgent is an Agent constructor
+func NewAgent(options ...func(*Agent)) *Agent {
 	agent := &Agent{
 		pollInterval:   10 * time.Second,
 		reportInterval: 10 * time.Second,
@@ -82,9 +82,9 @@ func New(options ...func(*Agent)) *Agent {
 }
 
 // WithStore defines app storage
-func WithStore(s AgentStore) func(*Agent) {
+func WithStore(s AgentStorage) func(*Agent) {
 	return func(agt *Agent) {
-		agt.store = s
+		agt.storage = s
 	}
 }
 
@@ -158,7 +158,7 @@ func (agt *Agent) Run(ctx context.Context) error {
 				c := c
 				go func() {
 					defer wgCollector.Done()
-					c(ctx, agt.store)
+					c(ctx, agt.storage)
 				}()
 			}
 			wgCollector.Wait()
@@ -181,7 +181,7 @@ func (agt *Agent) Run(ctx context.Context) error {
 			logger.Log().Info().Msg("new report cycle")
 
 			if err := wp.Task(func() {
-				report, ts := agt.store.ReportAll()
+				report, ts := agt.storage.ReportAll()
 
 				err := retry.WithStrategy(ctx, func(context.Context) error {
 					err := func() (err error) {
@@ -192,7 +192,7 @@ func (agt *Agent) Run(ctx context.Context) error {
 
 				if err != nil {
 					logger.Log().Info().Msg("restore unsent report to store")
-					agt.store.RestoreReport(report, ts)
+					agt.storage.RestoreLatest(report, ts)
 				}
 			}); err != nil {
 				logger.Log().Warn().Err(err).Msg("unable to add reporting task to wpool")
@@ -222,7 +222,7 @@ func (agt *Agent) Run(ctx context.Context) error {
 
 	// report all metrics to server
 	logger.Log().Info().Msg("report metrics to server")
-	report, _ := agt.store.ReportAll()
+	report, _ := agt.storage.ReportAll()
 	err := agt.reporter.Send(report)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrPostShutdown, err)

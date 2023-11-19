@@ -17,7 +17,7 @@ import (
 func TestAgent_Run(t *testing.T) {
 	mockController := gomock.NewController(t)
 	defer mockController.Finish()
-	store := mocks.NewMockAgentStore(mockController)
+	store := mocks.NewMockAgentStorage(mockController)
 	reporter := mocks.NewMockReporter(mockController)
 
 	metrics := []models.Metrics{{Name: "name", Type: models.Counter, IValue: new(int64)}}
@@ -57,10 +57,10 @@ func TestAgent_Run(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			collectorRuns := 0
-			collectorFunc := func(context.Context, StoreCollector) {
+			collectorFunc := func(context.Context, CollectorStorage) {
 				collectorRuns++
 			}
-			app := New(
+			app := NewAgent(
 				WithStore(store),
 				WithCollectorFunc(collectorFunc),
 				WithPollInterval(tt.pollInterval),
@@ -73,15 +73,15 @@ func TestAgent_Run(t *testing.T) {
 			ts := time.Now()
 			store.EXPECT().ReportAll().Times(tt.reporterRuns).Return(metrics, ts)
 			//reporter.EXPECT().Send(metrics).Times(tt.reporterRuns)
-			//store.EXPECT().RestoreReport(metrics, ts).Times(tt.restoreCalls)
+			//store.EXPECT().RestoreLatest(metrics, ts).Times(tt.restoreCalls)
 			gomock.InOrder(
 				reporter.EXPECT().Send(metrics).Return(nil),
 				reporter.EXPECT().Send(metrics).Return(nil),
 				reporter.EXPECT().Send(metrics).Return(errors.New("some error")),
-				store.EXPECT().RestoreReport(metrics, ts),
+				store.EXPECT().RestoreLatest(metrics, ts),
 				reporter.EXPECT().Send(metrics).Return(nil),
 				reporter.EXPECT().Send(metrics).Return(errors.New("some error")),
-				store.EXPECT().RestoreReport(metrics, ts),
+				store.EXPECT().RestoreLatest(metrics, ts),
 				reporter.EXPECT().Send(metrics).Return(nil),
 				reporter.EXPECT().Send(metrics).Return(tt.lastResult),
 			)

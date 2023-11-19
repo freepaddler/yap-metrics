@@ -13,7 +13,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
-func Simple(_ context.Context, store agent.StoreCollector) {
+func Simple(_ context.Context, store agent.CollectorStorage) {
 	logger.Log().Debug().Msg("collect simple start")
 	// update PollCount metric
 	store.CollectCounter("PollCount", 1)
@@ -22,7 +22,7 @@ func Simple(_ context.Context, store agent.StoreCollector) {
 	logger.Log().Debug().Msg("collect simple done")
 }
 
-func MemStats(_ context.Context, store agent.StoreCollector) {
+func MemStats(_ context.Context, store agent.CollectorStorage) {
 	logger.Log().Debug().Msg("collect memStats start")
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
@@ -57,7 +57,7 @@ func MemStats(_ context.Context, store agent.StoreCollector) {
 	logger.Log().Debug().Msg("collect memStats done")
 }
 
-func GoPS(ctx context.Context, store agent.StoreCollector) {
+func GoPS(ctx context.Context, store agent.CollectorStorage) {
 	logger.Log().Debug().Msg("collect GoPS start")
 
 	vm, err := mem.VirtualMemoryWithContext(ctx)

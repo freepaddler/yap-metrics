@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/freepaddler/yap-metrics/internal/app/server/controller"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/mocks"
 )
 
@@ -25,7 +25,7 @@ func pointer[T any](val T) *T {
 func TestHTTPHandlers_Index(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockHandler(mockController)
+	m := mocks.NewMockHTTPHandlerStorage(mockController)
 
 	h := NewHTTPHandlers(m)
 
@@ -43,7 +43,7 @@ func TestHTTPHandlers_Index(t *testing.T) {
 func TestHTTPHandlers_GetMetric(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockHandler(mockController)
+	m := mocks.NewMockHTTPHandlerStorage(mockController)
 
 	h := NewHTTPHandlers(m)
 
@@ -92,7 +92,7 @@ func TestHTTPHandlers_GetMetric(t *testing.T) {
 			mType:       "counter",
 			mName:       "some name",
 			wantCall:    1,
-			returnError: controller.ErrMetricNotFound,
+			returnError: store.ErrMetricNotFound,
 		},
 		{
 			name:     "no name",
@@ -143,7 +143,7 @@ func TestHTTPHandlers_GetMetric(t *testing.T) {
 func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockHandler(mockController)
+	m := mocks.NewMockHTTPHandlerStorage(mockController)
 
 	h := NewHTTPHandlers(m)
 
@@ -192,7 +192,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 			rawRequest:  `{"id":"name","type":"gauge"}`,
 			wantRequest: models.MetricRequest{Name: "name", Type: "gauge"},
 			wantCall:    1,
-			returnError: controller.ErrMetricNotFound,
+			returnError: store.ErrMetricNotFound,
 		},
 		{
 			name:       "no name",
@@ -239,7 +239,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockHandler(mockController)
+	m := mocks.NewMockHTTPHandlerStorage(mockController)
 
 	h := NewHTTPHandlers(m)
 
@@ -358,7 +358,7 @@ func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockHandler(mockController)
+	m := mocks.NewMockHTTPHandlerStorage(mockController)
 
 	h := NewHTTPHandlers(m)
 
@@ -467,7 +467,7 @@ func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
 func TestHTTPHandlers_UpdateMetricBatch(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockHandler(mockController)
+	m := mocks.NewMockHTTPHandlerStorage(mockController)
 
 	h := NewHTTPHandlers(m)
 

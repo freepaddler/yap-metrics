@@ -14,7 +14,7 @@ import (
 func TestSimple(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockStoreCollector(mockController)
+	m := mocks.NewMockAgentStorage(mockController)
 	m.EXPECT().CollectCounter("PollCount", int64(1)).Times(2)
 	m.EXPECT().CollectGauge("RandomValue", gomock.Any()).Times(2)
 	Simple(context.Background(), m)
@@ -24,7 +24,7 @@ func TestSimple(t *testing.T) {
 func TestMemStats(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockStoreCollector(mockController)
+	m := mocks.NewMockAgentStorage(mockController)
 	m.EXPECT().CollectGauge("Alloc", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("BuckHashSys", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("Frees", gomock.Any()).Times(2)
@@ -59,7 +59,7 @@ func TestMemStats(t *testing.T) {
 func TestGoPS(t *testing.T) {
 	var mockController = gomock.NewController(t)
 	defer mockController.Finish()
-	m := mocks.NewMockStoreCollector(mockController)
+	m := mocks.NewMockAgentStorage(mockController)
 	m.EXPECT().CollectGauge("TotalMemory", gomock.Any()).Times(2)
 	m.EXPECT().CollectGauge("FreeMemory", gomock.Any()).Times(2)
 	for i := 0; i < runtime.NumCPU(); i++ {

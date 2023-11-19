@@ -40,8 +40,8 @@ type gauge struct {
 	FValue float64
 }
 
-func PrepareTestStorage() (*MemStorage, []gauge, []counter) {
-	s := NewMemStorage()
+func PrepareTestStorage() (*Store, []gauge, []counter) {
+	s := New()
 	counters := []counter{
 		{
 			Metrics: models.Metrics{
@@ -90,7 +90,7 @@ func PrepareTestStorage() (*MemStorage, []gauge, []counter) {
 	return s, gauges, counters
 }
 
-func TestMemStorage_IncCounter_UpdateSingleMetric(t *testing.T) {
+func Test_IncCounter(t *testing.T) {
 	tests := []struct {
 		name      string
 		mName     string
@@ -120,51 +120,16 @@ func TestMemStorage_IncCounter_UpdateSingleMetric(t *testing.T) {
 			wantValue: newCounterVal + 19 - 30,
 		},
 	}
-	s := NewMemStorage()
+	s := New()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			v := s.IncCounter(tt.mName, tt.iValue)
 			assert.Equal(t, tt.wantValue, v)
 		})
 	}
-	s = NewMemStorage()
-	for _, tt := range tests {
-		t.Run("Update "+tt.name+" (overwrite false)", func(t *testing.T) {
-			m := models.Metrics{
-				Name:   tt.mName,
-				Type:   models.Counter,
-				IValue: nil,
-			}
-			m.IValue = &tt.iValue
-
-			s.UpdateMetrics([]models.Metrics{m}, false)
-			val, ok := s.GetCounter(tt.mName)
-			require.Equal(t, tt.wantOk, ok)
-			if ok {
-				assert.Equal(t, tt.wantValue, *val)
-			}
-		})
-	}
-	s = NewMemStorage()
-	for _, tt := range tests {
-		t.Run("Update "+tt.name+" (overwrite true)", func(t *testing.T) {
-			m := models.Metrics{
-				Name:   tt.mName,
-				Type:   models.Counter,
-				IValue: nil,
-			}
-			m.IValue = &tt.iValue
-
-			s.UpdateMetrics([]models.Metrics{m}, false)
-			val, ok := s.GetCounter(tt.mName)
-			require.Equal(t, tt.wantOk, ok)
-			if ok {
-				assert.Equal(t, tt.iValue, *val)
-			}
-		})
-	}
 }
-func TestMemStorage_GetCounter_GetMetric(t *testing.T) {
+
+func Test_GetCounter(t *testing.T) {
 	s, _, _ := PrepareTestStorage()
 	tests := []struct {
 		name      string
@@ -189,28 +154,14 @@ func TestMemStorage_GetCounter_GetMetric(t *testing.T) {
 			v, ok := s.GetCounter(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
-				assert.Equal(t, tt.wantValue, *v)
-			}
-
-		})
-	}
-	for _, tt := range tests {
-		t.Run("GetMetric: "+tt.name, func(t *testing.T) {
-			m := models.Metrics{
-				Name: tt.mName,
-				Type: models.Counter,
-			}
-			ok, _ := s.GetMetric(&m)
-			//require.NoError(t, err)
-			require.Equal(t, tt.wantOk, ok)
-			if ok {
-				assert.Equal(t, tt.wantValue, *m.IValue)
+				assert.Equal(t, tt.wantValue, v)
 			}
 
 		})
 	}
 }
-func TestMemStorage_DelCounter(t *testing.T) {
+
+func Test_DelCounter(t *testing.T) {
 	s, _, _ := PrepareTestStorage()
 	// check that counter exists in storage before deletion
 	_, ok := s.GetCounter(eCounter2)
@@ -221,7 +172,7 @@ func TestMemStorage_DelCounter(t *testing.T) {
 	assert.Falsef(t, ok, "counter exists, but should be deleted")
 }
 
-func TestMemStorage_SetGauge_UpdateSingleMetric(t *testing.T) {
+func Test_SetGauge(t *testing.T) {
 	tests := []struct {
 		name      string
 		mName     string
@@ -251,53 +202,18 @@ func TestMemStorage_SetGauge_UpdateSingleMetric(t *testing.T) {
 			wantValue: -119.37,
 		},
 	}
-	s := NewMemStorage()
+	s := New()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.SetGauge(tt.mName, tt.fValue)
 			v, ok := s.GetGauge(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
-			assert.Equal(t, tt.wantValue, *v)
-		})
-	}
-	s = NewMemStorage()
-	for _, tt := range tests {
-		t.Run(tt.name+"(overwrite false)", func(t *testing.T) {
-			m := models.Metrics{
-				Name:   tt.mName,
-				Type:   models.Gauge,
-				FValue: nil,
-			}
-			m.FValue = &tt.fValue
-
-			s.UpdateMetrics([]models.Metrics{m}, false)
-			val, ok := s.GetGauge(tt.mName)
-			require.Equal(t, tt.wantOk, ok)
-			if ok {
-				assert.Equal(t, tt.wantValue, *val)
-			}
-		})
-	}
-	s = NewMemStorage()
-	for _, tt := range tests {
-		t.Run(tt.name+"(overwrite true)", func(t *testing.T) {
-			m := models.Metrics{
-				Name:   tt.mName,
-				Type:   models.Gauge,
-				FValue: nil,
-			}
-			m.FValue = &tt.fValue
-
-			s.UpdateMetrics([]models.Metrics{m}, true)
-			val, ok := s.GetGauge(tt.mName)
-			require.Equal(t, tt.wantOk, ok)
-			if ok {
-				assert.Equal(t, tt.wantValue, *val)
-			}
+			assert.Equal(t, tt.wantValue, v)
 		})
 	}
 }
-func TestMemStorage_GetGauge_GetMetric(t *testing.T) {
+
+func Test_GetGauge(t *testing.T) {
 	s, _, _ := PrepareTestStorage()
 	tests := []struct {
 		name      string
@@ -322,28 +238,14 @@ func TestMemStorage_GetGauge_GetMetric(t *testing.T) {
 			v, ok := s.GetGauge(tt.mName)
 			require.Equal(t, tt.wantOk, ok)
 			if ok {
-				assert.Equal(t, tt.wantValue, *v)
-			}
-
-		})
-	}
-	for _, tt := range tests {
-		t.Run("GetMetric: "+tt.name, func(t *testing.T) {
-			m := models.Metrics{
-				Name: tt.mName,
-				Type: models.Gauge,
-			}
-			ok, _ := s.GetMetric(&m)
-			//require.NoError(t, err)
-			require.Equal(t, tt.wantOk, ok)
-			if ok {
-				assert.Equal(t, tt.wantValue, *m.FValue)
+				assert.Equal(t, tt.wantValue, v)
 			}
 
 		})
 	}
 }
-func TestMemStorage_DelGauge(t *testing.T) {
+
+func Test_DelGauge(t *testing.T) {
 	s, _, _ := PrepareTestStorage()
 	// check that gauge exists in storage before deletion
 	_, ok := s.GetGauge(eGauge2)
@@ -354,7 +256,7 @@ func TestMemStorage_DelGauge(t *testing.T) {
 	assert.Falsef(t, ok, "gauge exists, but should be deleted")
 }
 
-func TestMemStorage_Snapshot(t *testing.T) {
+func Test_Snapshot(t *testing.T) {
 	s, gauges, counters := PrepareTestStorage()
 
 	t.Run("Without flush", func(t *testing.T) {
@@ -368,7 +270,7 @@ func TestMemStorage_Snapshot(t *testing.T) {
 		}
 		m2 := s.Snapshot(false)
 		// flush false, so slices must be equal
-		require.Equal(t, m, m2)
+		require.ElementsMatch(t, m, m2, "snapshots without flush should match")
 	})
 	t.Run("With flush and empty", func(t *testing.T) {
 		// storage snapshot without flush
@@ -376,71 +278,10 @@ func TestMemStorage_Snapshot(t *testing.T) {
 		// storage snapshot with flush
 		m1 := s.Snapshot(true)
 		// should return same
-		require.Equal(t, m, m1, "snapshots with and without flush should match")
+		require.ElementsMatch(t, m, m1, "snapshots with and without flush should match")
 		// storage snapshot after flush should be empty
 		m2 := s.Snapshot(false)
 		require.Equal(t, 0, len(m2), "no metrics should be returned")
 
 	})
-}
-func TestMemStorage_UpdateMultiple_and_Hook(t *testing.T) {
-
-	// new metrics for insert
-	mCounterN := models.Metrics{
-		Name:   newCounter,
-		Type:   models.Counter,
-		IValue: new(int64),
-	}
-	*mCounterN.IValue = newCounterVal
-	wantCounterN := newCounterVal
-	mGaugeN := models.Metrics{
-		Name:   newGauge,
-		Type:   models.Gauge,
-		FValue: new(float64),
-	}
-	*mGaugeN.FValue = newGaugeVal
-	wantGaugeN := newGaugeVal
-	// existing metrics to update
-	mCounterE := models.Metrics{
-		Name:   eCounter2,
-		Type:   models.Counter,
-		IValue: new(int64),
-	}
-	*mCounterE.IValue = eCounter2Val
-	wantCounterE := eCounter2Val * 2
-	mGaugeE := models.Metrics{
-		Name:   eGauge1,
-		Type:   models.Gauge,
-		FValue: new(float64),
-	}
-	*mGaugeE.FValue = eGauge2Val
-	wantGaugeE := eGauge2Val
-	s, _, _ := PrepareTestStorage()
-	globalHookMetricsVar = make([]models.Metrics, 0)
-	s.RegisterHooks(testHook)
-	s.UpdateMetrics([]models.Metrics{mCounterN, mGaugeN, mCounterE, mGaugeE}, false)
-	t.Run("update success", func(t *testing.T) {
-		getCounterN, ok := s.GetCounter(mCounterN.Name)
-		require.True(t, ok)
-		assert.Equal(t, wantCounterN, *getCounterN)
-		getCounterE, ok := s.GetCounter(mCounterE.Name)
-		require.True(t, ok)
-		assert.Equal(t, wantCounterE, *getCounterE)
-		getGaugeN, ok := s.GetGauge(mGaugeN.Name)
-		require.True(t, ok)
-		assert.Equal(t, wantGaugeN, *getGaugeN)
-		getGaugeE, ok := s.GetGauge(mGaugeE.Name)
-		require.True(t, ok)
-		assert.Equal(t, wantGaugeE, *getGaugeE)
-	})
-	t.Run("hook called", func(t *testing.T) {
-		wantValid := []models.Metrics{mCounterN, mGaugeN, mCounterE, mGaugeE}
-		assert.ElementsMatch(t, wantValid, globalHookMetricsVar)
-	})
-}
-
-var globalHookMetricsVar []models.Metrics
-
-func testHook(m []models.Metrics) {
-	globalHookMetricsVar = m
 }

@@ -12,10 +12,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/freepaddler/yap-metrics/internal/app/server/controller"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 )
+
+//go:generate mockgen -source $GOFILE -package=mocks -destination ../../../../mocks/HTTPHandlerStorage_mock.go
+
+type HTTPHandlerStorage interface {
+	GetAll() []models.Metrics
+	GetOne(request models.MetricRequest) (models.Metrics, error)
+	UpdateOne(metric *models.Metrics) error
+	UpdateMany(metrics []models.Metrics) error
+}
 
 const indexTmpl = `
 <html><head><title>Metrics Index</title></head>
@@ -37,13 +46,13 @@ const indexTmpl = `
 `
 
 type HTTPHandlers struct {
-	ctrl controller.Handler // server handler methods
+	storage HTTPHandlerStorage // server handler methods
 }
 
 // NewHTTPHandlers is HTTPHandlers constructor
-func NewHTTPHandlers(ctrl controller.Handler) *HTTPHandlers {
+func NewHTTPHandlers(storage HTTPHandlerStorage) *HTTPHandlers {
 	return &HTTPHandlers{
-		ctrl: ctrl,
+		storage: storage,
 	}
 }
 
@@ -71,7 +80,7 @@ func (h *HTTPHandlers) IndexMetricHandler(w http.ResponseWriter, _ *http.Request
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	set := h.ctrl.GetAll()
+	set := h.storage.GetAll()
 	sort.Slice(set, func(i, j int) bool {
 		return set[i].Name < set[j].Name
 	})
@@ -100,12 +109,12 @@ func (h *HTTPHandlers) GetMetricHandler(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	m, err := h.ctrl.GetOne(req)
+	m, err := h.storage.GetOne(req)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrInvalidMetric):
 			w.WriteHeader(http.StatusBadRequest)
-		case errors.Is(err, controller.ErrMetricNotFound):
+		case errors.Is(err, store.ErrMetricNotFound):
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
@@ -135,12 +144,12 @@ func (h *HTTPHandlers) GetMetricJSONHandler(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	m, err := h.ctrl.GetOne(req)
+	m, err := h.storage.GetOne(req)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrInvalidMetric):
 			w.WriteHeader(http.StatusBadRequest)
-		case errors.Is(err, controller.ErrMetricNotFound):
+		case errors.Is(err, store.ErrMetricNotFound):
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
@@ -175,7 +184,7 @@ func (h *HTTPHandlers) UpdateMetricHandler(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = h.ctrl.UpdateOne(&m)
+	err = h.storage.UpdateOne(&m)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -202,7 +211,7 @@ func (h *HTTPHandlers) UpdateMetricJSONHandler(w http.ResponseWriter, r *http.Re
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := h.ctrl.UpdateOne(&m)
+	err := h.storage.UpdateOne(&m)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -240,7 +249,7 @@ func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := h.ctrl.UpdateMany(metrics)
+	err := h.storage.UpdateMany(metrics)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return

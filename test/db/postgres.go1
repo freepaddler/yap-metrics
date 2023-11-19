@@ -128,14 +128,14 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 	logger.Log().Debug().Msgf("%d metrics saved to db", len(metrics))
 }
 
-func (dbs *DBStorage) RestoreStorage(s store.Storage) {
+func (dbs *DBStorage) RestoreStorage(s store.Storage_old) {
 	logger.Log().Debug().Msg("starting storage restore")
 	metrics := dbs.getMetrics()
 	s.UpdateMetrics(metrics, true)
 	logger.Log().Debug().Msg("done storage restore")
 }
 
-func (dbs *DBStorage) SaveStorage(s store.Storage) {
+func (dbs *DBStorage) SaveStorage(s store.Storage_old) {
 	logger.Log().Debug().Msg("saving store to database")
 	snap := s.Snapshot(false)
 	dbs.SaveMetrics(context.TODO(), snap)
