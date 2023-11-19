@@ -18,8 +18,8 @@ type Store struct {
 	gauges   map[string]float64 // metrics of type gauge
 }
 
-// New is a constructor for Store
-func New() *Store {
+// NewMemoryStore is a constructor for Store
+func NewMemoryStore() *Store {
 	ms := new(Store)
 	ms.counters = make(map[string]int64)
 	ms.gauges = make(map[string]float64)

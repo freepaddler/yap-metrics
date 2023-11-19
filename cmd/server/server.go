@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/filedump"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
+	"github.com/freepaddler/yap-metrics/internal/pkg/store/postgres"
 )
 
 var (
@@ -70,8 +72,35 @@ Build commit %s
 		}
 	}
 
+	// file dump
+	var dump server.Dumper
+	if conf.FileStoragePath != "" {
+		f, err := os.OpenFile(conf.FileStoragePath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+		if err != nil {
+			logger.Log().Err(err).Msgf("can't open storage file %s", conf.FileStoragePath)
+		} else {
+			defer f.Close()
+			dump = filedump.NewFileDump(f)
+		}
+	}
+
 	// define storage
-	storage := store.NewStorageController(memory.New())
+	var metricsStore store.Store
+	if conf.DBURL != "" {
+		var err error
+		metricsStore, err = postgres.NewPostgresStorage(conf.DBURL,
+			postgres.WithTimeout(2*time.Second),
+			postgres.WithRetry(1),
+		)
+		if err != nil {
+			logger.Log().Err(err).Msg("unable to setup db storage")
+			metricsStore = memory.NewMemoryStore()
+		} else {
+			// disable file dump if db is ok
+			dump = nil
+		}
+	}
+	storage := store.NewStorageController(metricsStore)
 
 	// define http handlers
 	httpHandlers := handler.NewHTTPHandlers(storage)
@@ -86,18 +115,6 @@ Build commit %s
 		router.WithSign(sign.Middleware(conf.Key)),
 		router.WithProfilerAt("/debug/"),
 	)
-
-	// file dump
-	var dump server.Dumper
-	if conf.FileStoragePath != "" {
-		f, err := os.OpenFile(conf.FileStoragePath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
-		if err != nil {
-			logger.Log().Err(err).Msgf("can't open storage file %s", conf.FileStoragePath)
-		} else {
-			defer f.Close()
-			dump = filedump.NewFileDump(f)
-		}
-	}
 
 	// init and run server
 	app := server.NewServer(

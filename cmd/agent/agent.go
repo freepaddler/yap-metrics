@@ -108,7 +108,7 @@ Build commit %s
 
 	// init and run agent
 	app := agent.NewAgent(
-		agent.WithStore(store.NewStorageController(memory.New())),
+		agent.WithStore(store.NewStorageController(memory.NewMemoryStore())),
 		agent.WithCollectorFunc(collector.Simple),
 		agent.WithCollectorFunc(collector.MemStats),
 		agent.WithCollectorFunc(collector.GoPS),
