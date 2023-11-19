@@ -311,3 +311,18 @@ func Test_UpdateMany(t *testing.T) {
 	err := c.UpdateMany(metrics)
 	require.NoError(t, err)
 }
+
+func TestController_Ping(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockStore(mockController)
+
+	c := NewStorageController(m)
+	m.EXPECT().Ping().Times(1).Return(nil)
+	err := c.Ping()
+	require.NoError(t, err)
+	m.EXPECT().Ping().Times(1).Return(errors.New("some err"))
+	err = c.Ping()
+	require.Error(t, err)
+
+}

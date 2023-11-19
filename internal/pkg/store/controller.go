@@ -149,3 +149,8 @@ func (c *Controller) UpdateMany(metrics []models.Metrics) error {
 	}
 	return nil
 }
+
+// Ping is used to check store accessibility
+func (c *Controller) Ping() error {
+	return c.store.Ping()
+}

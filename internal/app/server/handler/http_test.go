@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,43 @@ import (
 
 func pointer[T any](val T) *T {
 	return &val
+}
+
+func TestHTTPHandlers_PingHandler(t *testing.T) {
+	var mockController = gomock.NewController(t)
+	defer mockController.Finish()
+	m := mocks.NewMockHTTPHandlerStorage(mockController)
+
+	h := NewHTTPHandlers(m)
+
+	tests := []struct {
+		name      string
+		wantCode  int
+		returnErr error
+	}{
+		{
+			name:     "success ping",
+			wantCode: http.StatusOK,
+		},
+		{
+			name:      "ping failed",
+			wantCode:  http.StatusInternalServerError,
+			returnErr: errors.New("some"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+			m.EXPECT().Ping().Times(1).Return(tt.returnErr)
+			w := httptest.NewRecorder()
+			h.PingHandler(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+			require.Equal(t, tt.wantCode, res.StatusCode)
+
+		})
+	}
 }
 
 func TestHTTPHandlers_Index(t *testing.T) {

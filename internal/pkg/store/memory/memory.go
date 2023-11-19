@@ -3,6 +3,7 @@
 package memory
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
@@ -108,4 +109,9 @@ func (ms *Store) Snapshot(flush bool) []models.Metrics {
 		}
 	}
 	return set
+}
+
+// Ping to fulfill interface
+func (ms *Store) Ping() error {
+	return errors.New("ping not available for memory store")
 }

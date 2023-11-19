@@ -33,4 +33,5 @@ type Store interface {
 	// Snapshot creates storage snapshot and returns it
 	// if flush is true, stored metrics are deleted
 	Snapshot(flush bool) []models.Metrics
+	Ping() error
 }

@@ -24,6 +24,7 @@ type HTTPHandlerStorage interface {
 	GetOne(request models.MetricRequest) (models.Metrics, error)
 	UpdateOne(metric *models.Metrics) error
 	UpdateMany(metrics []models.Metrics) error
+	Ping() error
 }
 
 const indexTmpl = `
@@ -266,16 +267,9 @@ func (h *HTTPHandlers) UpdateMetricsBatchHandler(w http.ResponseWriter, r *http.
 //   - 500/InternalServerError otherwise
 func (h *HTTPHandlers) PingHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Log().Debug().Msgf("PingHandler: Request received  URL=%v", r.URL)
-	//if h.pStore == nil {
-	//	logger.Log().Debug().Msg("PingHandler: no persistent storage is setup")
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//if err := h.pStore.Ping(); err != nil {
-	//	logger.Log().Warn().Err(err).Msg("PingHandler: persistent storage connection failed")
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
+	if err := h.storage.Ping(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }

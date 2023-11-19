@@ -230,6 +230,20 @@ func (mr *MockStoreMockRecorder) IncCounter(name, value interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncCounter", reflect.TypeOf((*MockStore)(nil).IncCounter), name, value)
 }
 
+// Ping mocks base method.
+func (m *MockStore) Ping() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ping")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ping indicates an expected call of Ping.
+func (mr *MockStoreMockRecorder) Ping() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockStore)(nil).Ping))
+}
+
 // SetGauge mocks base method.
 func (m *MockStore) SetGauge(name string, value float64) float64 {
 	m.ctrl.T.Helper()

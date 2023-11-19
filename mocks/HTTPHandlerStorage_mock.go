@@ -63,6 +63,20 @@ func (mr *MockHTTPHandlerStorageMockRecorder) GetOne(request interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOne", reflect.TypeOf((*MockHTTPHandlerStorage)(nil).GetOne), request)
 }
 
+// Ping mocks base method.
+func (m *MockHTTPHandlerStorage) Ping() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ping")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ping indicates an expected call of Ping.
+func (mr *MockHTTPHandlerStorageMockRecorder) Ping() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockHTTPHandlerStorage)(nil).Ping))
+}
+
 // UpdateMany mocks base method.
 func (m *MockHTTPHandlerStorage) UpdateMany(metrics []models.Metrics) error {
 	m.ctrl.T.Helper()
