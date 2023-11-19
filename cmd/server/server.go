@@ -88,7 +88,7 @@ Build commit %s
 	var metricsStore store.Store
 	if conf.DBURL != "" {
 		var err error
-		metricsStore, err = postgres.NewPostgresStorage(conf.DBURL,
+		pgstore, err := postgres.NewPostgresStorage(conf.DBURL,
 			postgres.WithTimeout(2*time.Second),
 			postgres.WithRetry(1),
 		)
@@ -96,9 +96,14 @@ Build commit %s
 			logger.Log().Err(err).Msg("unable to setup db storage")
 			metricsStore = memory.NewMemoryStore()
 		} else {
+			defer pgstore.Close()
+			metricsStore = pgstore
 			// disable file dump if db is ok
 			dump = nil
 		}
+	}
+	if metricsStore == nil {
+		metricsStore = memory.NewMemoryStore()
 	}
 	storage := store.NewStorageController(metricsStore)
 

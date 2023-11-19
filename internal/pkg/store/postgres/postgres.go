@@ -223,7 +223,6 @@ func (ps *PostgresStore) Snapshot(flush bool) (metrics []models.Metrics) {
 				}
 				return err
 			}
-			defer rows.Close()
 			for rows.Next() {
 				var m models.Metrics
 				if err := rows.Scan(&m.Name, &m.Type, &m.IValue, &m.FValue); err != nil {
@@ -236,6 +235,12 @@ func (ps *PostgresStore) Snapshot(flush bool) (metrics []models.Metrics) {
 					m.FValue = nil
 				}
 				metrics = append(metrics, m)
+			}
+			if err := rows.Close(); err != nil {
+				return err
+			}
+			if err := rows.Err(); err != nil {
+				return err
 			}
 			if flush {
 				tx.ExecContext(ctx, `TRUNCATE TABLE metrics`)

@@ -79,6 +79,7 @@ func NewMetric(n, t, v string) (m Metrics, err error) {
 	if _, err := NewMetricRequest(n, t); err != nil {
 		return m, err
 	}
+
 	m.Name = n
 	m.Type = t
 	switch m.Type {
