@@ -31,9 +31,7 @@ type Config struct {
 	StoreInterval   int    `env:"STORE_INTERVAL" json:"store_interval"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH" json:"store_file"`
 	Restore         bool   `env:"RESTORE"`
-	UseFileStorage  bool   `json:"-"`
 	DBURL           string `env:"DATABASE_DSN" json:"database_dsn"`
-	UseDB           bool   `json:"-"`
 	Key             string `env:"KEY"`
 	PrivateKeyFile  string `env:"CRYPTO_KEY" json:"crypto_key"`
 	ConfigFile      string `env:"CONFIG"`
