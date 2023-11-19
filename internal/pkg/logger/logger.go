@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	Log *zerolog.Logger
+	log *zerolog.Logger
 )
 
 func init() {
@@ -27,15 +27,20 @@ func init() {
 		TimeFormat: time.DateTime + ".000",
 	}
 	l := zerolog.New(consoleLog).With().Timestamp().Caller().Logger()
-	Log = &l
+	log = &l
+}
+
+// Log returns configured logger instance
+func Log() *zerolog.Logger {
+	return log
 }
 
 func SetLevel(s string) {
 	v, err := zerolog.ParseLevel(s)
 	if err != nil {
-		Log.Warn().Err(err).Msgf("invalid log level specified, using default level '%s'", logLevel)
+		log.Warn().Err(err).Msgf("invalid log level specified, using default level '%s'", logLevel)
 	}
-	Log.Info().Msgf("set log level to '%s'", v)
+	log.Info().Msgf("set log level to '%s'", v)
 	zerolog.SetGlobalLevel(v)
 }
 
@@ -48,7 +53,7 @@ func LogRequestResponse(next http.Handler) http.Handler {
 		tStart := time.Now()
 		defer func() {
 			dur := time.Since(tStart)
-			Log.Info().
+			log.Info().
 				Str("host", r.Host).
 				Str("url", r.URL.Path).
 				Str("method", r.Method).

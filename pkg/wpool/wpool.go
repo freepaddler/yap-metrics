@@ -43,7 +43,7 @@ func (p *Pool) Task(f func()) error {
 	select {
 	case <-p.chStop:
 	case p.chTask <- f:
-		logger.Log.Debug().Msg("wpool task accepted")
+		logger.Log().Debug().Msg("wpool task accepted")
 		return nil
 	}
 	return ErrClosed
@@ -54,10 +54,10 @@ func (p *Pool) Task(f func()) error {
 // Returns channel: if closed, then pool is stopped
 func (p *Pool) Stop() <-chan struct{} {
 	p.stopOnce.Do(func() {
-		logger.Log.Debug().Msg("wpool request stop")
+		logger.Log().Debug().Msg("wpool request stop")
 		close(p.chStop)
 		p.wg.Wait()
-		logger.Log.Debug().Msg("wpool stopped")
+		logger.Log().Debug().Msg("wpool stopped")
 		close(p.stopped)
 	})
 	return p.stopped
@@ -68,25 +68,25 @@ func (p *Pool) worker(ctx context.Context, n int) {
 	p.wg.Add(1)
 	defer func() {
 		p.wg.Done()
-		logger.Log.Debug().Msgf("wpool worker %d stopped", n)
+		logger.Log().Debug().Msgf("wpool worker %d stopped", n)
 	}()
-	logger.Log.Debug().Msgf("wpool worker %d started", n)
+	logger.Log().Debug().Msgf("wpool worker %d started", n)
 	for {
 		select {
 		// cancel pool by context
 		case <-ctx.Done():
-			logger.Log.Debug().Msgf("wpool worker %d received context cancel", n)
+			logger.Log().Debug().Msgf("wpool worker %d received context cancel", n)
 			go func() { p.Stop() }()
 			return
 		case <-p.chStop:
-			logger.Log.Debug().Msgf("wpool worker %d received stop request", n)
+			logger.Log().Debug().Msgf("wpool worker %d received stop request", n)
 			return
 		case f, ok := <-p.chTask:
 			if !ok {
-				logger.Log.Debug().Msgf("wpool worker %d: tasks chan closed", n)
+				logger.Log().Debug().Msgf("wpool worker %d: tasks chan closed", n)
 				return
 			}
-			logger.Log.Debug().Msgf("wpool worker %d doing job", n)
+			logger.Log().Debug().Msgf("wpool worker %d doing job", n)
 			f()
 		}
 	}

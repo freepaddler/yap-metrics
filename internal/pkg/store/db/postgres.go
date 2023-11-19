@@ -56,13 +56,13 @@ func New(uri string) (*DBStorage, error) {
 	dbs.db, err = sql.Open("pgx", uri)
 	if err != nil {
 		// Error here instead of Fatal to let server work without db to pass tests 10[ab]
-		logger.Log.Error().Err(err).Msg("unable to setup database connection")
+		logger.Log().Error().Err(err).Msg("unable to setup database connection")
 		return nil, err
 	}
-	logger.Log.Info().Msg("initialize database")
+	logger.Log().Info().Msg("initialize database")
 	if err = dbs.initDB(); err != nil {
 		// Error here instead of Fatal to let server work without db to pass tests 10[ab]
-		logger.Log.Error().Err(err).Msg("unable to init database")
+		logger.Log().Error().Err(err).Msg("unable to init database")
 		return nil, err
 	}
 
@@ -73,7 +73,7 @@ func New(uri string) (*DBStorage, error) {
 func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) {
 
 	if len(metrics) == 0 {
-		logger.Log.Warn().Msg("no metrics to save")
+		logger.Log().Warn().Msg("no metrics to save")
 	}
 
 	err := retry.WithStrategy(ctx,
@@ -81,7 +81,7 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 			ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
 			defer ctxDBCancel()
 			if len(metrics) == 1 {
-				logger.Log.Debug().Msg("upsert one metric without transaction")
+				logger.Log().Debug().Msg("upsert one metric without transaction")
 				m := metrics[0]
 				switch m.Type {
 				case models.Gauge:
@@ -90,13 +90,13 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 					_, err = dbs.db.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue, time.Now())
 				}
 				if err != nil {
-					logger.Log.Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
+					logger.Log().Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
 					return
 				}
 			}
 			tx, err := dbs.db.BeginTx(ctxDB, nil)
 			if err != nil {
-				logger.Log.Warn().Err(err).Msg("unable to begin upsert transaction")
+				logger.Log().Warn().Err(err).Msg("unable to begin upsert transaction")
 				return
 			}
 			defer tx.Rollback()
@@ -109,12 +109,12 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 					_, err = tx.ExecContext(ctxDB, qUpsertCounter, m.Name, m.Type, *m.IValue, time.Now())
 				}
 				if err != nil {
-					logger.Log.Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
+					logger.Log().Warn().Err(err).Msgf("unable to upsert metric '%+v'", m)
 					return
 				}
 			}
 			if err = tx.Commit(); err != nil {
-				logger.Log.Warn().Err(err).Msg("unable to commit upsert transaction")
+				logger.Log().Warn().Err(err).Msg("unable to commit upsert transaction")
 				return
 			}
 			return
@@ -122,21 +122,21 @@ func (dbs *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 		isRetryErr,
 		1, 3, 5)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("unable to save metrics to db")
+		logger.Log().Error().Err(err).Msg("unable to save metrics to db")
 		return
 	}
-	logger.Log.Debug().Msgf("%d metrics saved to db", len(metrics))
+	logger.Log().Debug().Msgf("%d metrics saved to db", len(metrics))
 }
 
 func (dbs *DBStorage) RestoreStorage(s store.Storage) {
-	logger.Log.Debug().Msg("starting storage restore")
+	logger.Log().Debug().Msg("starting storage restore")
 	metrics := dbs.getMetrics()
 	s.UpdateMetrics(metrics, true)
-	logger.Log.Debug().Msg("done storage restore")
+	logger.Log().Debug().Msg("done storage restore")
 }
 
 func (dbs *DBStorage) SaveStorage(s store.Storage) {
-	logger.Log.Debug().Msg("saving store to database")
+	logger.Log().Debug().Msg("saving store to database")
 	snap := s.Snapshot(false)
 	dbs.SaveMetrics(context.TODO(), snap)
 }
@@ -162,7 +162,7 @@ func (dbs *DBStorage) getMetrics() []models.Metrics {
 			defer ctxDBCancel()
 			rows, err := dbs.db.QueryContext(ctxDB, `SELECT name, type, f_value, i_value FROM metrics`)
 			if err != nil {
-				logger.Log.Error().Err(err).Msg("unable to get all metrics from db")
+				logger.Log().Error().Err(err).Msg("unable to get all metrics from db")
 				return err
 			}
 			defer rows.Close()
@@ -173,7 +173,7 @@ func (dbs *DBStorage) getMetrics() []models.Metrics {
 					fValue sql.NullFloat64
 				)
 				if err = rows.Scan(&m.Name, &m.Type, &fValue, &iValue); err != nil {
-					logger.Log.Warn().Err(err).Msg("unable parse metric from db")
+					logger.Log().Warn().Err(err).Msg("unable parse metric from db")
 					break
 				}
 				if fValue.Valid {
@@ -185,7 +185,7 @@ func (dbs *DBStorage) getMetrics() []models.Metrics {
 				res = append(res, m)
 			}
 			if err = rows.Err(); err != nil {
-				logger.Log.Warn().Err(err).Msg("error while getting metrics from db")
+				logger.Log().Warn().Err(err).Msg("error while getting metrics from db")
 			}
 			return err
 		},
@@ -200,7 +200,7 @@ func (dbs *DBStorage) getMetrics() []models.Metrics {
 // initDB creates necessary database entities: tables, indexes, etc...
 func (dbs *DBStorage) initDB() (err error) {
 	for _, q := range []string{qMetricsTbl, qMetricsIdx} {
-		logger.Log.Debug().Msgf("run init db script %s", q)
+		logger.Log().Debug().Msgf("run init db script %s", q)
 		err = retry.WithStrategy(context.TODO(),
 			func(ctx context.Context) error {
 				ctxDB, ctxDBCancel := context.WithTimeout(ctx, DBTimeout*time.Second)
@@ -216,12 +216,12 @@ func (dbs *DBStorage) initDB() (err error) {
 
 // Close closes database connection
 func (dbs *DBStorage) Close() {
-	logger.Log.Debug().Msg("closing database connection")
+	logger.Log().Debug().Msg("closing database connection")
 	if dbs.db == nil {
 		return
 	}
 	if err := dbs.db.Close(); err != nil {
-		logger.Log.Warn().Err(err).Msg("closing database error")
+		logger.Log().Warn().Err(err).Msg("closing database error")
 	}
 }
 

@@ -27,7 +27,7 @@ type FileStorage struct {
 func New(path string) (*FileStorage, error) {
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		logger.Log.Error().Err(err).Msgf("unable to open file %s", path)
+		logger.Log().Error().Err(err).Msgf("unable to open file %s", path)
 		return nil, err
 	}
 	return &FileStorage{
@@ -51,13 +51,13 @@ func (f *FileStorage) SaveMetrics(_ context.Context, metrics []models.Metrics) {
 
 // writeMetric internal method to write metric to file
 func (f *FileStorage) writeMetric(m models.Metrics) {
-	logger.Log.Debug().Msgf("saving metric %s to file", m.Name)
+	logger.Log().Debug().Msgf("saving metric %s to file", m.Name)
 	f.enc.Encode(m)
 }
 
 // SaveStorage saves all metrics from storage to file
 func (f *FileStorage) SaveStorage(s store.Storage) {
-	logger.Log.Debug().Msg("saving store to file")
+	logger.Log().Debug().Msg("saving store to file")
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	snap := s.Snapshot(false)
@@ -68,7 +68,7 @@ func (f *FileStorage) SaveStorage(s store.Storage) {
 
 // RestoreStorage loads metrics from file to storage
 func (f *FileStorage) RestoreStorage(s store.Storage) {
-	logger.Log.Debug().Msg("starting storage restore")
+	logger.Log().Debug().Msg("starting storage restore")
 	var err error
 	var m models.Metrics
 	f.mu.Lock()
@@ -79,31 +79,31 @@ func (f *FileStorage) RestoreStorage(s store.Storage) {
 			if err == io.EOF {
 				break
 			}
-			logger.Log.Warn().Err(err).Msg("error parsing file data")
+			logger.Log().Warn().Err(err).Msg("error parsing file data")
 		}
 		s.UpdateMetrics([]models.Metrics{m}, true)
 	}
-	logger.Log.Debug().Msg("done storage restore")
+	logger.Log().Debug().Msg("done storage restore")
 }
 
 // Close closes file
 func (f *FileStorage) Close() {
-	logger.Log.Debug().Msg("closing file storage")
+	logger.Log().Debug().Msg("closing file storage")
 	if err := f.file.Close(); err != nil && !errors.Is(err, fs.ErrClosed) {
-		logger.Log.Warn().Err(err).Msg("closing file storage error")
+		logger.Log().Warn().Err(err).Msg("closing file storage error")
 		return
 	}
 }
 
 // SaveLoop regularly saves storage to file
 func (f *FileStorage) SaveLoop(ctx context.Context, s store.Storage, interval int) {
-	logger.Log.Debug().Msg("starting file storage loop")
+	logger.Log().Debug().Msg("starting file storage loop")
 	t := time.NewTicker(time.Duration(interval) * time.Second)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Log.Debug().Msg("file storage loop stopped")
+			logger.Log().Debug().Msg("file storage loop stopped")
 			return
 		case <-t.C:
 			f.SaveStorage(s)

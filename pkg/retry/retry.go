@@ -27,18 +27,18 @@ func WithStrategy(
 	retries ...int) (err error) {
 
 	for i := 0; i <= len(retries); i++ {
-		logger.Log.Debug().Msgf("WithStrategy: try %d", i+1)
+		logger.Log().Debug().Msgf("WithStrategy: try %d", i+1)
 		err = try(ctx)
 		if err == nil {
-			logger.Log.Debug().Msg("WithStrategy: normal execution")
+			logger.Log().Debug().Msg("WithStrategy: normal execution")
 			return
 		}
 		if i == len(retries) {
-			logger.Log.Debug().Msg("WithStrategy: no more tries left")
+			logger.Log().Debug().Msg("WithStrategy: no more tries left")
 			return
 		}
 		if !isRetryError(err) {
-			logger.Log.Warn().Err(err).Msg("WithStrategy: not retryable error")
+			logger.Log().Warn().Err(err).Msg("WithStrategy: not retryable error")
 			return
 		}
 		select {

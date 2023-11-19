@@ -73,7 +73,7 @@ func New(conf *config.Config) *Server {
 
 // Run starts server instance
 func (srv *Server) Run() {
-	logger.Log.Info().Msg("starting metrics server")
+	logger.Log().Info().Msg("starting metrics server")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -84,19 +84,19 @@ func (srv *Server) Run() {
 	switch {
 	case srv.conf.UseDB:
 		// database storage setup
-		logger.Log.Info().Msg("using database as persistent storage")
+		logger.Log().Info().Msg("using database as persistent storage")
 		pStore, err = srv.initDBStorage(ctx)
 		if err != nil {
 			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
-			logger.Log.Error().Err(err).Msg("database storage disabled")
+			logger.Log().Error().Err(err).Msg("database storage disabled")
 			pStore = nil
 		}
 	case srv.conf.UseFileStorage:
 		// file storage setup
-		logger.Log.Info().Msg("using file as persistent storage")
+		logger.Log().Info().Msg("using file as persistent storage")
 		pStore, err = srv.initFileStorage(ctx)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("file storage disabled")
+			logger.Log().Error().Err(err).Msg("file storage disabled")
 			pStore = nil
 		}
 	}
@@ -112,7 +112,7 @@ func (srv *Server) Run() {
 
 		// shutdown routine
 		sig := <-shutdownSig
-		logger.Log.Info().Msgf("got '%v' signal. server shutdown routine...", sig)
+		logger.Log().Info().Msgf("got '%v' signal. server shutdown routine...", sig)
 		cancel()
 
 		// context for httpServer graceful shutdown
@@ -120,7 +120,7 @@ func (srv *Server) Run() {
 		defer httpRelease()
 
 		// gracefully stop http server
-		logger.Log.Info().Msg("stopping http server")
+		logger.Log().Info().Msg("stopping http server")
 		if err := srv.httpServer.Shutdown(httpCtx); err != nil {
 			log.Fatalf("failed to stop http server: %v", err)
 		}
@@ -131,13 +131,13 @@ func (srv *Server) Run() {
 	wgRun.Add(1)
 	go func() {
 		defer wgRun.Done()
-		logger.Log.Info().Msgf("starting http server at %s", srv.conf.Address)
+		logger.Log().Info().Msgf("starting http server at %s", srv.conf.Address)
 		if err := srv.httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			logger.Log.Fatal().Err(err).Msg("unable to start http server")
+			logger.Log().Fatal().Err(err).Msg("unable to start http server")
 		}
 	}()
 
-	logger.Log.Info().Msg("server started")
+	logger.Log().Info().Msg("server started")
 
 	// wait until tasks stopped
 	wgRun.Wait()
@@ -146,10 +146,10 @@ func (srv *Server) Run() {
 
 	// save all metrics to persistent storage
 	if pStore != nil {
-		logger.Log.Info().Msg("saving all metrics to persistent storage on exit")
+		logger.Log().Info().Msg("saving all metrics to persistent storage on exit")
 		pStore.SaveStorage(srv.store)
 	}
-	logger.Log.Info().Msg("server stopped")
+	logger.Log().Info().Msg("server stopped")
 
 }
 
@@ -158,7 +158,7 @@ func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorag
 	// create file storage
 	fStore, err = file.New(srv.conf.FileStoragePath)
 	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("unable to init file storage")
+		logger.Log().Fatal().Err(err).Msg("unable to init file storage")
 	}
 
 	// restore storage from file

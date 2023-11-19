@@ -93,27 +93,4 @@ func TestGunzipMiddleware(t *testing.T) {
 			}
 		})
 	}
-	//var resBody []byte
-	//var err error
-	//testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	//	resBody, err = io.ReadAll(r.Body)
-	//	defer r.Body.Close()
-	//	if err != nil {
-	//		w.WriteHeader(http.StatusBadRequest)
-	//	}
-	//	w.WriteHeader(http.StatusOK)
-	//})
-	//body := []byte("this is a test body")
-	//body = append(body, body...)
-	//body = append(body, body...)
-	//reqBody := bytes.NewReader(body)
-	//req := httptest.NewRequest(http.MethodPost, "/", reqBody)
-	////req.Header.Add("Content-Encoding", "gzip")
-	//w := httptest.NewRecorder()
-	//handler := GunzipMiddleware(testHandler)
-	//handler.ServeHTTP(w, req)
-	//res := w.Result()
-	//require.Equal(t, http.StatusOK, res.StatusCode, "Expected")
-	//require.NoError(t, err)
-	//assert.Equal(t, body, resBody)
 }
