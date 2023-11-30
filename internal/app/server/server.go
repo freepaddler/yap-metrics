@@ -2,211 +2,194 @@ package server
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"errors"
 	"net/http"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-
-	"github.com/freepaddler/yap-metrics/internal/app/server/config"
-	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
-	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/db"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/file"
-	"github.com/freepaddler/yap-metrics/internal/pkg/store/memory"
 )
 
-// let's define app composition
-//
-// server is:
-// storage - to operate data, should be an interface that implements all action on data
-// handlers - to access storage
-// router - to route requests to handlers
-//
-// dependencies:
-// storage()
-// handlers(storage)
-// router(handlers)
+type Dumper interface {
+	Dump(metrics []models.Metrics) error
+	Restore() (metrics []models.Metrics, lastDump time.Time, err error)
+}
 
-// storage is interface, which methods should be called by handlers
-// router must call handlers
+type DumpStorage interface {
+	GetAll() []models.Metrics
+	RestoreLatest(metrics []models.Metrics, ts time.Time)
+}
 
 // Server represents server application
 type Server struct {
-	conf         *config.Config
-	store        *memory.MemStorage
-	httpHandlers *handler.HTTPHandlers
-	httpRouter   *chi.Mux
 	httpServer   *http.Server
+	wg           sync.WaitGroup
+	dump         Dumper
+	dumpInterval time.Duration
+	storage      DumpStorage
+	restore      bool
 }
 
-var (
-	wgRun sync.WaitGroup
-)
-
-// New creates new server instance
-func New(conf *config.Config) *Server {
-	srv := &Server{conf: conf}
-
-	// init new memory storage
-	srv.store = memory.NewMemStorage()
-
-	// create http handlers instance
-	srv.httpHandlers = handler.NewHTTPHandlers(srv.store)
-
-	// create http router
-	srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers, conf.Key)
-
-	// create http server
-	srv.httpServer = &http.Server{Addr: srv.conf.Address, Handler: srv.httpRouter}
-
+func NewServer(opts ...func(server *Server)) *Server {
+	srv := &Server{
+		httpServer: &http.Server{},
+	}
+	for _, o := range opts {
+		o(srv)
+	}
 	return srv
 }
 
+func WithAddress(a string) func(server *Server) {
+	return func(server *Server) {
+		server.httpServer.Addr = a
+	}
+}
+
+func WithRouter(r http.Handler) func(server *Server) {
+	return func(server *Server) {
+		server.httpServer.Handler = r
+	}
+}
+
+func WithStorage(s DumpStorage) func(server *Server) {
+	return func(server *Server) {
+		server.storage = s
+	}
+}
+
+func WithDump(d Dumper) func(server *Server) {
+	return func(server *Server) {
+		server.dump = d
+	}
+}
+
+func WithDumpInterval(interval int) func(server *Server) {
+	return func(server *Server) {
+		server.dumpInterval = time.Duration(interval) * time.Second
+	}
+}
+
+func WithRestore(r bool) func(server *Server) {
+	return func(server *Server) {
+		server.restore = r
+	}
+}
+
+// New creates new server instance
+//func New(conf *config.Config) *Server {
+//	srv := &Server{conf: conf}
+//
+//	// TODO: remove
+//	// init new memory storage
+//	srv.store1 = memory.NewMemStorage()
+//
+//	// FIXED
+//
+//	srv.storage = inmemory.New()
+//	srv.controller = store.NewStorageController(srv.storage)
+//
+//	// create http handlers instance
+//	srv.httpHandlers = handler.NewHTTPHandlers(srv.controller)
+//
+//	// create http router
+//	//srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers, conf.Key, conf.PrivateKey)
+//
+//	// create http server
+//	srv.httpServer = &http.Server{Addr: srv.conf.Address, Handler: srv.httpRouter}
+//
+//	return srv
+//}
+
+// checkCtxCancel validates context is not cancelled, exit fatal if it is
+func checkCtxCancel(ctx context.Context) {
+	if err := ctx.Err(); err != nil {
+		logger.Log().Fatal().Err(err).Msg("application terminated")
+	}
+}
+
 // Run starts server instance
-func (srv *Server) Run() {
+func (srv *Server) Run(ctx context.Context) error {
+	checkCtxCancel(ctx)
 	logger.Log().Info().Msg("starting metrics server")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// persistent storage setup
-	var pStore store.PersistentStorage
-	var err error
-	switch {
-	case srv.conf.UseDB:
-		// database storage setup
-		logger.Log().Info().Msg("using database as persistent storage")
-		pStore, err = srv.initDBStorage(ctx)
-		if err != nil {
-			// Error here instead of Fatal to let server work without db to pass tests 10[ab]
-			logger.Log().Error().Err(err).Msg("database storage disabled")
-			pStore = nil
+	// file storage setup
+	if srv.dump != nil {
+		if srv.restore {
+			logger.Log().Info().Msg("restoring metrics from file")
+			// restore may last long, we don't need to wait
+			go func() {
+				metrics, ts, err := srv.dump.Restore()
+				if err != nil {
+					logger.Log().Err(err).Msg("unable to restore from dump")
+				} else {
+					logger.Log().Info().Msgf("found dump from %s, restoring", ts.Format(time.UnixDate))
+					srv.storage.RestoreLatest(metrics, ts)
+				}
+			}()
 		}
-	case srv.conf.UseFileStorage:
-		// file storage setup
-		logger.Log().Info().Msg("using file as persistent storage")
-		pStore, err = srv.initFileStorage(ctx)
-		if err != nil {
-			logger.Log().Error().Err(err).Msg("file storage disabled")
-			pStore = nil
+		if srv.dumpInterval > 0 {
+			logger.Log().Info().Msgf("start metrics dump every %.f seconds", srv.dumpInterval.Seconds())
+			srv.wg.Add(1)
+			go func() {
+				defer srv.wg.Done()
+				for {
+					select {
+					case <-time.After(srv.dumpInterval):
+						logger.Log().Debug().Msg("run dump")
+						metrics := srv.storage.GetAll()
+						srv.dump.Dump(metrics)
+					case <-ctx.Done():
+						logger.Log().Info().Msg("stop metrics dump")
+						return
+					}
+				}
+			}()
 		}
 	}
-	if pStore != nil {
-		srv.httpHandlers.SetPStorage(pStore)
-		defer pStore.Close()
-	}
-
-	// trap os signals
-	go func() {
-		shutdownSig := make(chan os.Signal, 1)
-		signal.Notify(shutdownSig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-		// shutdown routine
-		sig := <-shutdownSig
-		logger.Log().Info().Msgf("got '%v' signal. server shutdown routine...", sig)
-		cancel()
-
-		// context for httpServer graceful shutdown
-		httpCtx, httpRelease := context.WithTimeout(ctx, 5*time.Second)
-		defer httpRelease()
-
-		// gracefully stop http server
-		logger.Log().Info().Msg("stopping http server")
-		if err := srv.httpServer.Shutdown(httpCtx); err != nil {
-			log.Fatalf("failed to stop http server: %v", err)
-		}
-
-	}()
 
 	// start http server
-	wgRun.Add(1)
+	srv.wg.Add(1)
 	go func() {
-		defer wgRun.Done()
-		logger.Log().Info().Msgf("starting http server at %s", srv.conf.Address)
-		if err := srv.httpServer.ListenAndServe(); err != http.ErrServerClosed {
+		defer srv.wg.Done()
+		logger.Log().Info().Msgf("starting http server at %s", srv.httpServer.Addr)
+		if err := srv.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Log().Fatal().Err(err).Msg("unable to start http server")
 		}
+		logger.Log().Info().Msg("http server stopped acquiring new connections")
 	}()
 
+	time.Sleep(500 * time.Millisecond)
 	logger.Log().Info().Msg("server started")
 
+	// waiting for main context to be cancelled
+	<-ctx.Done()
+	logger.Log().Info().Msg("got stop request. stopping server")
+
+	// context for httpServer graceful shutdown
+	httpCtx, httpRelease := context.WithTimeout(context.Background(), 10*time.Second)
+	defer httpRelease()
+
+	// gracefully stop http server
+	logger.Log().Info().Msg("stopping http server")
+	if err := srv.httpServer.Shutdown(httpCtx); err != nil {
+		logger.Log().Err(err).Msg("failed to stop http server gracefully. force stop")
+		_ = srv.httpServer.Close()
+	}
+	logger.Log().Info().Msg("http server stopped")
+
 	// wait until tasks stopped
-	wgRun.Wait()
+	srv.wg.Wait()
 
 	// shutdown tasks
 
 	// save all metrics to persistent storage
-	if pStore != nil {
-		logger.Log().Info().Msg("saving all metrics to persistent storage on exit")
-		pStore.SaveStorage(srv.store)
-	}
-	logger.Log().Info().Msg("server stopped")
-
-}
-
-// initFileStorage sets up file storage
-func (srv *Server) initFileStorage(ctx context.Context) (fStore *file.FileStorage, err error) {
-	// create file storage
-	fStore, err = file.New(srv.conf.FileStoragePath)
-	if err != nil {
-		logger.Log().Fatal().Err(err).Msg("unable to init file storage")
+	if srv.dump != nil {
+		logger.Log().Info().Msg("dump metrics to file on exit")
+		metrics := srv.storage.GetAll()
+		srv.dump.Dump(metrics)
 	}
 
-	// restore storage from file
-	if srv.conf.Restore {
-		fStore.RestoreStorage(srv.store)
-	}
-
-	// register update hook for sync write to persistent storage
-	if srv.conf.StoreInterval == 0 {
-		srv.store.RegisterHooks(
-			func(m []models.Metrics) {
-				go func() {
-					fStore.SaveMetrics(ctx, m)
-				}()
-			})
-	} else if srv.conf.StoreInterval > 0 {
-		wgRun.Add(1)
-		go func() {
-			defer wgRun.Done()
-			fStore.SaveLoop(ctx, srv.store, srv.conf.StoreInterval)
-		}()
-	} else {
-		err = fmt.Errorf("invalid storeInterval=%d, should be 0 or greater", srv.conf.StoreInterval)
-		return nil, err
-	}
-	return fStore, nil
-}
-
-// initDBStorage sets up file storage
-func (srv *Server) initDBStorage(ctx context.Context) (*db.DBStorage, error) {
-	// create database storage
-	dbStore, err := db.New(srv.conf.DBURL)
-	if err != nil {
-		return nil, err
-	}
-
-	// restore storage from file
-	if srv.conf.Restore {
-		dbStore.RestoreStorage(srv.store)
-	}
-
-	// register update hook for sync write to persistent storage
-	srv.store.RegisterHooks(
-		func(m []models.Metrics) {
-			go func() {
-				dbStore.SaveMetrics(ctx, m)
-			}()
-		})
-
-	return dbStore, nil
+	return nil
 }

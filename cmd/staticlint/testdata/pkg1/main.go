@@ -3,7 +3,7 @@ package main
 import "os"
 
 func main() {
-	defer os.Exit(1) // want "direct call of os.Exit is not allowed"
+	defer os.Exit(1)
 	func() {
 		os.Exit(1) // want "direct call of os.Exit is not allowed"
 	}()

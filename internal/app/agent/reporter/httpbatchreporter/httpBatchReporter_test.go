@@ -1,25 +1,19 @@
-package reporter
+package httpbatchreporter
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
-	"github.com/freepaddler/yap-metrics/mocks"
 )
 
 func TestHTTPReporter_ReportBatchJSON(t *testing.T) {
-	var mockController = gomock.NewController(t)
-	defer mockController.Finish()
-	m := mocks.NewMockReporter(mockController)
 
 	report := []models.Metrics{
 		{
@@ -45,18 +39,12 @@ func TestHTTPReporter_ReportBatchJSON(t *testing.T) {
 		{
 			name:        "empty report",
 			httpRequest: false,
-			mocks: func() {
-				m.EXPECT().ReportAll().Return([]models.Metrics{}, time.Now()).Times(1)
-			},
 		},
 		{
 			name:            "success report",
 			httpRequest:     true,
 			serverReachable: true,
 			respCode:        http.StatusOK,
-			mocks: func() {
-				m.EXPECT().ReportAll().Return(report, time.Now()).Times(1)
-			},
 		},
 		{
 			name:            "signed report",
@@ -64,27 +52,16 @@ func TestHTTPReporter_ReportBatchJSON(t *testing.T) {
 			serverReachable: true,
 			key:             "someKey",
 			respCode:        http.StatusOK,
-			mocks: func() {
-				m.EXPECT().ReportAll().Return(report, time.Now()).Times(1)
-			},
 		},
 		{
 			name:            "server bad response",
 			httpRequest:     true,
 			serverReachable: true,
 			respCode:        http.StatusBadRequest,
-			mocks: func() {
-				m.EXPECT().ReportAll().Return(report, time.Now()).Times(1)
-				m.EXPECT().RestoreReport(report, gomock.AssignableToTypeOf(time.Time{})).Times(1)
-			},
 		},
 		{
 			name:            "server unreachable",
 			serverReachable: false,
-			mocks: func() {
-				m.EXPECT().ReportAll().Return(report, time.Now()).Times(1)
-				m.EXPECT().RestoreReport(report, gomock.AssignableToTypeOf(time.Time{})).Times(1)
-			},
 		},
 	}
 
@@ -111,11 +88,13 @@ func TestHTTPReporter_ReportBatchJSON(t *testing.T) {
 				require.NoError(t, err, "Failed to parse test httpserver address")
 				address = serverURL.Host
 			}
+			h := New(
+				WithAddress(address),
+				WithHTTPTimeout(time.Second),
+				WithSignKey(tt.key),
+			)
 
-			h := NewHTTPReporter(m, address, time.Second, tt.key)
-			tt.mocks()
-			h.ReportBatchJSON(context.Background())
-			//require.NotPanics(t, func() { h.ReportBatchJSON(context.Background()) })
+			h.Send(report)
 		})
 	}
 }

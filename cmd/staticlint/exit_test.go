@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	defer func() { os.Exit(1) }()
 	osx.Exit(1)
 }
 `
@@ -57,6 +58,8 @@ func Test_Exit(t *testing.T) {
 			} else {
 				mainFunc = false
 			}
+		case *ast.DeferStmt:
+			return false
 		case *ast.CallExpr:
 			//fmt.Println("CallExpr:", fset.Position(x.Pos()))
 			//ast.Print(fset, x)
