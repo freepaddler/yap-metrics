@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
@@ -24,6 +26,7 @@ type Reporter struct {
 	client    http.Client
 	key       string
 	publicKey *rsa.PublicKey
+	localIp   string
 }
 
 func New(opts ...func(r *Reporter)) *Reporter {
@@ -37,6 +40,7 @@ func New(opts ...func(r *Reporter)) *Reporter {
 func WithAddress(a string) func(*Reporter) {
 	return func(r *Reporter) {
 		r.url = fmt.Sprintf("http://%s/updates/", a)
+		r.localIp = getLocalIp(a)
 	}
 }
 
@@ -56,6 +60,20 @@ func WithPublicKey(pk *rsa.PublicKey) func(*Reporter) {
 	return func(r *Reporter) {
 		r.publicKey = pk
 	}
+}
+
+// getLocalIp gets local ip address used to reach server
+func getLocalIp(addr string) string {
+	parts := strings.Split(addr, ":")
+	// port doesn't matter, no connection will be made
+	conn, err := net.Dial("udp4", parts[0]+":1024")
+	if err != nil {
+		logger.Log().Err(err).Msgf("failed to get my ip with server address %s", addr)
+		return ""
+	}
+	localAddress := conn.LocalAddr().(*net.UDPAddr)
+	conn.Close()
+	return localAddress.IP.String()
 }
 
 func (r Reporter) Send(m []models.Metrics) (err error) {
@@ -94,6 +112,12 @@ func (r Reporter) Send(m []models.Metrics) (err error) {
 		log.Error().Err(err).Msg("unable to create http request")
 		return
 	}
+
+	// set X-Real-IP header
+	if r.localIp != "" {
+		req.Header.Set("X-Real-IP", r.localIp)
+	}
+
 	// set hash header
 	if HashSHA256 != "" {
 		req.Header.Set("HashSHA256", HashSHA256)
