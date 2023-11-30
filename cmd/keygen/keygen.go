@@ -28,10 +28,9 @@ func main() {
 		} else {
 			exitOnErr(fmt.Sprintf("%s", err))
 		}
-	} else {
-		if !dir.IsDir() {
-			exitOnErr("Output destination '%s' is not a dir", *outPath)
-		}
+	}
+	if !dir.IsDir() {
+		exitOnErr("Output destination '%s' is not a dir", *outPath)
 	}
 
 	pubFilePath := *outPath + "/public.key"
