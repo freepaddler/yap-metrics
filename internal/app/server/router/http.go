@@ -91,8 +91,6 @@ func (router Router) create() http.Handler {
 	mw(router.log)
 	mw(router.gunzip)
 	mw(router.gzip)
-	mw(router.crypt)
-	mw(router.sign)
 
 	if router.profilerPath != "" {
 		r.Mount(router.profilerPath, middleware.Profiler())
@@ -100,6 +98,8 @@ func (router Router) create() http.Handler {
 
 	r.Get("/", router.handler.IndexMetricHandler)
 	r.Route("/update", func(r chi.Router) {
+		mw(router.crypt)
+		mw(router.sign)
 		r.Post("/", router.handler.UpdateMetricJSONHandler)
 		r.Post("/{type}/{name}/{value}", router.handler.UpdateMetricHandler)
 	})
@@ -109,6 +109,8 @@ func (router Router) create() http.Handler {
 	})
 	r.Get("/ping", router.handler.PingHandler)
 	r.Route("/updates", func(r chi.Router) {
+		mw(router.crypt)
+		mw(router.sign)
 		r.Post("/", router.handler.UpdateMetricsBatchHandler)
 	})
 
