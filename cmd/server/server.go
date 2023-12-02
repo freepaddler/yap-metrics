@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	_ "net/http/pprof"
+	"net/netip"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,6 +19,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
+	"github.com/freepaddler/yap-metrics/internal/pkg/ipmatcher"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
@@ -110,6 +112,20 @@ Build commit %s
 	// define http handlers
 	httpHandlers := handler.NewHTTPHandlers(storage)
 
+	// parse trusted subnet
+	var trustedSubnetEnable bool
+	trustedSubnet := new(netip.Prefix)
+	if conf.TrustedSubnet != "" {
+		var err error
+		if *trustedSubnet, err = netip.ParsePrefix(conf.TrustedSubnet); err != nil {
+			logger.Log().Warn().Err(err).Msgf("unable to parse trusted subnet %s", conf.TrustedSubnet)
+			*trustedSubnet = netip.MustParsePrefix("0.0.0.0/0")
+		} else {
+			trustedSubnetEnable = true
+		}
+	}
+	//fmt.Println(trustedSubnetEnable)
+
 	// setup router
 	httpRouter := router.New(
 		router.WithHandler(httpHandlers),
@@ -119,6 +135,7 @@ Build commit %s
 		router.WithCrypt(crypt.DecryptMiddleware(privateKey)),
 		router.WithSign(sign.Middleware(conf.Key)),
 		router.WithProfilerAt("/debug/"),
+		router.WithIpMatcher(ipmatcher.IPMatchMiddleware(trustedSubnetEnable, *trustedSubnet)),
 	)
 
 	// init and run server

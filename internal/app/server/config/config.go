@@ -22,6 +22,7 @@ const (
 	defaultRestore         = true
 	defaultDBURL           = ""
 	defaultKey             = ""
+	defaultTrustedSubnet   = ""
 )
 
 // Config implements server configuration
@@ -35,6 +36,7 @@ type Config struct {
 	Key             string `env:"KEY"`
 	PrivateKeyFile  string `env:"CRYPTO_KEY" json:"crypto_key"`
 	ConfigFile      string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 }
 
 // UnmarshalJSON to convert duration from config to uint32
@@ -104,6 +106,8 @@ func NewConfig() *Config {
 	flag.StringVarP(&c.Key, "key", "k", defaultKey, "key for integrity hash calculation `secretkey`")
 	flag.StringVarP(&c.PrivateKeyFile, "-crypto-key", "", "", "`path` to private key file in PEM format")
 	flag.StringVarP(&c.ConfigFile, "config", "c", "", "`path` to configuration file in JSON format")
+	flag.StringVarP(&c.TrustedSubnet, "trusted_subnet", "t", defaultTrustedSubnet, "trusted subnet in `CIDR` format to accept metric update requests")
+
 	flag.Parse()
 
 	// env vars
