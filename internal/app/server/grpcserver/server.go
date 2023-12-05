@@ -1,15 +1,23 @@
 package grpcserver
 
 import (
+	"context"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+
+	_ "google.golang.org/grpc/encoding/gzip"
 
 	pb "github.com/freepaddler/yap-metrics/internal/pkg/grpc/proto"
+	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
 type GRCPServer struct {
-	Server   *grpc.Server
-	address  string
-	handlers *GRPCMetricsHandlers
+	Server       *grpc.Server
+	address      string
+	handlers     *GRPCMetricsHandlers
+	interceptors []grpc.UnaryServerInterceptor
 }
 
 func (gs *GRCPServer) GetAddress() string {
@@ -18,12 +26,29 @@ func (gs *GRCPServer) GetAddress() string {
 
 func NewGrpcServer(opts ...func(gs *GRCPServer)) *GRCPServer {
 	gs := new(GRCPServer)
+	// setup logging
+	logOpts := []logging.Option{
+		logging.WithLogOnEvents(logging.FinishCall),
+		logging.WithFieldsFromContext(logger.GRPCContextFields),
+	}
+	gs.interceptors = append(
+		gs.interceptors,
+		logging.UnaryServerInterceptor(logger.GRPCInterceptorLogger(*logger.Log()), logOpts...),
+	)
 	for _, o := range opts {
 		o(gs)
 	}
-	gs.Server = grpc.NewServer()
+	gs.Server = grpc.NewServer(grpc.ChainUnaryInterceptor(gs.interceptors...))
 	pb.RegisterMetricsServer(gs.Server, gs.handlers)
 	return gs
+}
+
+func fromContext(ctx context.Context) logging.Fields {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return logging.Fields{}
+	}
+	return logging.Fields{"grpc-accept-encoding", md.Get("grpc-accept-encoding")}
 }
 
 func WithAddress(s string) func(gs *GRCPServer) {
@@ -35,5 +60,13 @@ func WithAddress(s string) func(gs *GRCPServer) {
 func WithHandlers(h *GRPCMetricsHandlers) func(gs *GRCPServer) {
 	return func(gs *GRCPServer) {
 		gs.handlers = h
+
+	}
+}
+
+func WithInterceptors(interceptors ...grpc.UnaryServerInterceptor) func(server *GRCPServer) {
+	return func(gs *GRCPServer) {
+		// order makes sense
+		gs.interceptors = append(gs.interceptors, interceptors...)
 	}
 }

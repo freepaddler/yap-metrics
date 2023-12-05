@@ -71,7 +71,7 @@ func IsNetErr(err error) bool {
 	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 		return true
 	}
-	if e, ok := status.FromError(err); ok && e.Code() == codes.Unavailable {
+	if e, ok := status.FromError(err); ok && (e.Code() == codes.Unavailable || e.Code() == codes.Canceled) {
 		return true
 	}
 	return false

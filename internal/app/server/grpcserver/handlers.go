@@ -2,8 +2,10 @@ package grpcserver
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	pb "github.com/freepaddler/yap-metrics/internal/pkg/grpc/proto"
@@ -27,8 +29,15 @@ func NewGRPCHandlers(storage GRPCHandlerStorage) *GRPCMetricsHandlers {
 	return &GRPCMetricsHandlers{storage: storage}
 }
 
-func (s GRPCMetricsHandlers) UpdateMetricsBatch(_ context.Context, in *pb.MetricsBatch) (*pb.EmptyResponse, error) {
+func (s GRPCMetricsHandlers) UpdateMetricsBatch(ctx context.Context, in *pb.MetricsBatch) (*pb.EmptyResponse, error) {
 	logger.Log().Debug().Msg("GRPC UpdateMetricsBatch: Request received")
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		logger.Log().Warn().Msg("failed to read request metadata")
+	}
+	for k, v := range md {
+		fmt.Printf("%s: %s\n", k, v)
+	}
 	var response pb.EmptyResponse
 	metrics := make([]models.Metrics, 0, len(in.Metrics))
 	for _, v := range in.Metrics {

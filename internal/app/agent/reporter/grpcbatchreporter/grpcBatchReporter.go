@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding/gzip"
 
 	pb "github.com/freepaddler/yap-metrics/internal/pkg/grpc/proto"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
@@ -13,9 +15,10 @@ import (
 )
 
 type Reporter struct {
-	timeout time.Duration
-	address string
-	conn    *grpc.ClientConn
+	timeout      time.Duration
+	address      string
+	conn         *grpc.ClientConn
+	interceptors []grpc.UnaryClientInterceptor
 }
 
 func (r *Reporter) Close() error {
@@ -27,8 +30,21 @@ func New(opts ...func(r *Reporter)) (*Reporter, error) {
 	for _, opt := range opts {
 		opt(reporter)
 	}
+	// setup logging
+	logOpts := []logging.Option{
+		logging.WithLogOnEvents(logging.FinishCall),
+	}
+	reporter.interceptors = append(
+		reporter.interceptors,
+		logging.UnaryClientInterceptor(logger.GRPCInterceptorLogger(*logger.Log()), logOpts...),
+	)
 	var err error
-	reporter.conn, err = grpc.Dial(reporter.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	reporter.conn, err = grpc.Dial(
+		reporter.address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
+		grpc.WithChainUnaryInterceptor(reporter.interceptors...),
+	)
 	if err != nil {
 		logger.Log().Error().Err(err).Msgf("unable to setup grpc connection to %s", reporter.address)
 		return nil, err
@@ -45,6 +61,13 @@ func WithAddress(a string) func(*Reporter) {
 func WithTimeout(d time.Duration) func(*Reporter) {
 	return func(r *Reporter) {
 		r.timeout = d
+	}
+}
+
+func WithInterceptors(interceptors ...grpc.UnaryClientInterceptor) func(*Reporter) {
+	return func(r *Reporter) {
+		// order makes sense
+		r.interceptors = append(r.interceptors, interceptors...)
 	}
 }
 
