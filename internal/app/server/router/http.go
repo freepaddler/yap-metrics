@@ -27,7 +27,7 @@ type Router struct {
 	crypt        Middleware
 	sign         Middleware
 	profilerPath string
-	checkIp      Middleware
+	checkIP      Middleware
 }
 
 func WithHandler(h MetricsHTTPHandler) func(router *Router) {
@@ -72,9 +72,9 @@ func WithProfilerAt(path string) func(router *Router) {
 	}
 }
 
-func WithIpMatcher(mw Middleware) func(router *Router) {
+func WithIPMatcher(mw Middleware) func(router *Router) {
 	return func(router *Router) {
-		router.checkIp = mw
+		router.checkIP = mw
 	}
 }
 
@@ -113,8 +113,8 @@ func (router Router) create() http.Handler {
 
 	// only update routes
 	r.Group(func(r chi.Router) {
-		if router.checkIp != nil {
-			r.Use(router.checkIp)
+		if router.checkIP != nil {
+			r.Use(router.checkIP)
 		}
 		if router.crypt != nil {
 			r.Use(router.crypt)

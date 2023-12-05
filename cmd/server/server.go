@@ -15,6 +15,7 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/app/server"
 	"github.com/freepaddler/yap-metrics/internal/app/server/config"
+	"github.com/freepaddler/yap-metrics/internal/app/server/grpcserver"
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
@@ -135,8 +136,17 @@ Build commit %s
 		router.WithCrypt(crypt.DecryptMiddleware(privateKey)),
 		router.WithSign(sign.Middleware(conf.Key)),
 		router.WithProfilerAt("/debug/"),
-		router.WithIpMatcher(ipmatcher.IPMatchMiddleware(trustedSubnetEnable, *trustedSubnet)),
+		router.WithIPMatcher(ipmatcher.IPMatchMiddleware(trustedSubnetEnable, *trustedSubnet)),
 	)
+
+	// setup grpc
+	var gs *grpcserver.GRCPServer
+	if conf.GRPCAddress != "" {
+		gs = grpcserver.NewGrpcServer(
+			grpcserver.WithAddress(conf.GRPCAddress),
+			grpcserver.WithHandlers(grpcserver.NewGRPCHandlers(storage)),
+		)
+	}
 
 	// init and run server
 	app := server.NewServer(
@@ -146,6 +156,7 @@ Build commit %s
 		server.WithStorage(storage),
 		server.WithDumpInterval(conf.StoreInterval),
 		server.WithRestore(conf.Restore),
+		server.WithGRPCServer(gs),
 	)
 	err := app.Run(nCtx)
 	if err != nil {

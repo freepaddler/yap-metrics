@@ -3,10 +3,12 @@ package server
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/freepaddler/yap-metrics/internal/app/server/grpcserver"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )
@@ -29,6 +31,7 @@ type Server struct {
 	dumpInterval time.Duration
 	storage      DumpStorage
 	restore      bool
+	grpcServer   *grpcserver.GRCPServer
 }
 
 func NewServer(opts ...func(server *Server)) *Server {
@@ -77,30 +80,11 @@ func WithRestore(r bool) func(server *Server) {
 	}
 }
 
-// New creates new server instance
-//func New(conf *config.Config) *Server {
-//	srv := &Server{conf: conf}
-//
-//	// TODO: remove
-//	// init new memory storage
-//	srv.store1 = memory.NewMemStorage()
-//
-//	// FIXED
-//
-//	srv.storage = inmemory.New()
-//	srv.controller = store.NewStorageController(srv.storage)
-//
-//	// create http handlers instance
-//	srv.httpHandlers = handler.NewHTTPHandlers(srv.controller)
-//
-//	// create http router
-//	//srv.httpRouter = router.NewHTTPRouter(srv.httpHandlers, conf.Key, conf.PrivateKey)
-//
-//	// create http server
-//	srv.httpServer = &http.Server{Addr: srv.conf.Address, Handler: srv.httpRouter}
-//
-//	return srv
-//}
+func WithGRPCServer(gs *grpcserver.GRCPServer) func(server *Server) {
+	return func(server *Server) {
+		server.grpcServer = gs
+	}
+}
 
 // checkCtxCancel validates context is not cancelled, exit fatal if it is
 func checkCtxCancel(ctx context.Context) {
@@ -160,6 +144,24 @@ func (srv *Server) Run(ctx context.Context) error {
 		logger.Log().Info().Msg("http server stopped acquiring new connections")
 	}()
 
+	//start grpc server
+	if srv.grpcServer != nil {
+		srv.wg.Add(1)
+		go func() {
+			defer srv.wg.Done()
+			logger.Log().Info().Msgf("starting grpc server at %s", srv.grpcServer.GetAddress())
+			listener, err := net.Listen("tcp", srv.grpcServer.GetAddress())
+			if err != nil {
+				logger.Log().Warn().Err(err).Msgf("unable to bind address %s", srv.grpcServer.GetAddress())
+				return
+			}
+			if err := srv.grpcServer.Server.Serve(listener); err != nil {
+				logger.Log().Warn().Err(err).Msg("unable to start grpc server")
+			}
+			logger.Log().Info().Msg("grpc server stopped")
+		}()
+	}
+
 	time.Sleep(500 * time.Millisecond)
 	logger.Log().Info().Msg("server started")
 
@@ -178,6 +180,23 @@ func (srv *Server) Run(ctx context.Context) error {
 		_ = srv.httpServer.Close()
 	}
 	logger.Log().Info().Msg("http server stopped")
+
+	// gracefully stop grpc server
+	if srv.grpcServer != nil {
+		logger.Log().Info().Msg("stopping grpc server")
+		grpcStopped := make(chan struct{})
+		go func() {
+			srv.grpcServer.Server.GracefulStop()
+			close(grpcStopped)
+		}()
+		select {
+		case <-grpcStopped:
+			logger.Log().Info().Msg("grpc server stopped gracefully")
+		case <-time.After(10 * time.Second):
+			logger.Log().Info().Msg("failed to stop http server gracefully. force stop")
+		}
+		srv.grpcServer.Server.Stop()
+	}
 
 	// wait until tasks stopped
 	srv.wg.Wait()

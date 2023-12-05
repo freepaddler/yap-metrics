@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package grpc;
+
+//protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative internal/pkg/grpc/proto/metrics.proto
+option go_package = "grpc/proto";
+
+message Metric {
+  string id = 1;
+  enum Type {
+    UNSPECIFIED = 0;
+    COUNTER = 1;
+    GAUGE = 2;
+  }
+  Type type = 2;
+  double value = 3;
+  int64 delta = 4;
+}
+
+message MetricsBatch {
+  repeated Metric metrics = 1;
+}
+
+message EmptyResponse {}
+
+service Metrics {
+  rpc UpdateMetricsBatch(MetricsBatch) returns (EmptyResponse);
+}
