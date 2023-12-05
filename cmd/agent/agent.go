@@ -15,6 +15,7 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/app/agent"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/collector"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/config"
+	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter/grpcbatchreporter"
 	"github.com/freepaddler/yap-metrics/internal/app/agent/reporter/httpbatchreporter"
 	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
@@ -99,12 +100,26 @@ Build commit %s
 	}
 
 	// setup reporter
-	reporter := httpbatchreporter.New(
-		httpbatchreporter.WithAddress(conf.ServerAddress),
-		httpbatchreporter.WithHTTPTimeout(conf.HTTPTimeout),
-		httpbatchreporter.WithSignKey(conf.Key),
-		httpbatchreporter.WithPublicKey(pubKey),
-	)
+	var reporter agent.Reporter
+	if conf.GRPCServerAddress != "" {
+		var err error
+		reporter, err = grpcbatchreporter.New(
+			grpcbatchreporter.WithAddress(conf.GRPCServerAddress),
+			grpcbatchreporter.WithTimeout(conf.HTTPTimeout),
+		)
+		if err != nil {
+			logger.Log().Error().Err(err).Msg("unable to init grpc reporter")
+			exitCode = 2
+			return
+		}
+	} else {
+		reporter = httpbatchreporter.New(
+			httpbatchreporter.WithAddress(conf.ServerAddress),
+			httpbatchreporter.WithHTTPTimeout(conf.HTTPTimeout),
+			httpbatchreporter.WithSignKey(conf.Key),
+			httpbatchreporter.WithPublicKey(pubKey),
+		)
+	}
 
 	// init and run agent
 	app := agent.NewAgent(

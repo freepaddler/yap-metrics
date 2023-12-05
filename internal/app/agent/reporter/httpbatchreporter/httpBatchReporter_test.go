@@ -123,7 +123,7 @@ func Test_getLocalIp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, getLocalIp(tt.addr), "getLocalIp(%v)", tt.addr)
+			assert.Equalf(t, tt.want, getLocalIP(tt.addr), "getLocalIP(%v)", tt.addr)
 		})
 	}
 }

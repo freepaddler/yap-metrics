@@ -48,6 +48,7 @@ type ReporterStorage interface {
 // Reporter is used to report metrics
 type Reporter interface {
 	Send([]models.Metrics) error
+	Close() error
 }
 
 // AgentStorage interface for agent App
@@ -175,6 +176,7 @@ func (agt *Agent) Run(ctx context.Context) error {
 	agt.wg.Add(1)
 	go func(ctx context.Context) {
 		defer agt.wg.Done()
+		defer agt.reporter.Close()
 		logger.Log().Info().Msgf("starting metrics reporting every %.f seconds", agt.pollInterval.Seconds())
 		wp := wpool.New(ctx, agt.rateLimit)
 		for {

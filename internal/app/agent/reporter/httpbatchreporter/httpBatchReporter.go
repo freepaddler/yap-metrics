@@ -26,7 +26,11 @@ type Reporter struct {
 	client    http.Client
 	key       string
 	publicKey *rsa.PublicKey
-	localIp   string
+	localIP   string
+}
+
+func (r Reporter) Close() error {
+	return nil
 }
 
 func New(opts ...func(r *Reporter)) *Reporter {
@@ -40,7 +44,7 @@ func New(opts ...func(r *Reporter)) *Reporter {
 func WithAddress(a string) func(*Reporter) {
 	return func(r *Reporter) {
 		r.url = fmt.Sprintf("http://%s/updates/", a)
-		r.localIp = getLocalIp(a)
+		r.localIP = getLocalIP(a)
 	}
 }
 
@@ -62,8 +66,8 @@ func WithPublicKey(pk *rsa.PublicKey) func(*Reporter) {
 	}
 }
 
-// getLocalIp gets local ip address used to reach server
-func getLocalIp(addr string) string {
+// getLocalIP gets local ip address used to reach server
+func getLocalIP(addr string) string {
 	parts := strings.Split(addr, ":")
 	// port doesn't matter, no connection will be made
 	conn, err := net.Dial("udp4", parts[0]+":1024")
@@ -114,8 +118,8 @@ func (r Reporter) Send(m []models.Metrics) (err error) {
 	}
 
 	// set X-Real-IP header
-	if r.localIp != "" {
-		req.Header.Set("X-Real-IP", r.localIp)
+	if r.localIP != "" {
+		req.Header.Set("X-Real-IP", r.localIP)
 	}
 
 	// set hash header

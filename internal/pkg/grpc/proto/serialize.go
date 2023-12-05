@@ -1,5 +1,7 @@
 package proto
 
+//go:generate mockgen -source metrics_grpc.pb.go -package=mocks -destination ../../../../mocks/MetricsGRPCServer_mock.go
+
 import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 )

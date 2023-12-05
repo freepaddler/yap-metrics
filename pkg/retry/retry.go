@@ -9,6 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 )
 
@@ -66,6 +69,9 @@ func IsNetErr(err error) bool {
 	}
 	// network timeout
 	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		return true
+	}
+	if e, ok := status.FromError(err); ok && e.Code() == codes.Unavailable {
 		return true
 	}
 	return false

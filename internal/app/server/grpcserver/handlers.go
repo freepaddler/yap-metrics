@@ -39,6 +39,7 @@ func (s GRPCMetricsHandlers) UpdateMetricsBatch(_ context.Context, in *pb.Metric
 		}
 		metrics = append(metrics, m)
 	}
+	logger.Log().Info().Msgf("GRPC UpdateMetricsBatch: updating %d metrics", len(metrics))
 	err := s.storage.UpdateMany(metrics)
 	if err != nil {
 		logger.Log().Warn().Err(err).Msg("unable to update metrics")
