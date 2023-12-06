@@ -3,6 +3,7 @@ package grpcserver
 import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding"
 	_ "google.golang.org/grpc/encoding/gzip"
 
 	pb "github.com/freepaddler/yap-metrics/internal/pkg/grpc/proto"
@@ -14,6 +15,7 @@ type GRCPServer struct {
 	address      string
 	handlers     *GRPCMetricsHandlers
 	interceptors []grpc.UnaryServerInterceptor
+	encoder      encoding.Codec
 }
 
 func (gs *GRCPServer) GetAddress() string {
@@ -33,6 +35,9 @@ func NewGrpcServer(opts ...func(gs *GRCPServer)) *GRCPServer {
 	)
 	for _, o := range opts {
 		o(gs)
+	}
+	if gs.encoder != nil {
+		encoding.RegisterCodec(gs.encoder)
 	}
 	gs.Server = grpc.NewServer(grpc.ChainUnaryInterceptor(gs.interceptors...))
 	pb.RegisterMetricsServer(gs.Server, gs.handlers)
@@ -56,5 +61,11 @@ func WithInterceptors(interceptors ...grpc.UnaryServerInterceptor) func(server *
 	return func(gs *GRCPServer) {
 		// order makes sense
 		gs.interceptors = append(gs.interceptors, interceptors...)
+	}
+}
+
+func WithEncoder(codec encoding.Codec) func(server *GRCPServer) {
+	return func(gs *GRCPServer) {
+		gs.encoder = codec
 	}
 }

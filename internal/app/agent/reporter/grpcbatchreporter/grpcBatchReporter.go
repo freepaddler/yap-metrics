@@ -7,6 +7,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/gzip"
 
 	pb "github.com/freepaddler/yap-metrics/internal/pkg/grpc/proto"
@@ -19,6 +20,7 @@ type Reporter struct {
 	address      string
 	conn         *grpc.ClientConn
 	interceptors []grpc.UnaryClientInterceptor
+	encoder      encoding.Codec
 }
 
 func (r *Reporter) Close() error {
@@ -29,6 +31,9 @@ func New(opts ...func(r *Reporter)) (*Reporter, error) {
 	reporter := &Reporter{timeout: 5 * time.Second}
 	for _, opt := range opts {
 		opt(reporter)
+	}
+	if reporter.encoder != nil {
+		encoding.RegisterCodec(reporter.encoder)
 	}
 	// setup logging
 	logOpts := []logging.Option{
@@ -42,6 +47,7 @@ func New(opts ...func(r *Reporter)) (*Reporter, error) {
 	reporter.conn, err = grpc.Dial(
 		reporter.address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.CallContentSubtype("rsakeypair")),
 		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 		grpc.WithChainUnaryInterceptor(reporter.interceptors...),
 	)
@@ -68,6 +74,12 @@ func WithInterceptors(interceptors ...grpc.UnaryClientInterceptor) func(*Reporte
 	return func(r *Reporter) {
 		// order makes sense
 		r.interceptors = append(r.interceptors, interceptors...)
+	}
+}
+
+func WithEncoder(codec encoding.Codec) func(reporter *Reporter) {
+	return func(r *Reporter) {
+		r.encoder = codec
 	}
 }
 

@@ -145,7 +145,9 @@ Build commit %s
 		gs = grpcserver.NewGrpcServer(
 			grpcserver.WithAddress(conf.GRPCAddress),
 			grpcserver.WithHandlers(grpcserver.NewGRPCHandlers(storage)),
+			grpcserver.WithEncoder(crypt.NewKeyPairGRPCEncoder("rsakeypair", nil, privateKey)),
 			grpcserver.WithInterceptors(ipmatcher.IPMatchInterceptor(trustedSubnetEnable, *trustedSubnet)),
+			grpcserver.WithInterceptors(sign.SignCheckGRPCInterceptorServer(conf.Key)),
 		)
 	}
 

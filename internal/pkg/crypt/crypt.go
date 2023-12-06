@@ -23,12 +23,13 @@ const (
 )
 
 var (
-	ErrDecrypt    = errors.New("decryption error")
-	ErrEncrypt    = errors.New("encryption error")
-	ErrInvalidPEM = errors.New("invalid PEM file")
-	ErrGenerate   = errors.New("invalid PEM file")
-	useHash       = sha256.New()
-	useRand       = rand.Reader
+	ErrDecrypt        = errors.New("decryption error")
+	ErrEncrypt        = errors.New("encryption error")
+	ErrInvalidPEM     = errors.New("invalid PEM file")
+	ErrGenerate       = errors.New("invalid PEM file")
+	ErrInvalidKeySize = errors.New("key size too small")
+	useHash           = sha256.New()
+	useRand           = rand.Reader
 )
 
 // WritePair generates and writes RSA key pair into io.Writers
@@ -87,6 +88,9 @@ func ReadPrivateKey(in io.Reader) (*rsa.PrivateKey, error) {
 func EncryptOAEP(pub *rsa.PublicKey, msg []byte) ([]byte, error) {
 	msgSize := len(msg)
 	blockSize := pub.Size() - 2*useHash.Size() - 2
+	if blockSize < 10 {
+		return nil, ErrInvalidKeySize
+	}
 	// new message will be not more than block count * public key size
 	encryptedBytes := make([]byte, 0, (len(msg)/blockSize+1)*pub.Size())
 	for startIdx := 0; startIdx < msgSize; startIdx += blockSize {
@@ -161,19 +165,3 @@ func DecryptMiddleware(privateKey *rsa.PrivateKey) func(next http.Handler) http.
 		return http.HandlerFunc(decMW)
 	}
 }
-
-//
-//func DecryptBody(body io.ReadCloser, privKey *rsa.PrivateKey) (io.ReadCloser, error) {
-//	reqBody, err := io.ReadAll(body)
-//	if err != nil {
-//		return nil, ErrRead
-//	}
-//	defer body.Close()
-//	decrypted, err := rsa.DecryptOAEP(sha256.New(), nil, privKey, reqBody, nil)
-//	if err != nil {
-//		return nil, ErrDecrypt
-//	}
-//	var buf bytes.Buffer
-//	buf.Write(decrypted)
-//	return io.NopCloser(&buf), nil
-//}

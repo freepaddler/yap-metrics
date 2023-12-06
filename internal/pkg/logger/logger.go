@@ -95,5 +95,9 @@ func GRPCContextFields(ctx context.Context) logging.Fields {
 	if !ok {
 		return logging.Fields{}
 	}
-	return logging.Fields{"grpc-accept-encoding", md.Get("grpc-accept-encoding")}
+	return logging.Fields{
+		"grpc-accept-encoding", md.Get("grpc-accept-encoding"),
+		"content-type", md.Get("content-type"),
+		"hashsha256", md.Get("hashsha256"),
+	}
 }
