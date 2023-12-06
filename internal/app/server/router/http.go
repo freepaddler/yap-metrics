@@ -27,6 +27,7 @@ type Router struct {
 	crypt        Middleware
 	sign         Middleware
 	profilerPath string
+	checkIP      Middleware
 }
 
 func WithHandler(h MetricsHTTPHandler) func(router *Router) {
@@ -71,6 +72,12 @@ func WithProfilerAt(path string) func(router *Router) {
 	}
 }
 
+func WithIPMatcher(mw Middleware) func(router *Router) {
+	return func(router *Router) {
+		router.checkIP = mw
+	}
+}
+
 func New(opts ...func(router *Router)) http.Handler {
 	router := new(Router)
 	for _, o := range opts {
@@ -81,35 +88,47 @@ func New(opts ...func(router *Router)) http.Handler {
 
 func (router Router) create() http.Handler {
 	r := chi.NewRouter()
-	// adds middleware if not nil
-	mw := func(m Middleware) {
-		if m != nil {
-			r.Use(m)
-		}
-	}
+
 	// middleware order is important
-	mw(router.log)
-	mw(router.gunzip)
-	mw(router.gzip)
-	mw(router.crypt)
-	mw(router.sign)
+	if router.log != nil {
+		r.Use(router.log)
+	}
+	if router.gunzip != nil {
+		r.Use(router.gunzip)
+	}
+	if router.gzip != nil {
+		r.Use(router.gzip)
+	}
 
 	if router.profilerPath != "" {
 		r.Mount(router.profilerPath, middleware.Profiler())
 	}
 
 	r.Get("/", router.handler.IndexMetricHandler)
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/", router.handler.UpdateMetricJSONHandler)
-		r.Post("/{type}/{name}/{value}", router.handler.UpdateMetricHandler)
-	})
 	r.Route("/value", func(r chi.Router) {
 		r.Post("/", router.handler.GetMetricJSONHandler)
 		r.Get("/{type}/{name}", router.handler.GetMetricHandler)
 	})
 	r.Get("/ping", router.handler.PingHandler)
-	r.Route("/updates", func(r chi.Router) {
-		r.Post("/", router.handler.UpdateMetricsBatchHandler)
+
+	// only update routes
+	r.Group(func(r chi.Router) {
+		if router.checkIP != nil {
+			r.Use(router.checkIP)
+		}
+		if router.crypt != nil {
+			r.Use(router.crypt)
+		}
+		if router.sign != nil {
+			r.Use(router.sign)
+		}
+		r.Route("/update", func(r chi.Router) {
+			r.Post("/", router.handler.UpdateMetricJSONHandler)
+			r.Post("/{type}/{name}/{value}", router.handler.UpdateMetricHandler)
+		})
+		r.Route("/updates", func(r chi.Router) {
+			r.Post("/", router.handler.UpdateMetricsBatchHandler)
+		})
 	})
 
 	return r

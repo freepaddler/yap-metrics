@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	defaultServerAddress  = "127.0.0.1:8080"
-	defaultReportInterval = 10
-	defaultPollInterval   = 2
+	defaultServerAddress     = "127.0.0.1:8080"
+	defaultReportInterval    = 10
+	defaultPollInterval      = 2
+	defaultGRPCServerAddress = ""
 
 	defaultHTTPTimeout = 5 * time.Second
 	defaultLogLevel    = "info"
@@ -27,10 +28,11 @@ const (
 
 // Config implements agent configuration
 type Config struct {
-	ServerAddress  string `env:"ADDRESS" json:"address"`
-	ReportInterval uint32 `env:"REPORT_INTERVAL"`
-	PollInterval   uint32 `env:"POLL_INTERVAL"`
-	PublicKeyFile  string `env:"CRYPTO_KEY" json:"crypto_key"`
+	ServerAddress     string `env:"ADDRESS" json:"address"`
+	ReportInterval    uint32 `env:"REPORT_INTERVAL"`
+	PollInterval      uint32 `env:"POLL_INTERVAL"`
+	PublicKeyFile     string `env:"CRYPTO_KEY" json:"crypto_key"`
+	GRPCServerAddress string `env:"GRPC_ADDRESS"`
 
 	HTTPTimeout     time.Duration `env:"HTTP_TIMEOUT"`
 	LogLevel        string        `env:"LOG_LEVEL"`
@@ -174,6 +176,13 @@ func NewConfig() *Config {
 		"c",
 		"",
 		"`path` to configuration file in JSON format",
+	)
+	flag.StringVarP(
+		&c.GRPCServerAddress,
+		"grpc_address",
+		"g",
+		defaultGRPCServerAddress,
+		"metrics collector grpc server address `HOST:PORT` (!) disables http reporter (!)",
 	)
 
 	// parse Flags

@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	_ "net/http/pprof"
+	"net/netip"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,10 +15,12 @@ import (
 
 	"github.com/freepaddler/yap-metrics/internal/app/server"
 	"github.com/freepaddler/yap-metrics/internal/app/server/config"
+	"github.com/freepaddler/yap-metrics/internal/app/server/grpcserver"
 	"github.com/freepaddler/yap-metrics/internal/app/server/handler"
 	"github.com/freepaddler/yap-metrics/internal/app/server/router"
 	"github.com/freepaddler/yap-metrics/internal/pkg/compress"
 	"github.com/freepaddler/yap-metrics/internal/pkg/crypt"
+	"github.com/freepaddler/yap-metrics/internal/pkg/ipmatcher"
 	"github.com/freepaddler/yap-metrics/internal/pkg/logger"
 	"github.com/freepaddler/yap-metrics/internal/pkg/sign"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
@@ -110,6 +113,20 @@ Build commit %s
 	// define http handlers
 	httpHandlers := handler.NewHTTPHandlers(storage)
 
+	// parse trusted subnet
+	var trustedSubnetEnable bool
+	trustedSubnet := new(netip.Prefix)
+	if conf.TrustedSubnet != "" {
+		var err error
+		if *trustedSubnet, err = netip.ParsePrefix(conf.TrustedSubnet); err != nil {
+			logger.Log().Warn().Err(err).Msgf("unable to parse trusted subnet %s", conf.TrustedSubnet)
+			*trustedSubnet = netip.MustParsePrefix("0.0.0.0/0")
+		} else {
+			trustedSubnetEnable = true
+		}
+	}
+	//fmt.Println(trustedSubnetEnable)
+
 	// setup router
 	httpRouter := router.New(
 		router.WithHandler(httpHandlers),
@@ -119,7 +136,20 @@ Build commit %s
 		router.WithCrypt(crypt.DecryptMiddleware(privateKey)),
 		router.WithSign(sign.Middleware(conf.Key)),
 		router.WithProfilerAt("/debug/"),
+		router.WithIPMatcher(ipmatcher.IPMatchMiddleware(trustedSubnetEnable, *trustedSubnet)),
 	)
+
+	// setup grpc
+	var gs *grpcserver.GRCPServer
+	if conf.GRPCAddress != "" {
+		gs = grpcserver.NewGrpcServer(
+			grpcserver.WithAddress(conf.GRPCAddress),
+			grpcserver.WithHandlers(grpcserver.NewGRPCHandlers(storage)),
+			grpcserver.WithEncoder(crypt.NewKeyPairGRPCEncoder("rsakeypair", nil, privateKey)),
+			grpcserver.WithInterceptors(ipmatcher.IPMatchInterceptor(trustedSubnetEnable, *trustedSubnet)),
+			grpcserver.WithInterceptors(sign.SignCheckGRPCInterceptorServer(conf.Key)),
+		)
+	}
 
 	// init and run server
 	app := server.NewServer(
@@ -129,6 +159,7 @@ Build commit %s
 		server.WithStorage(storage),
 		server.WithDumpInterval(conf.StoreInterval),
 		server.WithRestore(conf.Restore),
+		server.WithGRPCServer(gs),
 	)
 	err := app.Run(nCtx)
 	if err != nil {

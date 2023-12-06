@@ -17,11 +17,8 @@ import (
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/internal/pkg/store"
 	"github.com/freepaddler/yap-metrics/mocks"
+	"github.com/freepaddler/yap-metrics/test/utils"
 )
-
-func pointer[T any](val T) *T {
-	return &val
-}
 
 func TestHTTPHandlers_PingHandler(t *testing.T) {
 	var mockController = gomock.NewController(t)
@@ -202,7 +199,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 			name:        "success counter",
 			rawRequest:  `{"id":"name","type":"counter"}`,
 			wantRequest: models.MetricRequest{Name: "name", Type: "counter"},
-			counterVal:  pointer(int64(10)),
+			counterVal:  utils.Pointer(int64(10)),
 
 			want:     `{"id":"name","type":"counter","delta":10}`,
 			wantCode: http.StatusOK,
@@ -212,7 +209,7 @@ func TestHTTPHandlers_GetMetricJSON(t *testing.T) {
 			name:        "success gauge",
 			rawRequest:  `{"id":"name","type":"gauge"}`,
 			wantRequest: models.MetricRequest{Name: "name", Type: "gauge"},
-			gaugeVal:    pointer(-1000.0001),
+			gaugeVal:    utils.Pointer(-1000.0001),
 
 			want:     `{"id":"name","type":"gauge","value":-1000.0001}`,
 			wantCode: http.StatusOK,
@@ -303,7 +300,7 @@ func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 			mName:  "name",
 			mType:  "counter",
 			mValue: "12",
-			delta:  pointer(int64(12)),
+			delta:  utils.Pointer(int64(12)),
 
 			counterVal: 10,
 			wantValue:  "10",
@@ -316,7 +313,7 @@ func TestHTTPHandlers_UpdateMetric(t *testing.T) {
 			mName:  "name",
 			mType:  "gauge",
 			mValue: "1.117",
-			value:  pointer(1.117),
+			value:  utils.Pointer(1.117),
 
 			gaugeVal:  0.119,
 			wantValue: "0.119",
@@ -417,8 +414,8 @@ func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
 		{
 			name:        "success counter",
 			rawRequest:  `{"id":"name","type":"counter","delta":10}`,
-			wantRequest: models.Metrics{Name: "name", Type: "counter", IValue: pointer(int64(10))},
-			counterVal:  pointer(int64(12)),
+			wantRequest: models.Metrics{Name: "name", Type: "counter", IValue: utils.Pointer(int64(10))},
+			counterVal:  utils.Pointer(int64(12)),
 
 			want:     `{"id":"name","type":"counter","delta":12}`,
 			wantCode: http.StatusOK,
@@ -427,8 +424,8 @@ func TestHTTPHandlers_UpdateMetricJSON(t *testing.T) {
 		{
 			name:        "success gauge",
 			rawRequest:  `{"id":"name","type":"gauge","value":0.197}`,
-			wantRequest: models.Metrics{Name: "name", Type: "gauge", FValue: pointer(0.197)},
-			gaugeVal:    pointer(-19.19),
+			wantRequest: models.Metrics{Name: "name", Type: "gauge", FValue: utils.Pointer(0.197)},
+			gaugeVal:    utils.Pointer(-19.19),
 
 			want:     `{"id":"name","type":"gauge","value":-19.19}`,
 			wantCode: http.StatusOK,
@@ -526,8 +523,8 @@ func TestHTTPHandlers_UpdateMetricBatch(t *testing.T) {
 				{"id":"name","type":"counter","delta":-10}
 			]`,
 			wantRequest: []models.Metrics{
-				{Name: "name", Type: "gauge", FValue: pointer(19.1970)},
-				{Name: "name", Type: "counter", IValue: pointer(int64(-10))},
+				{Name: "name", Type: "gauge", FValue: utils.Pointer(19.1970)},
+				{Name: "name", Type: "counter", IValue: utils.Pointer(int64(-10))},
 			},
 			wantCode: http.StatusOK,
 			wantCall: 1,

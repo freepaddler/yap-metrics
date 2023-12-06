@@ -85,6 +85,7 @@ func TestAgent_Run(t *testing.T) {
 				reporter.EXPECT().Send(metrics).Return(nil),
 				reporter.EXPECT().Send(metrics).Return(tt.lastResult),
 			)
+			reporter.EXPECT().Close().Times(1)
 			err := app.Run(ctx)
 			if tt.wantErr != nil {
 				require.ErrorIsf(t, err, tt.wantErr, "Expect error '%s', got '%s'", tt.wantErr, err)
