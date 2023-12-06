@@ -16,11 +16,8 @@ import (
 
 	pb "github.com/freepaddler/yap-metrics/internal/pkg/grpc/proto"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/test/utils"
 )
-
-func pointer[T any](val T) *T {
-	return &val
-}
 
 type mockMetricsServer struct {
 	pb.UnimplementedMetricsServer
@@ -61,13 +58,13 @@ func TestReporter_Send(t *testing.T) {
 		{
 			name:        "ok",
 			grpcRequest: true,
-			metrics:     []models.Metrics{{Name: "c1", Type: models.Counter, IValue: pointer(int64(10))}},
+			metrics:     []models.Metrics{{Name: "c1", Type: models.Counter, IValue: utils.Pointer(int64(10))}},
 			wantCode:    codes.OK,
 		},
 		{
 			name:        "error",
 			grpcRequest: true,
-			metrics:     []models.Metrics{{Name: "c1", Type: models.Counter, IValue: pointer(int64(10))}},
+			metrics:     []models.Metrics{{Name: "c1", Type: models.Counter, IValue: utils.Pointer(int64(10))}},
 			returnErr:   status.Error(codes.InvalidArgument, "some"),
 			wantCode:    codes.InvalidArgument,
 		},

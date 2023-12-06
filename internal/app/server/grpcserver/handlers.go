@@ -35,6 +35,7 @@ func (s GRPCMetricsHandlers) UpdateMetricsBatch(ctx context.Context, in *pb.Metr
 	if !ok {
 		logger.Log().Warn().Msg("failed to read request metadata")
 	}
+	// TODO: delete
 	for k, v := range md {
 		fmt.Printf("%s: %s\n", k, v)
 	}

@@ -145,6 +145,7 @@ Build commit %s
 		gs = grpcserver.NewGrpcServer(
 			grpcserver.WithAddress(conf.GRPCAddress),
 			grpcserver.WithHandlers(grpcserver.NewGRPCHandlers(storage)),
+			grpcserver.WithInterceptors(ipmatcher.IPMatchInterceptor(trustedSubnetEnable, *trustedSubnet)),
 		)
 	}
 

@@ -18,11 +18,8 @@ import (
 	pb "github.com/freepaddler/yap-metrics/internal/pkg/grpc/proto"
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
 	"github.com/freepaddler/yap-metrics/mocks"
+	"github.com/freepaddler/yap-metrics/test/utils"
 )
-
-func pointer[T any](val T) *T {
-	return &val
-}
 
 // dialer is a server-client mock
 func dialer(h *GRPCMetricsHandlers) func(context.Context, string) (net.Conn, error) {
@@ -67,7 +64,7 @@ func TestMetricsServer_UpdateMetricsBatch(t *testing.T) {
 				{Id: "c1", Type: pb.Metric_COUNTER, Delta: int64(128)},
 			},
 			wantRequest: []models.Metrics{
-				{Name: "c1", Type: models.Counter, IValue: pointer(int64(128))},
+				{Name: "c1", Type: models.Counter, IValue: utils.Pointer(int64(128))},
 			},
 			wantCalls: 1,
 			wantCode:  codes.OK,
@@ -86,8 +83,8 @@ func TestMetricsServer_UpdateMetricsBatch(t *testing.T) {
 				{Id: "g1", Type: pb.Metric_GAUGE, Value: -117.09},
 			},
 			wantRequest: []models.Metrics{
-				{Name: "c1", Type: models.Counter, IValue: pointer(int64(128))},
-				{Name: "g1", Type: models.Gauge, FValue: pointer(-117.09)},
+				{Name: "c1", Type: models.Counter, IValue: utils.Pointer(int64(128))},
+				{Name: "g1", Type: models.Gauge, FValue: utils.Pointer(-117.09)},
 			},
 			wantCalls: 1,
 			wantCode:  codes.OK,
@@ -107,7 +104,7 @@ func TestMetricsServer_UpdateMetricsBatch(t *testing.T) {
 				{Id: "c1", Type: pb.Metric_COUNTER, Delta: int64(128)},
 			},
 			wantRequest: []models.Metrics{
-				{Name: "c1", Type: models.Counter, IValue: pointer(int64(128))},
+				{Name: "c1", Type: models.Counter, IValue: utils.Pointer(int64(128))},
 			},
 			wantCalls:   1,
 			returnError: errors.New("some error"),

@@ -6,11 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/freepaddler/yap-metrics/internal/pkg/models"
+	"github.com/freepaddler/yap-metrics/test/utils"
 )
-
-func pointer[T any](val T) *T {
-	return &val
-}
 
 func TestMetric_FromMetrics(t *testing.T) {
 	tests := []struct {
@@ -21,12 +18,12 @@ func TestMetric_FromMetrics(t *testing.T) {
 	}{
 		{
 			name:   "counter",
-			metric: models.Metrics{Name: "c1", Type: models.Counter, IValue: pointer(int64(-19))},
+			metric: models.Metrics{Name: "c1", Type: models.Counter, IValue: utils.Pointer(int64(-19))},
 			want:   &Metric{Id: "c1", Type: Metric_COUNTER, Delta: int64(-19)},
 		},
 		{
 			name:   "gauge",
-			metric: models.Metrics{Name: "g1", Type: models.Gauge, FValue: pointer(12312.1312)},
+			metric: models.Metrics{Name: "g1", Type: models.Gauge, FValue: utils.Pointer(12312.1312)},
 			want:   &Metric{Id: "g1", Type: Metric_GAUGE, Value: 12312.1312},
 		},
 	}
@@ -60,23 +57,23 @@ func TestMetric_ToMetrics(t *testing.T) {
 		{
 			name:   "counter",
 			fields: fields{ID: "c1", Type: Metric_COUNTER, Delta: 138},
-			want:   models.Metrics{Name: "c1", Type: models.Counter, IValue: pointer(int64(138))},
+			want:   models.Metrics{Name: "c1", Type: models.Counter, IValue: utils.Pointer(int64(138))},
 		},
 		{
 			name:   "gauge",
 			fields: fields{ID: "g1", Type: Metric_GAUGE, Value: -0.117},
-			want:   models.Metrics{Name: "g1", Type: models.Gauge, FValue: pointer(-0.117)},
+			want:   models.Metrics{Name: "g1", Type: models.Gauge, FValue: utils.Pointer(-0.117)},
 		},
 		{
 			name:    "no name",
 			fields:  fields{Type: Metric_GAUGE, Value: -0.117},
-			want:    models.Metrics{Name: "g1", Type: models.Gauge, FValue: pointer(-0.117)},
+			want:    models.Metrics{Name: "g1", Type: models.Gauge, FValue: utils.Pointer(-0.117)},
 			wantErr: models.ErrInvalidMetric,
 		},
 		{
 			name:    "bad type",
 			fields:  fields{ID: "g1", Type: Metric_UNSPECIFIED, Value: -0.117},
-			want:    models.Metrics{Name: "g1", Type: models.Gauge, FValue: pointer(-0.117)},
+			want:    models.Metrics{Name: "g1", Type: models.Gauge, FValue: utils.Pointer(-0.117)},
 			wantErr: models.ErrInvalidMetric,
 		},
 	}

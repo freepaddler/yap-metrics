@@ -7,7 +7,7 @@ func main() {
 	func() {
 		osx.Exit(1) // want "direct call of os.Exit is not allowed"
 	}()
-	if true == false {
+	if false {
 		osx.Exit(1) // want "direct call of os.Exit is not allowed"
 	}
 	go osx.Exit(1) // want "direct call of os.Exit is not allowed"

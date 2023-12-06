@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	logLevel zerolog.Level = zerolog.InfoLevel // default log level
+	logLevel = zerolog.InfoLevel // default log level
 )
 
 var (
